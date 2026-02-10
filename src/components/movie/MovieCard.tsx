@@ -18,6 +18,9 @@ export default function MovieCard({
         <h3>{title}</h3>
         <p className="probability">{probabilityText}</p>
         <p className="reason">{reason}</p>
+        <button className="ghost-btn movie-detail-btn" type="button">
+          상세 보기
+        </button>
       </div>
     </div>
   );

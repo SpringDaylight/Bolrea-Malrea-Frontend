@@ -99,7 +99,7 @@ export default function HomePage() {
   };
   return (
     <MainLayout>
-      <main className="container">
+      <main className="container home-page">
         <section className="hero">
           <div>
             {/* <p className="eyebrow">Discover</p> */}
@@ -141,12 +141,15 @@ export default function HomePage() {
                     />
                     <div className="movie-info">
                       <h3>{movie.title}</h3>
+                      {/* <p className="movie-rating">
+                        평점 {typeof movie.rating === "number" ? movie.rating.toFixed(1) : "정보 없음"}
+                      </p> */}
                       <p className="muted">
                         {movie.synopsis 
                           ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
                           : '줄거리 정보가 없습니다.'}
                       </p>
-                      <span className="ghost-btn">자세히 보기</span>
+                      <span className="ghost-btn movie-detail-btn">자세히 보기</span>
                     </div>
                   </article>
                 </Link>

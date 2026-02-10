@@ -193,6 +193,7 @@ textarea {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
 .search-input {
@@ -338,8 +339,38 @@ textarea {
   align-items: stretch;
 }
 
+.movies-page .movie-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.home-page .movie-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .taste-analysis-page .movie-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .movies-page .movie-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .home-page .movie-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .movies-page .movie-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-page .movie-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -357,6 +388,18 @@ textarea {
 .movie-tile {
   display: flex;
   gap: 14px;
+}
+
+.movie-tile .movie-info,
+.movie-card .movie-info {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.movie-detail-btn {
+  margin-top: auto;
+  align-self: flex-end;
 }
 
 .poster {
@@ -403,6 +446,43 @@ textarea {
   text-underline-offset: 4px;
 }
 
+.pagination {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.page-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-width: 38px;
+}
+
+.page-btn.active {
+  background: var(--accent-soft);
+  border-color: rgba(255, 47, 110, 0.3);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  color: var(--text-subtle);
+  padding: 0 4px;
+}
+
 .movie-info h3,
 .movie-info h4 {
   font-size: 1rem;
@@ -412,6 +492,13 @@ textarea {
 .probability {
   font-size: 1.1rem;
   font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.movie-rating {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--accent);
   margin-bottom: 6px;
 }

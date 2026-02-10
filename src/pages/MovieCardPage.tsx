@@ -11,7 +11,11 @@ export default function MovieCardSample() {
         <h3>라라랜드</h3>
         <p className="probability">만족 확률 74%</p>
         <p className="reason">음악과 성장 서사를 좋아하셨어요</p>
+        <button className="ghost-btn movie-detail-btn" type="button">
+          �� ����
+        </button>
       </div>
     </div>
   );
 }
+

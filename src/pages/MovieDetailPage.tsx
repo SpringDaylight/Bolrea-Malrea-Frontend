@@ -116,7 +116,7 @@ export default function MovieDetailPage() {
         <section className="section">
           <div className="section-header">
             <h2>내 리뷰</h2>
-            <p>내가 남긴 코멘트</p>
+            {/* <p>내가 남긴 코멘트</p> */}
           </div>
           <article className="card review-card review-empty">
             <p className="muted">아직 이 영화에 대한 내 리뷰가 없어요.</p>

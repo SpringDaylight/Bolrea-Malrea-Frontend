@@ -147,6 +147,7 @@ export default function TasteAnalysisPage() {
                   <p className="muted">
                     우주 스케일과 가족 서사의 균형이 인상적이었어요.
                   </p>
+                  <span className="ghost-btn movie-detail-btn">�� ����</span>
                 </div>
               </article>
             </Link>
@@ -159,9 +160,10 @@ export default function TasteAnalysisPage() {
                   alt="이터널 선샤인 포스터"
                 />
                 <div className="movie-info">
-                  <h3>이터널 선샤인</h3>
+                  <h3>이터널 선샤인?</h3>
                   <p className="probability">평점 4.6</p>
                   <p className="muted">관계의 감정선을 섬세하게 다뤘어요.</p>
+                  <span className="ghost-btn movie-detail-btn">�� ����</span>
                 </div>
               </article>
             </Link>
@@ -177,6 +179,7 @@ export default function TasteAnalysisPage() {
                   <h3>???</h3>
                   <p className="probability">?? 4.7</p>
                   <p className="muted">??? ?? ???? ???? ????.</p>
+                  <span className="ghost-btn movie-detail-btn">�� ����</span>
                 </div>
               </article>
             </Link>
@@ -192,6 +195,7 @@ export default function TasteAnalysisPage() {
                   <h3>????</h3>
                   <p className="probability">?? 4.5</p>
                   <p className="muted">???? ??? ?? ?? ?????.</p>
+                  <span className="ghost-btn movie-detail-btn">�� ����</span>
                 </div>
               </article>
             </Link>
@@ -201,3 +205,5 @@ export default function TasteAnalysisPage() {
     </MainLayout>
   );
 }
+
+

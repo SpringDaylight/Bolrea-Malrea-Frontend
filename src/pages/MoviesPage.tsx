@@ -35,6 +35,8 @@ export default function MoviesPage() {
   const [appliedSorts, setAppliedSorts] = useState<string[]>([]);
   const [appliedGenres, setAppliedGenres] = useState<string[]>([]);
   const [appliedQuery, setAppliedQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Initialize from URL query params
   useEffect(() => {
@@ -51,6 +53,9 @@ export default function MoviesPage() {
       setSelectedGenres(genreList);
       setAppliedGenres(genreList);
     }
+    if (queryFromUrl || genresFromUrl) {
+      setCurrentPage(1);
+    }
   }, [searchParams]);
 
   // Fetch movies from API
@@ -66,10 +71,16 @@ export default function MoviesPage() {
           query: appliedQuery || undefined,
           genres,
           sort,
-          page_size: 50,
+          page: currentPage,
+          page_size: 20,
         });
         
         setMovies(response.movies);
+        const nextTotalPages = Math.max(
+          1,
+          Math.ceil(response.total / response.page_size)
+        );
+        setTotalPages(nextTotalPages);
       } catch (err) {
         setError('영화 목록을 불러오는데 실패했습니다.');
         console.error('Failed to fetch movies:', err);
@@ -79,7 +90,7 @@ export default function MoviesPage() {
     };
 
     fetchMovies();
-  }, [appliedSorts, appliedGenres, appliedQuery]);
+  }, [appliedSorts, appliedGenres, appliedQuery, currentPage]);
 
   const toggleValue = (
     value: string,
@@ -93,21 +104,44 @@ export default function MoviesPage() {
     setList([...list, value]);
   };
 
+  const handleSortSelect = (value: string) => {
+    setSelectedSorts((prev) => (prev[0] === value ? [] : [value]));
+  };
+
   const handleApplyFilters = () => {
     setAppliedSorts(selectedSorts);
     setAppliedGenres(selectedGenres);
     setAppliedQuery(searchQuery);
+    setCurrentPage(1);
   };
+
+  const pageWindow = (() => {
+    const windowSize = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, currentPage + 2);
+
+    if (currentPage <= 3) {
+      end = Math.min(totalPages, windowSize);
+    }
+
+    if (currentPage >= totalPages - 2) {
+      start = Math.max(1, totalPages - (windowSize - 1));
+    }
+
+    return { start, end };
+  })();
 
   return (
     <MainLayout>
-      <main className="container">
+      <main className="container movies-page">
         <section className="page-title">
           <h1>영화 목록</h1>
-          <p>장르와 분위기에 따라 원하는 기준으로 골라보세요.</p>
         </section>
 
         <section className="section card">
+          <div className="section-header">
+            <p>장르와 분위기에 따라 원하는 기준으로 골라보세요.</p>
+          </div>
           <div className="section-search">
             <div className="hero-actions">
               <input
@@ -144,9 +178,7 @@ export default function MoviesPage() {
                       selectedSorts.includes(filter.value) ? "active" : ""
                     }`}
                     type="button"
-                    onClick={() =>
-                      toggleValue(filter.value, selectedSorts, setSelectedSorts)
-                    }
+                    onClick={() => handleSortSelect(filter.value)}
                   >
                     {filter.label}
                   </button>
@@ -204,22 +236,89 @@ export default function MoviesPage() {
                     />
                     <div className="movie-info">
                       <h3>{movie.title}</h3>
+                      {/* <p className="movie-rating">
+                        평점 {typeof movie.rating === "number" ? movie.rating.toFixed(1) : "정보 없음"}
+                      </p> */}
                       <p className="muted">
                         {movie.synopsis 
                           ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
                           : '줄거리 정보가 없습니다.'}
                       </p>
-                      <span className="ghost-btn">상세 보기</span>
                       <div className="meta-list">
                         {movie.genres.slice(0, 3).map((genre) => (
                           <span key={genre}>{genre}</span>
                         ))}
                         {movie.runtime && <span>{movie.runtime}분</span>}
                       </div>
+                      <span className="ghost-btn movie-detail-btn">자세히 보기</span>
                     </div>
                   </article>
                 </Link>
               ))}
+            </div>
+          )}
+
+          {!loading && !error && totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="page-btn"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+
+              {pageWindow.start > 1 && (
+                <>
+                  <button
+                    className="page-btn"
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                  >
+                    1
+                  </button>
+                  <span className="pagination-ellipsis">...</span>
+                </>
+              )}
+
+              {Array.from(
+                { length: pageWindow.end - pageWindow.start + 1 },
+                (_, index) => pageWindow.start + index
+              ).map((page) => (
+                <button
+                  key={page}
+                  className={`page-btn ${page === currentPage ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {pageWindow.end < totalPages && (
+                <>
+                  <span className="pagination-ellipsis">...</span>
+                  <button
+                    className="page-btn"
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              <button
+                className="page-btn"
+                type="button"
+                onClick={() =>
+                  setCurrentPage((page) => Math.min(totalPages, page + 1))
+                }
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
             </div>
           )}
         </section>

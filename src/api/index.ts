@@ -64,17 +64,46 @@ export type {
 // Auth API
 export * from './auth';
 
+// ML API
+export {
+  analyzePreference,
+  vectorizeMovie,
+  predictSatisfaction,
+  explainPrediction,
+  emotionalSearch,
+  simulateGroup,
+  getTasteMap,
+  getMovieRecommendation,
+} from './ml';
+export type {
+  UserProfile,
+  MovieProfile,
+  SatisfactionPrediction,
+  PredictionExplanation,
+  GroupSimulationResult,
+  TasteMapResponse,
+  AnalyzePreferenceRequest,
+  MovieVectorRequest,
+  PredictSatisfactionRequest,
+  ExplainPredictionRequest,
+  EmotionalSearchRequest,
+  GroupSimulateRequest,
+  TasteMapRequest,
+} from './ml';
+
 // Re-export for convenience
 import * as moviesApi from './A2_movies';
 import * as reviewsApi from './A6_reviews';
 import * as profileApi from './A7_profile';
 import * as authApi from './auth';
+import * as mlApi from './ml';
 
 export const api = {
   movies: moviesApi,
   reviews: reviewsApi,
   profile: profileApi,
   auth: authApi,
+  ml: mlApi,
 };
 
 export default api;

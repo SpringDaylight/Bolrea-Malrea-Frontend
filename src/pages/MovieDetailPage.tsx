@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
+import { 
+  analyzePreference, 
+  vectorizeMovie, 
+  predictSatisfaction, 
+  explainPrediction,
+  type SatisfactionPrediction,
+  type PredictionExplanation 
+} from "../api/ml";
 
 export default function MovieDetailPage() {
   const navigate = useNavigate();
@@ -11,6 +19,9 @@ export default function MovieDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prediction, setPrediction] = useState<SatisfactionPrediction | null>(null);
+  const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
+  const [mlLoading, setMlLoading] = useState(false);
   const locationState = location.state as {
     newReview?: Review;
     userReview?: Review;
@@ -38,6 +49,9 @@ export default function MovieDetailPage() {
         } else {
           setReviews(reviewsData.reviews);
         }
+
+        // ML API: 사용자 취향 기반 영화 적합도 계산
+        fetchMovieRecommendation(movieData);
       } catch (err) {
         setError('영화 정보를 불러오는데 실패했습니다.');
         console.error('Failed to fetch movie data:', err);
@@ -48,6 +62,64 @@ export default function MovieDetailPage() {
 
     fetchMovieData();
   }, [movieId, personalReview?.id, personalReview?.movie_id]);
+
+  const fetchMovieRecommendation = async (movieData: Movie) => {
+    setMlLoading(true);
+    try {
+      // localStorage에서 사용자 취향 정보 가져오기
+      const userTasteText = localStorage.getItem('mw_taste_vibe') || '';
+      const userKeywords = JSON.parse(localStorage.getItem('mw_taste_keywords') || '[]');
+      const userAvoidGenres = JSON.parse(localStorage.getItem('mw_taste_avoid_genres') || '[]');
+      
+      if (!userTasteText) {
+        // 취향 정보가 없으면 ML API 호출 안 함
+        return;
+      }
+
+      const userText = `${userTasteText} ${userKeywords.join(', ')}`;
+      const userDislikes = userAvoidGenres.join(', ');
+
+      // 1. 사용자 취향 분석
+      const userProfile = await analyzePreference({
+        text: userText,
+        dislikes: userDislikes || undefined,
+      });
+
+      // 2. 영화 벡터화
+      const movieProfile = await vectorizeMovie({
+        movie_id: movieData.id,
+        title: movieData.title,
+        overview: movieData.synopsis || undefined,
+        genres: movieData.genres,
+        keywords: movieData.tags,
+      });
+
+      // 3. 만족 확률 계산
+      const predictionResult = await predictSatisfaction({
+        user_profile: userProfile,
+        movie_profile: movieProfile,
+        dislike_tags: userProfile.dislike_tags,
+        boost_tags: userProfile.boost_tags,
+      });
+      setPrediction(predictionResult);
+
+      // 4. 설명 생성
+      const explanationResult = await explainPrediction({
+        movie_title: movieData.title,
+        match_rate: predictionResult.match_rate,
+        probability: predictionResult.probability,
+        breakdown: predictionResult.breakdown,
+        user_liked_tags: userProfile.boost_tags,
+        user_disliked_tags: userProfile.dislike_tags,
+      });
+      setExplanation(explanationResult);
+    } catch (err) {
+      console.error('Failed to fetch ML recommendation:', err);
+      // ML API 실패는 치명적이지 않으므로 에러 표시 안 함
+    } finally {
+      setMlLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -109,18 +181,42 @@ export default function MovieDetailPage() {
 
             <div className="section" style={{ marginTop: 18 }}>
               <h3>나와의 적합도</h3>
-              <p className="probability">적합 확률 83%</p>
-              <ul className="list">
-                <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
-                <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
-                <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
-              </ul>
+              {mlLoading ? (
+                <p className="muted">분석 중...</p>
+              ) : prediction && explanation ? (
+                <>
+                  <p className="probability">적합 확률 {Math.round(prediction.match_rate)}%</p>
+                  <p className="muted" style={{ marginTop: 8, marginBottom: 12 }}>
+                    {explanation.explanation}
+                  </p>
+                  <ul className="list">
+                    {explanation.key_factors.slice(0, 3).map((factor, idx) => (
+                      <li key={idx}>
+                        {factor.label}: {Math.round(factor.score * 100)}% 일치
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p className="probability">적합 확률 83%</p>
+                  <ul className="list">
+                    <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
+                    <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
+                    <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
+                  </ul>
+                </>
+              )}
             </div>
 
-            <div className="section" style={{ marginTop: 18 }}>
-              <h3>주의할 점</h3>
-              <p className="muted">후반부 과학 설정이 어렵게 느껴질 수 있어요.</p>
-            </div>
+            {prediction && prediction.breakdown.dislike_penalty > 0 && (
+              <div className="section" style={{ marginTop: 18 }}>
+                <h3>주의할 점</h3>
+                <p className="muted">
+                  선호하지 않는 요소가 일부 포함되어 있을 수 있습니다.
+                </p>
+              </div>
+            )}
 
             {/* <div className="hero-actions" style={{ marginTop: 18 }}>
               <button className="primary-btn">바로 감상하기</button>

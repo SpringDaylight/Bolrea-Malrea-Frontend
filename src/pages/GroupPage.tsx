@@ -1,9 +1,25 @@
 import { useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
+import { 
+  simulateGroup, 
+  vectorizeMovie,
+  type GroupSimulationResult,
+  type UserProfile 
+} from "../api/ml";
+import { searchMovies, type Movie } from "../api/A2_movies";
 
 export default function GroupPage() {
-  const [groupType, setGroupType] = useState("개인");
+  const [groupType, setGroupType] = useState("친구");
   const [userQuery, setUserQuery] = useState("");
+  const [movieQuery, setMovieQuery] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [movieSearchResults, setMovieSearchResults] = useState<Movie[]>([]);
+  const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 더미 사용자 데이터 (실제로는 API에서 가져와야 함)
   const userResults = [
     { id: "mirae_01", name: "미래", nickname: "미래" },
     { id: "noir_02", name: "노을", nickname: "노을빛" },
@@ -17,6 +33,94 @@ export default function GroupPage() {
       user.id.toLowerCase().includes(query)
     );
   });
+
+  const handleMemberToggle = (userId: string) => {
+    setSelectedMembers((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleMovieSearch = async () => {
+    if (!movieQuery.trim()) {
+      setMovieSearchResults([]);
+      return;
+    }
+
+    try {
+      const results = await searchMovies(movieQuery, 1);
+      setMovieSearchResults(results.movies.slice(0, 5));
+    } catch (err) {
+      console.error('Failed to search movies:', err);
+    }
+  };
+
+  const handleMovieSelect = async (movie: Movie) => {
+    setSelectedMovie(movie);
+    setMovieSearchResults([]);
+    setMovieQuery(movie.title);
+  };
+
+  const handleAnalyze = async () => {
+    if (selectedMembers.length === 0) {
+      setError('최소 1명 이상의 멤버를 선택해주세요.');
+      return;
+    }
+
+    if (!selectedMovie) {
+      setError('영화를 선택해주세요.');
+      return;
+    }
+
+    setAnalyzing(true);
+    setError(null);
+
+    try {
+      // 각 멤버의 취향 프로필 가져오기 (더미 데이터)
+      // 실제로는 각 사용자의 저장된 프로필을 가져와야 함
+      const currentUserProfile = localStorage.getItem("mw_user_profile");
+      if (!currentUserProfile) {
+        setError('취향 분석 데이터가 없습니다. 먼저 취향 설문을 완료해주세요.');
+        setAnalyzing(false);
+        return;
+      }
+
+      const userProfile = JSON.parse(currentUserProfile) as UserProfile;
+
+      // 영화 벡터화
+      const movieProfile = await vectorizeMovie({
+        movie_id: selectedMovie.id,
+        title: selectedMovie.title,
+        overview: selectedMovie.synopsis || undefined,
+        genres: selectedMovie.genres,
+        keywords: selectedMovie.tags,
+      });
+
+      // 그룹 시뮬레이션 (현재는 본인만 포함)
+      const result = await simulateGroup({
+        members: [
+          {
+            user_id: "me",
+            profile: userProfile,
+            dislikes: userProfile.dislike_tags,
+            likes: userProfile.boost_tags,
+          },
+          // 실제로는 선택된 멤버들의 프로필을 모두 포함
+        ],
+        movie_profile: movieProfile,
+        strategy: "least_misery",
+      });
+
+      setGroupResult(result);
+    } catch (err) {
+      console.error('Failed to analyze group:', err);
+      setError('그룹 분석에 실패했습니다.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <MainLayout>
       <main className="container">
@@ -37,76 +141,135 @@ export default function GroupPage() {
               <option>연인</option>
               <option>기타</option>
             </select>
-            {groupType !== "" && (
-              <>
-                <label>사용자 검색</label>
-                <input
-                  type="text"
-                  placeholder="사용자 이름/닉네임/아이디 검색"
-                  value={userQuery}
-                  onChange={(event) => setUserQuery(event.target.value)}
-                />
-                {userQuery.trim().length > 0 && (
-                  <div className="search-results">
-                    {userResults.length == 0 && (
-                      <div className="search-empty">검색 결과가 없습니다.</div>
-                    )}
-                    {userResults.map((user) => (
-                      <button className="search-item" type="button" key={user.id}>
-                        <strong>{user.nickname}</strong>
-                        <span>{user.name}</span>
-                        <span className="muted">@{user.id}</span>
-                      </button>
-                    ))}
-                  </div>
+
+            <label>사용자 검색</label>
+            <input
+              type="text"
+              placeholder="사용자 이름/닉네임/아이디 검색"
+              value={userQuery}
+              onChange={(event) => setUserQuery(event.target.value)}
+            />
+            {userQuery.trim().length > 0 && (
+              <div className="search-results">
+                {userResults.length === 0 && (
+                  <div className="search-empty">검색 결과가 없습니다.</div>
                 )}
-              </>
+                {userResults.map((user) => (
+                  <button
+                    className={`search-item ${
+                      selectedMembers.includes(user.id) ? "active" : ""
+                    }`}
+                    type="button"
+                    key={user.id}
+                    onClick={() => handleMemberToggle(user.id)}
+                  >
+                    <strong>{user.nickname}</strong>
+                    <span>{user.name}</span>
+                    <span className="muted">@{user.id}</span>
+                    {selectedMembers.includes(user.id) && <span> ✓</span>}
+                  </button>
+                ))}
+              </div>
             )}
+
+            {selectedMembers.length > 0 && (
+              <div className="tag-list" style={{ marginTop: 8 }}>
+                <p className="muted">선택된 멤버: {selectedMembers.length}명</p>
+              </div>
+            )}
+
             <label>영화 선택</label>
-            <input type="text" placeholder="영화 제목 입력" />
-            <button className="primary-btn">분석하기</button>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="영화 제목 입력"
+                value={movieQuery}
+                onChange={(event) => {
+                  setMovieQuery(event.target.value);
+                  if (event.target.value.length > 1) {
+                    handleMovieSearch();
+                  } else {
+                    setMovieSearchResults([]);
+                  }
+                }}
+              />
+              {movieSearchResults.length > 0 && (
+                <div className="search-results">
+                  {movieSearchResults.map((movie) => (
+                    <button
+                      className="search-item"
+                      type="button"
+                      key={movie.id}
+                      onClick={() => handleMovieSelect(movie)}
+                    >
+                      <strong>{movie.title}</strong>
+                      <span className="muted">
+                        {movie.release ? new Date(movie.release).getFullYear() : ''} · 
+                        {movie.genres.slice(0, 2).join('/')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {error && <p className="error">{error}</p>}
+
+            <button
+              className="primary-btn"
+              onClick={handleAnalyze}
+              disabled={analyzing || selectedMembers.length === 0 || !selectedMovie}
+            >
+              {analyzing ? '분석 중...' : '분석하기'}
+            </button>
           </div>
         </section>
 
-        <section className="section">
-          <article className="card">
-            <div className="movie-tile">
-              <img
-                className="poster"
-                src="https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg"
-                alt="기생충 포스터"
-              />
-              <div className="movie-info">
-                <h3>기생충</h3>
-                <p className="probability">그룹 만족 확률 67%</p>
-                <p className="muted">
-                  사회적 메시지와 서스펜스 모두 충족하는 선택지예요.
-                </p>
+        {groupResult && selectedMovie && (
+          <section className="section">
+            <article className="card">
+              <div className="movie-tile">
+                <img
+                  className="poster"
+                  src={selectedMovie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
+                  alt={`${selectedMovie.title} 포스터`}
+                />
+                <div className="movie-info">
+                  <h3>{selectedMovie.title}</h3>
+                  <p className="probability">
+                    그룹 만족 확률 {Math.round(groupResult.group_score * 100)}%
+                  </p>
+                  <p className="muted">{groupResult.comment}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="section" style={{ marginTop: 16 }}>
-              <h3>멤버별 예상 반응</h3>
-              <ul className="list">
-                <li>A님: 매우 만족</li>
-                <li>B님: 무난</li>
-                <li>C님: 다소 지루</li>
-              </ul>
-            </div>
+              <div className="section" style={{ marginTop: 16 }}>
+                <h3>멤버별 예상 반응</h3>
+                <ul className="list">
+                  {groupResult.members.map((member) => (
+                    <li key={member.user_id}>
+                      {member.user_id}: {member.level} ({Math.round(member.probability * 100)}%)
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-            <div className="section" style={{ marginTop: 16 }}>
-              <h3>해석 요약</h3>
-              <p className="muted">
-                공통적으로 사회적 풍자와 관계 중심 서사를 선호하지만, 템포
-                취향은 다릅니다.
-              </p>
-            </div>
+              <div className="section" style={{ marginTop: 16 }}>
+                <h3>추천 의견</h3>
+                <p className="muted">{groupResult.recommendation}</p>
+              </div>
 
-            <button className="secondary-btn" style={{ marginTop: 18 }}>
-              대안 영화 보기
-            </button>
-          </article>
-        </section>
+              <div className="section" style={{ marginTop: 16 }}>
+                <h3>통계</h3>
+                <ul className="list">
+                  <li>최소 만족도: {Math.round(groupResult.statistics.min_satisfaction * 100)}%</li>
+                  <li>최대 만족도: {Math.round(groupResult.statistics.max_satisfaction * 100)}%</li>
+                  <li>평균 만족도: {Math.round(groupResult.statistics.avg_satisfaction * 100)}%</li>
+                </ul>
+              </div>
+            </article>
+          </section>
+        )}
       </main>
     </MainLayout>
   );

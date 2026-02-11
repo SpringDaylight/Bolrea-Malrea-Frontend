@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import { analyzePreference } from "../api/ml";
 
 const genreLikeOptions = [ "로맨스/로코", "코미디", "드라마/휴먼", "스릴러/미스터리", "공포/호러", "액션", "범죄/느와르", "SF", "판타지", "애니메이션", "전쟁/역사", "다큐멘터리"];
 
@@ -24,6 +25,7 @@ export default function TasteSurveyPage() {
   const [vibe, setVibe] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [origin, setOrigin] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleValue = (
     value: string,
@@ -64,15 +66,38 @@ export default function TasteSurveyPage() {
     });
   };
 
-  const handleSubmit = () => {
-    localStorage.setItem("mw_taste_genres", JSON.stringify(genres));
-    localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(avoidGenres));
-    localStorage.setItem("mw_taste_context", context);
-    localStorage.setItem("mw_taste_vibe", vibe);
-    localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
-    localStorage.setItem("mw_tast_keyword", JSON.stringify(keywords));
-    localStorage.setItem("mw_taste_origin", origin);
-    navigate("/");
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      // localStorage에 저장
+      localStorage.setItem("mw_taste_genres", JSON.stringify(genres));
+      localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(avoidGenres));
+      localStorage.setItem("mw_taste_context", context);
+      localStorage.setItem("mw_taste_vibe", vibe);
+      localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
+      localStorage.setItem("mw_tast_keyword", JSON.stringify(keywords));
+      localStorage.setItem("mw_taste_origin", origin);
+
+      // ML API: 취향 분석 수행
+      const userText = `${vibe} ${keywords.join(', ')} ${genres.join(', ')}`;
+      const userDislikes = avoidGenres.filter(g => g !== avoidNoneLabel).join(', ');
+      
+      const userProfile = await analyzePreference({
+        text: userText,
+        dislikes: userDislikes || undefined,
+      });
+
+      // 분석 결과 저장
+      localStorage.setItem("mw_user_profile", JSON.stringify(userProfile));
+      
+      navigate("/");
+    } catch (err) {
+      console.error('Failed to analyze preference:', err);
+      // 실패해도 홈으로 이동 (기본 기능은 유지)
+      navigate("/");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -196,8 +221,13 @@ export default function TasteSurveyPage() {
                 </div>
               </div>
 
-              <button className="primary-btn" type="button" onClick={handleSubmit}>
-                설문 완료하고 영화 추천 받기
+              <button 
+                className="primary-btn" 
+                type="button" 
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? '분석 중...' : '설문 완료하고 영화 추천 받기'}
               </button>
             </div>
           </article>

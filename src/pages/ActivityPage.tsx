@@ -557,13 +557,9 @@ export default function ActivityPage() {
               </div>
             </article>
           )}
-
           </article>
         </section>
-
-        
-
-              </main>
+      </main>
 
       {settingsOpen && (
         <div

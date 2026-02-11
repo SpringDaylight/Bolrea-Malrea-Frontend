@@ -53,8 +53,8 @@ export default function Header() {
           <NavLink to="/group" className={navClass}>
             다함께
           </NavLink>
-          <NavLink to="/reviewmong" className={navClass}>
-            리뷰몽
+          <NavLink to="/moviemong" className={navClass}>
+            무비몽
           </NavLink>
           <NavLink to="/mypage" className={navClass}>
             마이 홈

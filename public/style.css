@@ -153,7 +153,7 @@ textarea {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 28px 20px 40px;
 }
@@ -1587,6 +1587,7 @@ textarea {
 .reviewmong-question .question-title {
   font-weight: 700;
   text-align: left;
+  font-size: 22px;
 }
 
 .reviewmong-question .question-text {
@@ -1596,7 +1597,7 @@ textarea {
 
 .reviewmong-question .question-input {
   width: 100%;
-  min-height: 80px;
+  min-height: 160px;
   border-radius: 12px;
   border: 1px solid var(--line);
   padding: 14px;
@@ -1621,6 +1622,7 @@ textarea {
   justify-content: space-between;
   font-weight: 600;
   color: var(--text-subtle);
+  margin-top: 20px;
 }
 
 .question-list {

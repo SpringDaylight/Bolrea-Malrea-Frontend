@@ -32,6 +32,7 @@ export default function ActivityPage() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showAllPosters, setShowAllPosters] = useState(false);
+  const [expandedReviewId, setExpandedReviewId] = useState<number | null>(null);
 
   const posterItems = [
     {
@@ -168,6 +169,14 @@ export default function ActivityPage() {
       rating: 4.5,
       content: "과학보다 감정이 더 선명하게 남는 작품. 가족 서사가 깊게 와닿았다.",
       createdAt: "2026-02-01T00:00:00.000Z",
+      replies: [
+        {
+          id: 1,
+          author: "Moviemong",
+          content: "Thanks for sharing your review!",
+          createdAt: "2026.02.02",
+        },
+      ],
     },
     {
       id: 2,
@@ -179,6 +188,20 @@ export default function ActivityPage() {
       rating: 4.2,
       content: "관계의 결이 살아있는 이야기라 여운이 길게 남았다.",
       createdAt: "2026-01-26T00:00:00.000Z",
+      replies: [
+        {
+          id: 1,
+          author: "Reviewer",
+          content: "I felt the same way.",
+          createdAt: "2026.01.27",
+        },
+        {
+          id: 2,
+          author: "Moviemong",
+          content: "Great insight!",
+          createdAt: "2026.01.28",
+        },
+      ],
     },
     {
       id: 3,
@@ -190,6 +213,7 @@ export default function ActivityPage() {
       rating: 4.0,
       content: "계절의 변화와 음악이 감정을 더욱 깊게 만든다.",
       createdAt: "2026-01-20T00:00:00.000Z",
+      replies: [],
     },
   ];
 
@@ -518,24 +542,26 @@ export default function ActivityPage() {
             <div className="section-header" id="reviews-header" />
               <div className="review-list">
                 {reviewItems.map((review) => (
-                  <Link
-                    className="card-link"
-                    to={`/movies/${review.movieId}`}
-                    state={{
-                      userReview: {
-                        id: review.id,
-                        user_id: profile.id,
-                        movie_id: review.movieId,
-                        rating: review.rating,
-                        content: review.content,
-                        created_at: review.createdAt,
-                        likes_count: 0,
-                        comments_count: 0,
-                      },
-                    }}
-                    key={review.id}
-                  >
-                    <article className="card review-card">
+                  <div className="review-item" key={review.id}>
+                    <article
+                      className="card review-card review-card-toggle"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={expandedReviewId === review.id}
+                      onClick={() =>
+                        setExpandedReviewId((prev) =>
+                          prev === review.id ? null : review.id
+                        )
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setExpandedReviewId((prev) =>
+                            prev === review.id ? null : review.id
+                          );
+                        }
+                      }}
+                    >
                       <div className="movie-tile">
                         <img
                           className="poster"
@@ -552,7 +578,26 @@ export default function ActivityPage() {
                         </div>
                       </div>
                     </article>
-                  </Link>
+                  {expandedReviewId === review.id && (
+                    <div className="review-replies">
+                      {review.replies.length > 0 ? (
+                        <div className="comment-list">
+                          {review.replies.map((reply) => (
+                            <div className="comment-card" key={reply.id}>
+                              <div className="comment-meta">
+                                <span className="review-name">{reply.author}</span>
+                                <span className="muted">{reply.createdAt}</span>
+                              </div>
+                              <p className="review-text">{reply.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="muted">No replies yet.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
                 ))}
               </div>
             </article>

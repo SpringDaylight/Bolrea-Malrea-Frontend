@@ -4,24 +4,23 @@ import MainLayout from "../components/layout/MainLayout";
 import { getMovies, type Movie } from "../api/A2_movies";
 
 const sortFilters = [
-  { value: "latest", label: "최신개봉작" },
-  { value: "popular", label: "박스오피스 순위" },
-  { value: "rating", label: "평점 높은 순" },
+  { value: "latest", label: "최신 개봉순" },
+  { value: "popular", label: "인기순" },
+  { value: "rating", label: "평점 높은순" },
 ];
 
 const genreFilters = [
-  { value: "로맨스", label: "로맨스" },
-  { value: "드라마", label: "드라마" },
-  { value: "스릴러", label: "스릴러" },
-  { value: "공포", label: "공포" },
+  { value: "로맨스/로코", label: "로맨스/로코" },
+  { value: "드라마/휴먼", label: "드라마/휴먼" },
+  { value: "스릴러/미스터리", label: "스릴러/미스터리" },
+  { value: "공포/호러", label: "공포/호러" },
   { value: "액션", label: "액션" },
-  { value: "범죄", label: "범죄" },
+  { value: "범죄/느와르", label: "범죄/느와르" },
   { value: "SF", label: "SF" },
   { value: "판타지", label: "판타지" },
   { value: "코미디", label: "코미디" },
   { value: "애니메이션", label: "애니메이션" },
-  { value: "역사", label: "역사" },
-  { value: "다큐멘터리", label: "다큐멘터리" },
+  { value: "역사/다큐", label: "역사/다큐" },
 ];
 
 export default function MoviesPage() {
@@ -38,35 +37,37 @@ export default function MoviesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Initialize from URL query params
   useEffect(() => {
-    const queryFromUrl = searchParams.get('query');
-    const genresFromUrl = searchParams.get('genres');
-    
+    const queryFromUrl = searchParams.get("query");
+    const genresFromUrl = searchParams.get("genres");
+
     if (queryFromUrl) {
       setSearchQuery(queryFromUrl);
       setAppliedQuery(queryFromUrl);
     }
-    
+
     if (genresFromUrl) {
-      const genreList = genresFromUrl.split(',').map(g => g.trim());
+      const genreList = genresFromUrl.split(",").map((genre) => genre.trim());
       setSelectedGenres(genreList);
       setAppliedGenres(genreList);
     }
+
     if (queryFromUrl || genresFromUrl) {
       setCurrentPage(1);
     }
   }, [searchParams]);
 
-  // Fetch movies from API
   useEffect(() => {
     const fetchMovies = async () => {
       setLoading(true);
       setError(null);
       try {
-        const sort = appliedSorts.length > 0 ? appliedSorts[0] as 'latest' | 'popular' | 'rating' : undefined;
-        const genres = appliedGenres.length > 0 ? appliedGenres.join(',') : undefined;
-        
+        const sort =
+          appliedSorts.length > 0
+            ? (appliedSorts[0] as "latest" | "popular" | "rating")
+            : undefined;
+        const genres = appliedGenres.length > 0 ? appliedGenres.join(",") : undefined;
+
         const response = await getMovies({
           query: appliedQuery || undefined,
           genres,
@@ -74,7 +75,7 @@ export default function MoviesPage() {
           page: currentPage,
           page_size: 20,
         });
-        
+
         setMovies(response.movies);
         const nextTotalPages = Math.max(
           1,
@@ -82,8 +83,8 @@ export default function MoviesPage() {
         );
         setTotalPages(nextTotalPages);
       } catch (err) {
-        setError('영화 목록을 불러오는데 실패했습니다.');
-        console.error('Failed to fetch movies:', err);
+        setError("영화 목록을 불러오는데 실패했습니다.");
+        console.error("Failed to fetch movies:", err);
       } finally {
         setLoading(false);
       }
@@ -147,29 +148,24 @@ export default function MoviesPage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="영화 제목 검색"
+                placeholder="영화 제목을 검색하세요"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && handleApplyFilters()}
               />
               <button
                 className="primary-btn"
                 type="button"
                 onClick={handleApplyFilters}
               >
-                검색 버튼
+                검색
               </button>
             </div>
           </div>
 
-          {/* <div className="section-header">
-            <h2>필터</h2>
-            <p>선택한 분류만 보기</p>
-          </div> */}
-
           <div className="filter-group">
             <div>
-              <p className="filter-title">분류</p>
+              <p className="filter-title">정렬</p>
               <div className="tag-list">
                 {sortFilters.map((filter) => (
                   <button
@@ -196,11 +192,7 @@ export default function MoviesPage() {
                     }`}
                     type="button"
                     onClick={() =>
-                      toggleValue(
-                        filter.value,
-                        selectedGenres,
-                        setSelectedGenres
-                      )
+                      toggleValue(filter.value, selectedGenres, setSelectedGenres)
                     }
                   >
                     {filter.label}
@@ -213,36 +205,43 @@ export default function MoviesPage() {
 
         <section className="section">
           <div className="section-header">
-            <h2>선택된 결과</h2>
-            <p>선택한 기준으로 추천 영화가 표시됩니다.</p>
+            <h2>검색 결과</h2>
+            <p>선택한 기준으로 추천된 영화가 표시됩니다.</p>
           </div>
-          
+
           {loading && <p>로딩 중...</p>}
           {error && <p className="error">{error}</p>}
-          
+
           {!loading && !error && movies.length === 0 && (
             <p>검색 결과가 없습니다.</p>
           )}
-          
+
           {!loading && !error && movies.length > 0 && (
             <div className="movie-grid">
               {movies.map((movie) => (
                 <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
                   <article className="card movie-tile">
-                    <img 
-                      className="poster" 
-                      src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'} 
-                      alt={`${movie.title} 포스터`} 
+                    <img
+                      className="poster"
+                      src={
+                        movie.poster_url ||
+                        "https://via.placeholder.com/500x750?text=No+Image"
+                      }
+                      alt={`${movie.title} 포스터`}
                     />
                     <div className="movie-info">
                       <h3>{movie.title}</h3>
                       <p className="movie-rating">
-                        평점 {typeof movie.rating === "number" ? movie.rating.toFixed(1) : "정보 없음"}
+                        평점{" "}
+                        {typeof movie.avg_rating === "number"
+                          ? movie.avg_rating.toFixed(1)
+                          : "정보 없음"}
                       </p>
                       <p className="muted">
-                        {movie.synopsis 
-                          ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
-                          : '줄거리 정보가 없습니다.'}
+                        {movie.synopsis
+                          ? movie.synopsis.substring(0, 60) +
+                            (movie.synopsis.length > 60 ? "..." : "")
+                          : "줄거리 정보가 없습니다."}
                       </p>
                       <div className="meta-list">
                         {movie.genres.slice(0, 3).map((genre) => (
@@ -250,7 +249,7 @@ export default function MoviesPage() {
                         ))}
                         {movie.runtime && <span>{movie.runtime}분</span>}
                       </div>
-                      <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                      <span className="ghost-btn movie-detail-btn">상세보기</span>
                     </div>
                   </article>
                 </Link>

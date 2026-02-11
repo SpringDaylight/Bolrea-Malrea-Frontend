@@ -7,7 +7,6 @@ import GroupPage from "./pages/GroupPage";
 import TasteAnalysisPage from "./pages/TasteAnalysisPage";
 import ActivityPage from "./pages/ActivityPage";
 import CommentPage from "./pages/CommentPage";
-import ReviewDetailPage from "./pages/ReviewDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -37,7 +36,6 @@ export default function App() {
         <Route path="/find-id" element={<FindIdPage />} />
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/taste-survey" element={<TasteSurveyPage />} />
-        <Route path="/reviews/:reviewId" element={<ReviewDetailPage />} />
         <Route path="/auth/kakao/callback" element={<KakaoCallbackPage />} />
         <Route path="/notice" element={<SupportPage />} />
         <Route path="/inquiry" element={<SupportPage />} />
@@ -58,10 +56,6 @@ export default function App() {
           element={<Navigate to="/taste-analysis" replace />}
         />
         <Route path="/log.html" element={<Navigate to="/log" replace />} />
-        <Route
-          path="/review-detail.html"
-          element={<Navigate to="/reviews/1" replace />}
-        />
 
         {/* fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

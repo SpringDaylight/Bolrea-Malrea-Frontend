@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
 
 export default function MovieDetailPage() {
@@ -9,13 +9,28 @@ export default function MovieDetailPage() {
   const location = useLocation();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reactions, setReactions] = useState<
+    Record<number, { likes: number; dislikes: number }>
+  >({});
+  const [myReviewOpen, setMyReviewOpen] = useState(false);
+  const [myReviewContent, setMyReviewContent] = useState("");
+  const [myReviewRating, setMyReviewRating] = useState(5);
+  const [myReviewVisibility, setMyReviewVisibility] = useState<
+    "public" | "private"
+  >("public");
+  const [localPersonalReview, setLocalPersonalReview] = useState<Review | null>(
+    null
+  );
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [replyOpen, setReplyOpen] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const locationState = location.state as {
     newReview?: Review;
     userReview?: Review;
   } | null;
-  const personalReview = locationState?.userReview ?? locationState?.newReview;
+  const personalReview =
+    localPersonalReview ?? locationState?.userReview ?? locationState?.newReview;
   const personalReviewDate = personalReview?.created_at
     ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
     : "오늘";
@@ -39,8 +54,8 @@ export default function MovieDetailPage() {
           setReviews(reviewsData.reviews);
         }
       } catch (err) {
-        setError('영화 정보를 불러오는데 실패했습니다.');
-        console.error('Failed to fetch movie data:', err);
+        setError("영화 정보를 불러오는데 실패했습니다.");
+        console.error("Failed to fetch movie data:", err);
       } finally {
         setLoading(false);
       }
@@ -48,6 +63,72 @@ export default function MovieDetailPage() {
 
     fetchMovieData();
   }, [movieId, personalReview?.id, personalReview?.movie_id]);
+
+  useEffect(() => {
+    setReactions((prev) => {
+      const next: Record<number, { likes: number; dislikes: number }> = {};
+      reviews.forEach((review) => {
+        const existing = prev[review.id];
+        next[review.id] = {
+          likes: existing?.likes ?? review.likes_count ?? 0,
+          dislikes: existing?.dislikes ?? 0,
+        };
+      });
+      return next;
+    });
+  }, [reviews]);
+
+  const incrementReaction = (reviewId: number, type: "likes" | "dislikes") => {
+    setReactions((prev) => {
+      const current = prev[reviewId] ?? { likes: 0, dislikes: 0 };
+      return {
+        ...prev,
+        [reviewId]: {
+          ...current,
+          [type]: current[type] + 1,
+        },
+      };
+    });
+  };
+
+  const handleMyReviewSave = () => {
+    if (!movie) return;
+    const content = myReviewContent.trim();
+    const userId = localStorage.getItem("mw_profile_id") || "me";
+    const nextReview: Review = {
+      id: Date.now(),
+      user_id: userId,
+      movie_id: movie.id,
+      rating: myReviewRating,
+      content: content.length ? content : null,
+      created_at: new Date().toISOString(),
+      likes_count: 0,
+      comments_count: 0,
+    };
+    setLocalPersonalReview(nextReview);
+    setMyReviewOpen(false);
+  };
+
+  const toggleReplyOpen = (reviewId: number) => {
+    setReplyOpen((prev) => ({
+      ...prev,
+      [reviewId]: !prev[reviewId],
+    }));
+  };
+
+  const handleReplyChange = (reviewId: number, value: string) => {
+    setReplyDrafts((prev) => ({
+      ...prev,
+      [reviewId]: value,
+    }));
+  };
+
+  const handleReplySubmit = (reviewId: number) => {
+    const nextValue = (replyDrafts[reviewId] || "").trim();
+    if (!nextValue) return;
+    setReplyDrafts((prev) => ({ ...prev, [reviewId]: "" }));
+    setReplyOpen((prev) => ({ ...prev, [reviewId]: false }));
+  };
 
   if (loading) {
     return (
@@ -63,7 +144,7 @@ export default function MovieDetailPage() {
     return (
       <MainLayout>
         <main className="container">
-          <p className="error">{error || '영화를 찾을 수 없습니다.'}</p>
+          <p className="error">{error || "영화를 찾을 수 없습니다."}</p>
         </main>
       </MainLayout>
     );
@@ -74,7 +155,7 @@ export default function MovieDetailPage() {
       <main className="container">
         <section className="page-title">
           <h1>영화 상세</h1>
-          <p>영화를 선택하면 상세 정보와 나와의 적합도를 함께 볼 수 있어요.</p>
+          <p>영화를 선택하면 상세 정보와 취향 적합도를 확인할 수 있어요.</p>
         </section>
 
         <section className="section">
@@ -82,15 +163,20 @@ export default function MovieDetailPage() {
             <div className="movie-tile">
               <img
                 className="poster"
-                src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
+                src={
+                  movie.poster_url ||
+                  "https://via.placeholder.com/500x750?text=No+Image"
+                }
                 alt={`${movie.title} 포스터`}
               />
               <div className="movie-info">
                 <h3>{movie.title}</h3>
                 <p className="muted">
-                  {movie.release ? new Date(movie.release).getFullYear() : '미정'} · 
-                  {movie.genres.slice(0, 2).join('/')} · 
-                  {movie.runtime ? `${movie.runtime}분` : '정보 없음'}
+                  {movie.release
+                    ? new Date(movie.release).getFullYear()
+                    : "미정"}{" "}
+                  · {movie.genres.slice(0, 2).join("/")} ·{" "}
+                  {movie.runtime ? `${movie.runtime}분` : "정보 없음"}
                 </p>
                 <div className="tag-list" style={{ marginTop: 10 }}>
                   {movie.tags.slice(0, 5).map((tag) => (
@@ -103,23 +189,25 @@ export default function MovieDetailPage() {
             <div className="section" style={{ marginTop: 18 }}>
               <h3>시놉시스</h3>
               <p className="muted">
-                {movie.synopsis || '줄거리 정보가 없습니다.'}
+                {movie.synopsis || "줄거리 정보가 없습니다."}
               </p>
             </div>
 
             <div className="section" style={{ marginTop: 18 }}>
-              <h3>나와의 적합도</h3>
+              <h3>취향 적합도</h3>
               <p className="probability">적합 확률 83%</p>
               <ul className="list">
-                <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
-                <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
-                <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
+                <li>가벼운 전개와 몰입 요소를 선호하셨네요.</li>
+                <li>가족과의 서사가 있는 작품을 좋아하셨네요.</li>
+                <li>서사 흐름의 완성도에 반응이 좋았어요.</li>
               </ul>
             </div>
 
             <div className="section" style={{ marginTop: 18 }}>
-              <h3>주의할 점</h3>
-              <p className="muted">후반부 과학 설정이 어렵게 느껴질 수 있어요.</p>
+              <h3>주의사항</h3>
+              <p className="muted">
+                일부 장면이 감정적으로 부담될 수 있어요.
+              </p>
             </div>
 
             {/* <div className="hero-actions" style={{ marginTop: 18 }}>
@@ -131,7 +219,6 @@ export default function MovieDetailPage() {
         <section className="section">
           <div className="section-header">
             <h2>내 리뷰</h2>
-            {/* <p>내가 남긴 코멘트</p> */}
           </div>
           {personalReview && personalReview.movie_id === movie.id ? (
             <article className="card review-card">
@@ -153,15 +240,71 @@ export default function MovieDetailPage() {
               </p>
             </article>
           ) : (
-            <article className="card review-card review-empty">
-              <p className="muted">아직 이 영화에 대한 내 리뷰가 없어요.</p>
-              <button
-                className="primary-btn"
-                type="button"
-                onClick={() => navigate(`/reviews/new?movieId=${movie.id}`)}
-              >
-                리뷰 남기기
-              </button>
+            <article className="card review-card review-empty review-empty-stack">
+              <div className="review-empty-row">
+                <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => setMyReviewOpen((prev) => !prev)}
+                >
+                  리뷰 남기기
+                </button>
+              </div>
+              {myReviewOpen && (
+                <div className="review-form form-grid">
+                  <div className="review-form-row">
+                    <label htmlFor="my-review-rating">별점</label>
+                    <select
+                      id="my-review-rating"
+                      value={myReviewRating}
+                      onChange={(event) =>
+                        setMyReviewRating(Number(event.target.value))
+                      }
+                    >
+                      {[5, 4, 3, 2, 1].map((value) => (
+                        <option key={value} value={value}>
+                          {value}점
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="review-form-row">
+                    <label htmlFor="my-review-visibility">공개 여부</label>
+                    <select
+                      id="my-review-visibility"
+                      value={myReviewVisibility}
+                      onChange={(event) =>
+                        setMyReviewVisibility(
+                          event.target.value === "private" ? "private" : "public"
+                        )
+                      }
+                    >
+                      <option value="public">공개</option>
+                      <option value="private">비공개</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="my-review-content">리뷰</label>
+                    <textarea
+                      id="my-review-content"
+                      className="review-reply-input"
+                      placeholder="리뷰를 입력하세요"
+                      value={myReviewContent}
+                      onChange={(event) => setMyReviewContent(event.target.value)}
+                    />
+                  </div>
+                  <div className="review-reply-actions">
+                    <button
+                      className="primary-btn review-reply-submit"
+                      type="button"
+                      onClick={handleMyReviewSave}
+                    >
+                      저장하기
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
           )}
         </section>
@@ -173,13 +316,12 @@ export default function MovieDetailPage() {
           </div>
           {reviews.length === 0 ? (
             <article className="card review-card review-empty">
-              <p className="muted">아직 이 영화에 대한 리뷰가 없어요.</p>
+              <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
             </article>
           ) : (
             <div className="review-list">
               {reviews.map((review) => (
-                <Link className="card-link" to={`/reviews/${review.id}`} key={review.id}>
-                  <article className="card review-card">
+                  <article className="card review-card" key={review.id}>
                     <div className="review-header">
                       <div className="review-user">
                         <div className="review-avatar">
@@ -188,11 +330,27 @@ export default function MovieDetailPage() {
                         <div>
                           <p className="review-name">{review.user_id}</p>
                           <p className="muted">
-                            {new Date(review.created_at).toLocaleDateString('ko-KR')} · 평점 {review.rating}
+                            {new Date(review.created_at).toLocaleDateString("ko-KR")} · 평점 {review.rating}
                           </p>
                         </div>
                       </div>
-                      <button className="ghost-btn">좋아요 {review.likes_count}</button>
+                      <div className="review-actions">
+                        <button
+                          className="ghost-btn"
+                          type="button"
+                          onClick={() => incrementReaction(review.id, "likes")}
+                        >
+                          좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
+                        </button>
+                        <span className="muted">|</span>
+                        <button
+                          className="ghost-btn"
+                          type="button"
+                          onClick={() => incrementReaction(review.id, "dislikes")}
+                        >
+                          싫어요 {reactions[review.id]?.dislikes ?? 0}
+                        </button>
+                      </div>
                     </div>
                     {review.content && (
                       <p className="review-text">
@@ -201,8 +359,40 @@ export default function MovieDetailPage() {
                           : review.content}
                       </p>
                     )}
+                    <div className="review-link-row">
+                      <button
+                        className="ghost-btn review-link-btn"
+                        type="button"
+                        onClick={() => toggleReplyOpen(review.id)}
+                      >
+                        답글 달기
+                      </button>
+                      <button className="ghost-btn review-link-btn" type="button">
+                        답글 보기
+                      </button>
+                    </div>
+                    {replyOpen[review.id] && (
+                      <div className="review-reply-form">
+                        <textarea
+                          className="review-reply-input"
+                          placeholder="답글을 입력하세요"
+                          value={replyDrafts[review.id] || ""}
+                          onChange={(event) =>
+                            handleReplyChange(review.id, event.target.value)
+                          }
+                        />
+                        <div className="review-reply-actions">
+                          <button
+                            className="primary-btn review-reply-submit"
+                            type="button"
+                            onClick={() => handleReplySubmit(review.id)}
+                          >
+                            답글 달기
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </article>
-                </Link>
               ))}
             </div>
           )}
@@ -211,3 +401,4 @@ export default function MovieDetailPage() {
     </MainLayout>
   );
 }
+

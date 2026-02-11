@@ -1,6 +1,185 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import {
+  createMovieReview,
+  getMovie,
+  type Movie,
+  type Review,
+} from "../api/A2_movies";
+
+const ratingOptions = [
+  "0.5",
+  "1.0",
+  "1.5",
+  "2.0",
+  "2.5",
+  "3.0",
+  "3.5",
+  "4.0",
+  "4.5",
+  "5.0",
+];
 
 export default function ReviewDetailPage() {
+  const navigate = useNavigate();
+  const { reviewId } = useParams<{ reviewId: string }>();
+  const [searchParams] = useSearchParams();
+  const isCreate = reviewId === "new";
+
+  const movieIdParam = searchParams.get("movieId");
+  const movieId = movieIdParam ? Number(movieIdParam) : NaN;
+
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [rating, setRating] = useState("4.5");
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isCreate) return;
+
+    if (!movieIdParam || Number.isNaN(movieId)) {
+      setError("영화 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    const fetchMovie = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const movieData = await getMovie(movieId);
+        setMovie(movieData);
+      } catch (err) {
+        setError("영화 정보를 불러오는데 실패했습니다.");
+        console.error("Failed to fetch movie data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMovie();
+  }, [isCreate, movieId, movieIdParam]);
+
+  const handleSave = async () => {
+    if (!movie) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      const userId =
+        localStorage.getItem("mw_user_id") ||
+        localStorage.getItem("mw_profile_id") ||
+        "guest";
+
+      const createdReview: Review = await createMovieReview(movie.id, userId, {
+        rating: Number(rating),
+        content: content.trim() || undefined,
+      });
+
+      navigate(`/movies/${movie.id}`, {
+        replace: true,
+        state: { newReview: createdReview },
+      });
+    } catch (err) {
+      setError("리뷰 저장에 실패했습니다.");
+      console.error("Failed to create review:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isCreate) {
+    if (loading) {
+      return (
+        <MainLayout>
+          <main className="container">
+            <p>로딩 중...</p>
+          </main>
+        </MainLayout>
+      );
+    }
+
+    if (!movie) {
+      return (
+        <MainLayout>
+          <main className="container">
+            <p className="error">{error || "영화를 찾을 수 없습니다."}</p>
+          </main>
+        </MainLayout>
+      );
+    }
+
+    return (
+      <MainLayout>
+        <main className="container">
+          <section className="page-title">
+            <h1>리뷰 남기기</h1>
+            <p>영화에 대한 짧은 코멘트와 평점을 남겨주세요.</p>
+          </section>
+
+          <section className="section">
+            <article className="card">
+              <div className="movie-tile">
+                <img
+                  className="poster"
+                  src={
+                    movie.poster_url ||
+                    "https://via.placeholder.com/500x750?text=No+Image"
+                  }
+                  alt={`${movie.title} 포스터`}
+                />
+                <div className="movie-info">
+                  <h3>{movie.title}</h3>
+                  <p className="muted">
+                    {movie.release
+                      ? new Date(movie.release).getFullYear()
+                      : "미정"}{" "}
+                    · {movie.genres.slice(0, 2).join("/")} ·{" "}
+                    {movie.runtime ? `${movie.runtime}분` : "정보 없음"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="section" style={{ marginTop: 16 }}>
+                <div className="form-grid">
+                  <label>평점</label>
+                  <select
+                    value={rating}
+                    onChange={(event) => setRating(event.target.value)}
+                  >
+                    {ratingOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <label>코멘트</label>
+                  <textarea
+                    placeholder="영화에 대한 생각을 남겨주세요"
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                  />
+                </div>
+                {error && <p className="error">{error}</p>}
+                <button
+                  className="primary-btn"
+                  style={{ marginTop: 12 }}
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? "저장 중..." : "리뷰 저장"}
+                </button>
+              </div>
+            </article>
+          </section>
+        </main>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <main className="container">

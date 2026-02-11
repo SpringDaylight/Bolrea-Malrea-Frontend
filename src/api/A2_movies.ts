@@ -7,6 +7,7 @@ import { get, post } from './http';
 export interface Movie {
   id: number;
   title: string;
+  rating?: number | null;
   release: string | null;
   runtime: number | null;
   synopsis: string | null;

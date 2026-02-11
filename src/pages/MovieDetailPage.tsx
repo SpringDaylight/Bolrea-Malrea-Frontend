@@ -1,15 +1,24 @@
 import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
 
 export default function MovieDetailPage() {
   const navigate = useNavigate();
   const { movieId } = useParams<{ movieId: string }>();
+  const location = useLocation();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const locationState = location.state as {
+    newReview?: Review;
+    userReview?: Review;
+  } | null;
+  const personalReview = locationState?.userReview ?? locationState?.newReview;
+  const personalReviewDate = personalReview?.created_at
+    ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
+    : "오늘";
 
   useEffect(() => {
     const fetchMovieData = async () => {
@@ -22,7 +31,13 @@ export default function MovieDetailPage() {
         setMovie(movieData);
         
         const reviewsData = await getMovieReviews(Number(movieId), { page_size: 10 });
-        setReviews(reviewsData.reviews);
+        if (personalReview && personalReview.movie_id === movieData.id) {
+          setReviews(
+            reviewsData.reviews.filter((review) => review.id !== personalReview.id)
+          );
+        } else {
+          setReviews(reviewsData.reviews);
+        }
       } catch (err) {
         setError('영화 정보를 불러오는데 실패했습니다.');
         console.error('Failed to fetch movie data:', err);
@@ -32,7 +47,7 @@ export default function MovieDetailPage() {
     };
 
     fetchMovieData();
-  }, [movieId]);
+  }, [movieId, personalReview?.id, personalReview?.movie_id]);
 
   if (loading) {
     return (
@@ -118,16 +133,37 @@ export default function MovieDetailPage() {
             <h2>내 리뷰</h2>
             {/* <p>내가 남긴 코멘트</p> */}
           </div>
-          <article className="card review-card review-empty">
-            <p className="muted">아직 이 영화에 대한 내 리뷰가 없어요.</p>
-            <button
-              className="primary-btn"
-              type="button"
-              onClick={() => navigate("/log")}
-            >
-              리뷰 남기기
-            </button>
-          </article>
+          {personalReview && personalReview.movie_id === movie.id ? (
+            <article className="card review-card">
+              <div className="review-header">
+                <div className="review-user">
+                  <div className="review-avatar">
+                    {personalReview.user_id.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="review-name">{personalReview.user_id}</p>
+                    <p className="muted">
+                      {personalReviewDate} · 평점 {personalReview.rating}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="review-text">
+                {personalReview.content || "리뷰 코멘트가 없습니다."}
+              </p>
+            </article>
+          ) : (
+            <article className="card review-card review-empty">
+              <p className="muted">아직 이 영화에 대한 내 리뷰가 없어요.</p>
+              <button
+                className="primary-btn"
+                type="button"
+                onClick={() => navigate(`/reviews/new?movieId=${movie.id}`)}
+              >
+                리뷰 남기기
+              </button>
+            </article>
+          )}
         </section>
 
         <section className="section">

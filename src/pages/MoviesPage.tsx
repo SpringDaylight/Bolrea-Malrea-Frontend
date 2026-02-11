@@ -236,9 +236,9 @@ export default function MoviesPage() {
                     />
                     <div className="movie-info">
                       <h3>{movie.title}</h3>
-                      {/* <p className="movie-rating">
+                      <p className="movie-rating">
                         평점 {typeof movie.rating === "number" ? movie.rating.toFixed(1) : "정보 없음"}
-                      </p> */}
+                      </p>
                       <p className="muted">
                         {movie.synopsis 
                           ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')

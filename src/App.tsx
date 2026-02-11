@@ -16,6 +16,7 @@ import FindPasswordPage from "./pages/FindPasswordPage";
 import TasteSurveyPage from "./pages/TasteSurveyPage";
 import KakaoCallbackPage from "./pages/KakaoCallbackPage";
 import SupportPage from "./pages/SupportPage";
+import ReviewmongPage from "./pages/ReviewmongPage";
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/mypage" element={<ActivityPage />} />
         <Route path="/taste-analysis" element={<TasteAnalysisPage />} />
         <Route path="/log" element={<CommentPage />} />
+        <Route path="/reviewmong" element={<ReviewmongPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />

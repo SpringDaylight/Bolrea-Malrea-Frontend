@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+﻿import { useMemo, useRef, useState, type CSSProperties } from "react";
 import "./roulette.css";
 import type { RouletteItem } from "./rouletteItems";
 
@@ -10,17 +10,20 @@ type Props = {
 export default function Roulette({ items, onResult }: Props) {
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [resultItem, setResultItem] = useState<RouletteItem | null>(null);
   const frameRef = useRef<number | null>(null);
   const startRef = useRef(0);
   const fromRef = useRef(0);
   const toRef = useRef(0);
   const rotationRef = useRef(0);
-  const resultIndexRef = useRef(0);
+  const resultIndexRef = useRef(-1);
 
   const segmentAngle = items.length ? 360 / items.length : 0;
   const startOffset = -segmentAngle / 2;
   const gradientOffset = ((startOffset % 360) + 360) % 360;
   const colors = ["#ffe4ef", "#fff6d6", "#e7f6ff", "#e9f7e9", "#f3e9ff"];
+  const easeOutCubic = (value: number) => 1 - Math.pow(1 - value, 3);
 
   const segments = useMemo(() => {
     if (!items.length) return [];
@@ -41,22 +44,12 @@ export default function Roulette({ items, onResult }: Props) {
     return index;
   };
 
-  const getNearestIndex = (value: number) => {
-    if (!segmentAngle) return 0;
-    const normalized = ((value % 360) + 360) % 360;
-    const pointerAngle = (360 - normalized) % 360;
-    const index = Math.round(pointerAngle / segmentAngle) % items.length;
-    return index;
-  };
-
-  const getSnappedRotation = (value: number, index: number) => {
+  const getForwardSnappedRotation = (value: number, index: number) => {
     if (!segmentAngle) return value;
     const normalized = ((value % 360) + 360) % 360;
     const centerAngle = index * segmentAngle;
     const desiredNormalized = (360 - centerAngle + 360) % 360;
-    let diff = desiredNormalized - normalized;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
+    const diff = (desiredNormalized - normalized + 360) % 360;
     return value + diff;
   };
 
@@ -79,9 +72,7 @@ export default function Roulette({ items, onResult }: Props) {
 
   const selectResultIndex = () => {
     const rawWeights = items.map((item) => {
-      const value = Number(
-        item.probability.replace(/[^\d.]/g, "").trim()
-      );
+      const value = Number(item.probability.replace(/[^\d.]/g, "").trim());
       return Number.isFinite(value) ? value : 0;
     });
     const total = rawWeights.reduce((sum, value) => sum + value, 0);
@@ -100,9 +91,10 @@ export default function Roulette({ items, onResult }: Props) {
   const animate = (timestamp: number, duration: number) => {
     if (!startRef.current) startRef.current = timestamp;
     const elapsed = timestamp - startRef.current;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const nextRotation = fromRef.current + (toRef.current - fromRef.current) * eased;
+    const progress = duration > 0 ? Math.min(elapsed / duration, 1) : 1;
+    const eased = easeOutCubic(progress);
+    const nextRotation =
+      fromRef.current + (toRef.current - fromRef.current) * eased;
     rotationRef.current = nextRotation;
     setRotation(nextRotation);
 
@@ -115,46 +107,35 @@ export default function Roulette({ items, onResult }: Props) {
 
     setIsSpinning(false);
     startRef.current = 0;
-    const index = getIndexFromRotation(rotationRef.current);
-    resultIndexRef.current = index;
+    frameRef.current = null;
+    const index =
+      resultIndexRef.current >= 0
+        ? resultIndexRef.current
+        : getIndexFromRotation(rotationRef.current);
+    resultIndexRef.current = -1;
     const result = items[index];
     if (result) {
-      alert(`결과: ${result.label}`);
+      setResultItem(result);
+      setResultOpen(true);
       onResult?.(result);
     }
   };
 
   const startSpin = () => {
     if (isSpinning || !items.length) return;
-    const resultIndex = selectResultIndex();
-    resultIndexRef.current = resultIndex;
-    const centerAngle = segments[resultIndex]?.center ?? 0;
-    const desiredNormalized = (360 - centerAngle + 360) % 360;
-    const currentNormalized = ((rotation % 360) + 360) % 360;
-    const targetAngle = 360 * 4 + (desiredNormalized - currentNormalized);
-    fromRef.current = rotation;
-    toRef.current = rotation + targetAngle;
+    setResultOpen(false);
+    setResultItem(null);
     setIsSpinning(true);
-    startRef.current = 0;
-    frameRef.current = requestAnimationFrame((time) => animate(time, 2600));
-  };
-
-  const stopSpin = () => {
-    if (!isSpinning) return;
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    frameRef.current = null;
-    startRef.current = 0;
-    const index = getNearestIndex(rotationRef.current);
-    const snappedRotation = getSnappedRotation(rotationRef.current, index);
-    rotationRef.current = snappedRotation;
-    setRotation(snappedRotation);
+    const index = selectResultIndex();
     resultIndexRef.current = index;
-    setIsSpinning(false);
-    const result = items[index];
-    if (result) {
-      alert(`결과: ${result.label}`);
-      onResult?.(result);
-    }
+    fromRef.current = rotationRef.current;
+    const extraRotations = 4 + Math.floor(Math.random() * 2);
+    const snapped = getForwardSnappedRotation(rotationRef.current, index);
+    toRef.current = snapped + extraRotations * 360;
+    startRef.current = 0;
+    const duration = 2200 + extraRotations * 300;
+    frameRef.current = requestAnimationFrame((time) => animate(time, duration));
   };
 
   return (
@@ -171,12 +152,14 @@ export default function Roulette({ items, onResult }: Props) {
           <div className="rm-table">
             <div className="rm-table-header">
               <span>항목</span>
-              <span>획득확률</span>
+              <span>팝콘 수</span>
+              <span>경험치 수</span>
             </div>
             {items.map((item) => (
               <div className="rm-row" key={item.label}>
                 <span className="rm-label">{item.label}</span>
-                <span className="rm-probability">{item.probability}</span>
+                <span className="rm-probability">{item.popcornGain}</span>
+                <span className="rm-probability">{item.expGain}</span>
               </div>
             ))}
           </div>
@@ -193,10 +176,8 @@ export default function Roulette({ items, onResult }: Props) {
                   key={`sep-${index}`}
                   style={
                     {
-                      transform: `rotate(${
-                        startOffset + index * segmentAngle - 90
-                      }deg)`,
-                    }
+                      transform: `rotate(${startOffset + index * segmentAngle - 90}deg)`,
+                    } as CSSProperties
                   }
                 />
               ))}
@@ -227,15 +208,54 @@ export default function Roulette({ items, onResult }: Props) {
         >
           룰렛 돌리기
         </button>
-        <button
-          className="secondary-btn"
-          type="button"
-          onClick={stopSpin}
-          disabled={!isSpinning}
-        >
-          멈추기
-        </button>
       </div>
+
+      {resultOpen && resultItem && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="roulette-result-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setResultOpen(false)}
+          />
+          <div className="modal-content settings-modal rm-result-modal">
+            <div className="modal-scroll">
+              <div className="modal-header">
+                <h2 id="roulette-result-title">획득 결과</h2>
+                <button
+                  className="icon-btn"
+                  type="button"
+                  aria-label="결과 닫기"
+                  onClick={() => setResultOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-section">
+                <div className="rm-result-body">
+                  <p className="rm-result-label">{resultItem.label}</p>
+                  <p className="rm-result-popcorn">
+                    팝콘 +{resultItem.popcornGain}
+                  </p>
+                  <p className="rm-result-exp">EXP +{resultItem.expGain}</p>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => setResultOpen(false)}
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

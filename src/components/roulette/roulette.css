@@ -1,7 +1,8 @@
 .rm-roulette {
   display: grid;
   gap: 18px;
-  --label-offset: -120px;
+  --label-offset: -100px;
+  --label-nudge: -20px;
   position: relative;
 }
 
@@ -85,11 +86,12 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: rotate(var(--angle))
+  transform: translateY(var(--label-nudge))
+    rotate(var(--angle))
     translateY(var(--label-offset))
     rotate(calc(-1 * var(--angle)));
   transform-origin: center;
-  font-size: 0.82rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #161616;
   text-align: center;
@@ -101,13 +103,13 @@
 
 @media (max-width: 720px) {
   .rm-roulette {
-    --label-offset: -100px;
+    --label-offset: -86px;
   }
 }
 
 @media (max-width: 480px) {
   .rm-roulette {
-    --label-offset: -82px;
+    --label-offset: -72px;
   }
 }
 
@@ -116,6 +118,31 @@
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+.rm-result-modal {
+  width: min(260px, 90%);
+}
+
+.rm-result-body {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.rm-result-label {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.rm-result-exp {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.rm-result-popcorn {
+  font-weight: 700;
+  color: var(--text);
 }
 
 .rm-tooltip {
@@ -150,51 +177,62 @@
   z-index: 5;
 }
 
-.rm-tooltip:hover .rm-tooltip-panel,
-.rm-tooltip:focus-within .rm-tooltip-panel {
+.rm-tooltip:hover .rm-tooltip-panel {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(-50%) scale(1);
 }
 
 .rm-tooltip-panel .rm-table {
-  min-width: 220px;
+  min-width: 120px;
   background: #ffffff;
   border-radius: 14px;
   border: 1px solid var(--line);
   box-shadow: 0 18px 30px rgba(23, 23, 28, 0.14);
-  padding: 12px;
+  padding: 10px;
+  font-size: 0.88rem;
 }
 
 .rm-table {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .rm-table-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 40px 50px;
   align-items: center;
   font-weight: 700;
   color: var(--text-subtle);
+  font-size: 0.78rem;
+  gap: 6px;
 }
 
 .rm-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 40px 50px;
   align-items: center;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #f8f8fb;
+  font-size: 0.82rem;
 }
 
 .rm-label {
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.rm-probability {
-  min-width: 70px;
+.rm-table-header span:nth-child(2),
+.rm-table-header span:nth-child(3),
+.rm-row span:nth-child(2),
+.rm-row span:nth-child(3) {
   text-align: right;
+}
+.rm-probability {
   color: var(--text-subtle);
 }

@@ -1566,6 +1566,16 @@ textarea {
   box-shadow: var(--shadow);
   color: var(--text);
   min-height: 160px;
+  position: relative;
+}
+
+.reviewmong-panel .rm-roulette {
+  position: static;
+}
+
+.reviewmong-panel .rm-tooltip {
+  top: 18px;
+  right: 18px;
 }
 
 .reviewmong-question {

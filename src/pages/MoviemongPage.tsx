@@ -39,7 +39,7 @@ export default function MoviemongPage() {
     "question" | "feed" | "theme" | "recipe" | "bag"
   >("question");
   const [level, setLevel] = useState(1);
-  const [popcornCount, setPopcornCount] = useState(128);
+  const [popcornCount, setPopcornCount] = useState(0);
   const [expValue, setExpValue] = useState(0);
   const [questionPage, setQuestionPage] = useState(1);
   const [expandedQuestionId, setExpandedQuestionId] = useState<number | null>(

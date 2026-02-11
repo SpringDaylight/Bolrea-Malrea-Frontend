@@ -163,8 +163,8 @@ export default function MoviemongPage() {
                 </p>
                 <textarea
                   className="question-input"
-                  placeholder="답변(100bytes)"
-                  maxLength={100}
+                  placeholder="답변(250bytes)"
+                  maxLength={250}
                 />
                 <div className="question-actions">
                   <button className="primary-btn question-submit-btn" type="button">

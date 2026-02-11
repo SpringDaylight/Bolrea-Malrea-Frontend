@@ -157,6 +157,42 @@ export default function ActivityPage() {
     },
   ];
 
+  const reviewItems = [
+    {
+      id: 1,
+      movieId: 6,
+      title: "매트릭스",
+      poster: "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+      dateLabel: "2026.02.01",
+      genre: "액션",
+      rating: 4.5,
+      content: "과학보다 감정이 더 선명하게 남는 작품. 가족 서사가 깊게 와닿았다.",
+      createdAt: "2026-02-01T00:00:00.000Z",
+    },
+    {
+      id: 2,
+      movieId: 1,
+      title: "인터스텔라",
+      poster: "https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg",
+      dateLabel: "2026.01.26",
+      genre: "가족",
+      rating: 4.2,
+      content: "관계의 결이 살아있는 이야기라 여운이 길게 남았다.",
+      createdAt: "2026-01-26T00:00:00.000Z",
+    },
+    {
+      id: 3,
+      movieId: 2,
+      title: "라라랜드",
+      poster: "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg",
+      dateLabel: "2026.01.20",
+      genre: "로맨스",
+      rating: 4.0,
+      content: "계절의 변화와 음악이 감정을 더욱 깊게 만든다.",
+      createdAt: "2026-01-20T00:00:00.000Z",
+    },
+  ];
+
   const posterLimit = 18;
   const visiblePosters = showAllPosters
     ? posterItems
@@ -479,69 +515,43 @@ export default function ActivityPage() {
             <article className="section view-section" data-view="reviews" id="reviews-section">
             <div className="section-header" id="reviews-header" />
               <div className="review-list">
-                <Link className="card-link" to="/reviews/1">
-                  <article className="card review-card">
-                    <div className="movie-tile">
-                      <img
-                        className="poster"
-                        src="https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg"
-                        alt="매트릭스 포스터"
-                      />
-                      <div className="movie-info">
-                        <h3>매트릭스</h3>
-                        <p className="muted">
-                          "현실 감각과 선택에 대한 질문이 오래 남았다."
-                        </p>
-                        <div className="meta-list">
-                          <span>2026.02.01</span>
-                          <span>여운</span>
+                {reviewItems.map((review) => (
+                  <Link
+                    className="card-link"
+                    to={`/movies/${review.movieId}`}
+                    state={{
+                      userReview: {
+                        id: review.id,
+                        user_id: profile.id,
+                        movie_id: review.movieId,
+                        rating: review.rating,
+                        content: review.content,
+                        created_at: review.createdAt,
+                        likes_count: 0,
+                        comments_count: 0,
+                      },
+                    }}
+                    key={review.id}
+                  >
+                    <article className="card review-card">
+                      <div className="movie-tile">
+                        <img
+                          className="poster"
+                          src={review.poster}
+                          alt={`${review.title} 포스터`}
+                        />
+                        <div className="movie-info">
+                          <h3>{review.title}</h3>
+                          <p className="muted">"{review.content}"</p>
+                          <div className="meta-list">
+                            <span>{review.dateLabel}</span>
+                            <span>{review.genre}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                </Link>
-                <Link className="card-link" to="/reviews/2">
-                  <article className="card review-card">
-                    <div className="movie-tile">
-                      <img
-                        className="poster"
-                        src="https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg"
-                        alt="이터널 선샤인 포스터"
-                      />
-                      <div className="movie-info">
-                        <h3>이터널 선샤인</h3>
-                        <p className="muted">
-                          "관계의 기억을 지우는 선택이 너무 현실적으로 다가왔다."
-                        </p>
-                        <div className="meta-list">
-                          <span>2026.01.26</span>
-                          <span>감정선</span>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                </Link>
-                <Link className="card-link" to="/reviews/3">
-                  <article className="card review-card">
-                    <div className="movie-tile">
-                      <img
-                        className="poster"
-                        src="https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg"
-                        alt="라라랜드 포스터"
-                      />
-                      <div className="movie-info">
-                        <h3>라라랜드</h3>
-                        <p className="muted">
-                          "계절이 바뀔 때마다 음악이 다시 생각났다."
-                        </p>
-                        <div className="meta-list">
-                          <span>2026.01.20</span>
-                          <span>로맨스</span>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                </Link>
+                    </article>
+                  </Link>
+                ))}
               </div>
             </article>
         )}

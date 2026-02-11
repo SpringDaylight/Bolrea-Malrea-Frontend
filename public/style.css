@@ -153,7 +153,7 @@ textarea {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 28px 20px 40px;
 }
@@ -723,7 +723,7 @@ textarea {
 }
 
 .profile-card {
-  padding: 22px;
+  padding: 55px 22px;
   position: relative;
 }
 
@@ -731,6 +731,11 @@ textarea {
   display: flex;
   gap: 18px;
   align-items: center;
+  justify-content: center;
+}
+
+.profile-info {
+  width: 100%;
 }
 
 .profile-avatar {
@@ -744,6 +749,19 @@ textarea {
   font-weight: 700;
   font-size: 1.1rem;
   box-shadow: 0 12px 20px rgba(255, 47, 110, 0.25);
+}
+
+.profile-avatar-block {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  margin: 0 24px 0 16px;
+}
+
+.profile-nickname {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .profile-stats {
@@ -775,6 +793,12 @@ textarea {
 
 .profile-bio {
   margin: 6px 0 0;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.profile-bio-below {
+  margin: 40px 0 0;
 }
 
 .profile-title {
@@ -782,11 +806,18 @@ textarea {
   gap: 4px;
 }
 
+.profile-summary {
+  display: grid;
+  gap: 4px;
+  justify-self: center;
+}
+
 .profile-top-row {
   display: flex;
   gap: 18px;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .profile-divider {
@@ -800,6 +831,7 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin: 10px 0 4px;
+  padding-left: 24px;
 }
 
 .profile-meta-row {
@@ -1903,8 +1935,20 @@ textarea {
 
 .mood-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .mood-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .mood-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mood-card {
@@ -2000,8 +2044,9 @@ textarea {
   }
 
   .profile-top-row {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .profile-divider {

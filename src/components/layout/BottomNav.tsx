@@ -15,6 +15,9 @@ export default function BottomNav() {
       <NavLink to="/group" className={navClass}>
         다함께
       </NavLink>
+      <NavLink to="/moviemong" className={navClass}>
+        무비몽
+      </NavLink>
       <NavLink to="/mypage" className={navClass}>
         마이 홈
       </NavLink>

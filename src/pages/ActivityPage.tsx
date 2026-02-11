@@ -303,18 +303,18 @@ export default function ActivityPage() {
     <MainLayout>
       <main className="container">
         <section className="section card profile-card">
-          <div className="page-title">
+          {/* <div className="page-title">
             <h1>프로필</h1>
-            {/* <p>프로필과 설정을 관리해요.</p> */}
-          </div>
+            <p>프로필과 설정을 관리해요.</p>
+          </div> */}
           <div className="profile-header">
             <div className="profile-info">
               <div className="profile-top-row">
+                <div className="profile-summary">
                 <div className="profile-header-row">
-                  <div className="profile-avatar">{avatarLabel}</div>
-                  <div className="profile-title">
-                    <h2>{profile.nickname}</h2>
-                    <p className="muted profile-bio">{profile.bio}</p>
+                  <div className="profile-avatar-block">
+                    <div className="profile-avatar">{avatarLabel}</div>
+                    <h2 className="profile-nickname">{profile.nickname}</h2>
                   </div>
                   <button
                     className="icon-btn settings-btn"
@@ -324,6 +324,7 @@ export default function ActivityPage() {
                   >
                     ⚙
                   </button>
+                </div>
                 </div>
                 <div className="profile-divider" />
                 <div className="profile-meta">
@@ -356,6 +357,7 @@ export default function ActivityPage() {
               </div> */}
             </div>
           </div>
+          <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
         </section>
 
         <section className="section card">

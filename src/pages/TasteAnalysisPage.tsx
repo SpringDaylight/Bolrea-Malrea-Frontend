@@ -1,28 +1,109 @@
+import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Link } from "react-router-dom";
+import { getTasteMap, type UserProfile, type TasteMapResponse } from "../api/ml";
 
 export default function TasteAnalysisPage() {
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [tasteMap, setTasteMap] = useState<TasteMapResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadTasteAnalysis = async () => {
+      setLoading(true);
+      try {
+        // localStorage에서 사용자 프로필 가져오기
+        const savedProfile = localStorage.getItem("mw_user_profile");
+        if (savedProfile) {
+          const profile = JSON.parse(savedProfile) as UserProfile;
+          setUserProfile(profile);
+
+          // 취향 지도 생성
+          const mapResult = await getTasteMap({
+            user_text: profile.user_text,
+            k: 8,
+          });
+          setTasteMap(mapResult);
+        }
+      } catch (err) {
+        console.error('Failed to load taste analysis:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTasteAnalysis();
+  }, []);
+
+  // 상위 감정 태그 추출
+  const getTopEmotions = (scores: Record<string, number>, limit = 4) => {
+    return Object.entries(scores)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, limit)
+      .map(([tag]) => tag);
+  };
+
+  // 선호 장르 계산 (더미 데이터, 실제로는 리뷰 기반 계산 필요)
+  const getPreferredGenres = () => {
+    const savedGenres = localStorage.getItem("mw_taste_genres");
+    if (savedGenres) {
+      const genres = JSON.parse(savedGenres);
+      return genres.slice(0, 3).join(' · ');
+    }
+    return '드라마 · SF · 로맨스';
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <main className="container taste-analysis-page">
+          <p>취향 분석 중...</p>
+        </main>
+      </MainLayout>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <MainLayout>
+        <main className="container taste-analysis-page">
+          <section className="page-title">
+            <h1>취향 분석</h1>
+            <p>아직 취향 분석 데이터가 없습니다.</p>
+            <Link to="/taste-survey" className="primary-btn">
+              취향 설문 시작하기
+            </Link>
+          </section>
+        </main>
+      </MainLayout>
+    );
+  }
+
+  const topEmotions = getTopEmotions(userProfile.emotion_scores);
+  const topNarratives = getTopEmotions(userProfile.narrative_traits, 3);
+
   return (
     <MainLayout>
       <main className="container taste-analysis-page">
         <section className="taste-hero">
           <div>
-            <h1>도슨님의 취향 분석</h1>
-            <p className="muted">최근 128편의 평가를 바탕으로 구성했어요.</p>
+            <h1>나의 취향 분석</h1>
+            <p className="muted">최근 설문을 바탕으로 구성했어요.</p>
             <div className="taste-tags">
-              <span className="tag">감정선</span>
-              <span className="tag">몰입</span>
-              <span className="tag">관계 서사</span>
-              <span className="tag">여운</span>
+              {topEmotions.map((tag) => (
+                <span key={tag} className="tag">{tag}</span>
+              ))}
             </div>
           </div>
           <div className="card taste-score">
             <p className="muted">취향 일치율 높은 장르</p>
             <div className="score-number">87%</div>
-            <p className="muted">드라마 · SF · 로맨스</p>
-            <button className="secondary-btn" style={{ marginTop: 14 }}>
-              추천 다시 받기
-            </button>
+            <p className="muted">{getPreferredGenres()}</p>
+            <Link to="/taste-survey">
+              <button className="secondary-btn" style={{ marginTop: 14 }}>
+                추천 다시 받기
+              </button>
+            </Link>
           </div>
         </section>
 
@@ -32,18 +113,12 @@ export default function TasteAnalysisPage() {
             <p>내가 좋아하는 흐름</p>
           </div>
           <div className="feature-grid">
-            <article className="feature-card">
-              <h3>감정선 깊은 이야기</h3>
-              <p>사람 사이의 관계 변화와 감정 흐름에 높은 점수를 줍니다.</p>
-            </article>
-            <article className="feature-card">
-              <h3>몰입감 있는 세계관</h3>
-              <p>SF, 미스터리 같은 확장된 설정을 선호합니다.</p>
-            </article>
-            <article className="feature-card">
-              <h3>여운이 남는 결말</h3>
-              <p>결말 이후 생각할 거리가 있는 작품을 좋아합니다.</p>
-            </article>
+            {topNarratives.map((narrative, idx) => (
+              <article key={idx} className="feature-card">
+                <h3>{narrative}</h3>
+                <p>이런 요소가 있는 영화를 선호합니다.</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -97,34 +172,25 @@ export default function TasteAnalysisPage() {
             <p>선호하는 감정 톤</p>
           </div>
           <div className="mood-grid">
-            <article className="card mood-card">
-              <h3>잔잔함</h3>
-              <p className="muted">선호도 높음</p>
-              <div className="meter">
-                <span style={{ width: "82%" }} />
-              </div>
-            </article>
-            <article className="card mood-card">
-              <h3>긴장감</h3>
-              <p className="muted">중간</p>
-              <div className="meter">
-                <span style={{ width: "58%" }} />
-              </div>
-            </article>
-            <article className="card mood-card">
-              <h3>스케일</h3>
-              <p className="muted">선호도 높음</p>
-              <div className="meter">
-                <span style={{ width: "74%" }} />
-              </div>
-            </article>
-            <article className="card mood-card">
-              <h3>유머</h3>
-              <p className="muted">낮음</p>
-              <div className="meter">
-                <span style={{ width: "36%" }} />
-              </div>
-            </article>
+            {Object.entries(userProfile.emotion_scores)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 4)
+              .map(([emotion, score]) => {
+                const percentage = Math.round(score * 100);
+                let level = '낮음';
+                if (percentage > 70) level = '선호도 높음';
+                else if (percentage > 40) level = '중간';
+                
+                return (
+                  <article key={emotion} className="card mood-card">
+                    <h3>{emotion}</h3>
+                    <p className="muted">{level}</p>
+                    <div className="meter">
+                      <span style={{ width: `${percentage}%` }} />
+                    </div>
+                  </article>
+                );
+              })}
           </div>
         </section>
 

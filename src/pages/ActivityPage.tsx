@@ -301,7 +301,7 @@ export default function ActivityPage() {
 
   return (
     <MainLayout>
-      <main className="container">
+      <main className="container activity-page">
         <section className="section card profile-card">
           {/* <div className="page-title">
             <h1>프로필</h1>
@@ -360,7 +360,7 @@ export default function ActivityPage() {
           <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
         </section>
 
-        <section className="section card">
+        <section className="section card taste-preview-section">
           <article className="taste-preview">
             <div className="taste-preview-header with-cta">
               <div>
@@ -488,7 +488,7 @@ export default function ActivityPage() {
               리뷰 목록
             </button>
           </div> */}
-        </section>
+          </section>
 
           {view === "posters" && (
             <article className="section view-section" data-view="posters" id="posters-section">
@@ -556,7 +556,7 @@ export default function ActivityPage() {
                 ))}
               </div>
             </article>
-        )}
+          )}
 
           </article>
         </section>

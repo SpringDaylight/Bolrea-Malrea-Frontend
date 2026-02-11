@@ -686,7 +686,8 @@ textarea {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-subtle);
-  margin-bottom: 8px;
+  margin-top: 40px;
+  margin-bottom: 20px;
 }
 
 .filter-chip {
@@ -725,6 +726,10 @@ textarea {
 .profile-card {
   padding: 55px 22px;
   position: relative;
+}
+
+.activity-page .section.card {
+  padding: 55px 22px;
 }
 
 .profile-header {
@@ -990,6 +995,19 @@ textarea {
 
 .taste-preview-top-cta {
   padding: 8px 14px;
+}
+
+.taste-preview-section {
+  position: relative;
+}
+
+.taste-preview-section .taste-preview {
+  position: static;
+}
+
+.taste-preview-section .taste-preview-top-cta {
+  top: 18px;
+  right: 18px;
 }
 .taste-preview-body {
   display: grid;
@@ -1541,7 +1559,7 @@ textarea {
 
 .reviewmong-panel {
   margin-top: 16px;
-  padding: 16px;
+  padding: 30px;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: #ffffff;

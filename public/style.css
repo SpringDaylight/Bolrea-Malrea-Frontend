@@ -26,6 +26,16 @@ body,
   min-height: 100%;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+@supports not (scrollbar-gutter: stable) {
+  body {
+    overflow-y: scroll;
+  }
+}
+
 body {
   font-family: "Pretendard Variable", "Pretendard", "SUIT", "Apple SD Gothic Neo", sans-serif;
   background: radial-gradient(circle at top, #ffffff 0%, #f2f3f6 60%, #ededf1 100%);
@@ -336,6 +346,49 @@ textarea {
 
 .auth-card .form-grid {
   gap: 16px;
+}
+
+.signup-birthdate-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.input-with-clear {
+  position: relative;
+}
+
+.input-with-clear > input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.input-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(93, 93, 102, 0.14);
+  color: var(--text-subtle);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.8rem;
+}
+
+.input-clear-btn:hover {
+  background: rgba(255, 47, 110, 0.16);
+  color: var(--accent);
+}
+
+.input-clear-btn:focus-visible {
+  outline: 2px solid rgba(255, 47, 110, 0.35);
+  outline-offset: 1px;
 }
 
 .field-error-text {
@@ -701,6 +754,10 @@ textarea {
   position: relative;
 }
 
+.group-select-wrap.option-select::after {
+  content: none;
+}
+
 .group-select-wrap::after {
   content: "▾";
   position: absolute;
@@ -740,6 +797,74 @@ textarea {
   box-shadow: 0 0 0 3px rgba(255, 47, 110, 0.12);
 }
 
+.option-select {
+  position: relative;
+  min-width: 0;
+}
+
+.option-select-trigger {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.option-select-trigger.is-placeholder {
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+
+.option-select-trigger:hover {
+  border-color: rgba(255, 47, 110, 0.35);
+}
+
+.option-select-trigger:focus-visible {
+  outline: none;
+  border-color: rgba(255, 47, 110, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 47, 110, 0.12);
+}
+
+.option-select-trigger:disabled {
+  cursor: not-allowed;
+  color: var(--text-subtle);
+  background: #f6f7fa;
+}
+
+.option-select-arrow {
+  color: var(--text-subtle);
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.option-select-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.option-select-item {
+  grid-template-columns: 1fr auto;
+}
+
+.option-select-item span {
+  justify-self: end;
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .group-member-box {
   padding: 0;
   display: grid;
@@ -771,6 +896,47 @@ textarea {
   color: var(--text-subtle);
   font-size: 0.92rem;
   font-weight: 600;
+}
+
+.group-selected-members {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.group-selected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+}
+
+.group-selected-remove {
+  all: unset;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-subtle);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.group-selected-remove:hover {
+  color: var(--accent);
+  background: rgba(255, 47, 110, 0.12);
+}
+
+.group-selected-remove:focus-visible {
+  outline: 2px solid rgba(255, 47, 110, 0.35);
+  outline-offset: 1px;
+}
+
+.group-user-results {
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .search-results {
@@ -2295,7 +2461,7 @@ textarea {
 .mood-card {
   display: grid;
   gap: 8px;
-}
+}ㅛㅛ
 
 .meter {
   height: 8px;

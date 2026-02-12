@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import googleIcon from "../assets/web_neutral_sq_na@1x.png";
@@ -22,12 +22,17 @@ const originOptions = [ "🇰🇷 한국 영화", "🇺🇸 미국/할리우드"
 const totalSurveySteps = 6;
 const defaultProfileBio = "Enjoying drama and SF with strong emotional arcs.";
 
-type SignupField = "name" | "nickname" | "userId" | "email" | "password" | "confirm";
+type SignupField = "name" | "birthDate" | "nickname" | "userId" | "email" | "password" | "confirm";
 type SignupFieldErrors = Partial<Record<SignupField, string>>;
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [isBirthMonthOpen, setIsBirthMonthOpen] = useState(false);
+  const [isBirthDayOpen, setIsBirthDayOpen] = useState(false);
   const [nickname, setNickname] = useState("");
   const [userId, setuserId] = useState("");
   const [email, setEmail] = useState("");
@@ -43,6 +48,44 @@ export default function SignupPage() {
   const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
   const [signupError, setSignupError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const birthMonthRef = useRef<HTMLDivElement | null>(null);
+  const birthDayRef = useRef<HTMLDivElement | null>(null);
+  const birthMonthOptions = Array.from({ length: 12 }, (_, index) =>
+    String(index + 1)
+  );
+  const isBirthYearValid = /^\d{4}$/.test(birthYear);
+  const daysInSelectedMonth =
+    isBirthYearValid && birthMonth
+      ? new Date(Number(birthYear), Number(birthMonth), 0).getDate()
+      : 31;
+  const birthDayOptions = Array.from(
+    { length: daysInSelectedMonth },
+    (_, index) => String(index + 1)
+  );
+
+  useEffect(() => {
+    if (birthDay && Number(birthDay) > daysInSelectedMonth) {
+      setBirthDay("");
+    }
+  }, [birthDay, daysInSelectedMonth]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+
+      if (birthMonthRef.current && !birthMonthRef.current.contains(event.target)) {
+        setIsBirthMonthOpen(false);
+      }
+      if (birthDayRef.current && !birthDayRef.current.contains(event.target)) {
+        setIsBirthDayOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
 
   const toggleValueWithLimit = (
     value: string,
@@ -92,10 +135,30 @@ export default function SignupPage() {
     });
   };
 
+  const clearInputValue = (
+    field: SignupField,
+    setValue: Dispatch<SetStateAction<string>>,
+    options?: {
+      alsoClearErrors?: SignupField[];
+      afterClear?: () => void;
+    }
+  ) => {
+    setValue("");
+    clearFieldError(field);
+    if (options?.alsoClearErrors) {
+      options.alsoClearErrors.forEach((targetField) => clearFieldError(targetField));
+    }
+    options?.afterClear?.();
+    setSignupError("");
+  };
+
   const validateSignupFields = () => {
     const nextErrors: SignupFieldErrors = {};
 
     if (!name.trim()) nextErrors.name = "내용을 입력해주세요.";
+    if (!isBirthYearValid || !birthMonth || !birthDay) {
+      nextErrors.birthDate = "내용을 입력해주세요.";
+    }
     if (!nickname.trim()) nextErrors.nickname = "내용을 입력해주세요.";
     if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
     if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
@@ -137,6 +200,11 @@ export default function SignupPage() {
 
       localStorage.setItem("mw_profile_name", profileSnapshot.nickname);
       localStorage.setItem("mw_profile_realname", profileSnapshot.realname);
+      const formattedBirthDate = `${birthYear.padStart(4, "0")}-${birthMonth.padStart(
+        2,
+        "0"
+      )}-${birthDay.padStart(2, "0")}`;
+      localStorage.setItem("mw_profile_birthdate", formattedBirthDate);
       localStorage.setItem("mw_profile_nickname", profileSnapshot.nickname);
       localStorage.setItem("mw_profile_id", profileSnapshot.id);
       localStorage.setItem("mw_user_id", profileSnapshot.id);
@@ -187,83 +255,272 @@ export default function SignupPage() {
           <article className="card auth-card">
             <div className="form-grid">
               <label htmlFor="signup-name">이름</label>
-              <input
-                id="signup-name"
-                type="text"
-                placeholder="이름"
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  clearFieldError("name");
-                  setSignupError("");
-                }}
-              />
+              <div className="input-with-clear">
+                <input
+                  id="signup-name"
+                  type="text"
+                  placeholder="이름"
+                  value={name}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    clearFieldError("name");
+                    setSignupError("");
+                  }}
+                />
+                {name && (
+                  <button
+                    type="button"
+                    className="input-clear-btn"
+                    aria-label="이름 입력 지우기"
+                    onClick={() => clearInputValue("name", setName)}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {fieldErrors.name && <p className="field-error-text">{fieldErrors.name}</p>}
+              <label htmlFor="signup-birth-year">생년월일</label>
+              <div className="signup-birthdate-row">
+                <div className="input-with-clear">
+                  <input
+                    id="signup-birth-year"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    placeholder="년"
+                    value={birthYear}
+                    onChange={(event) => {
+                      setBirthYear(event.target.value.replace(/\D/g, "").slice(0, 4));
+                      setIsBirthDayOpen(false);
+                      clearFieldError("birthDate");
+                      setSignupError("");
+                    }}
+                  />
+                  {birthYear && (
+                    <button
+                      type="button"
+                      className="input-clear-btn"
+                      aria-label="생년 입력 지우기"
+                      onClick={() =>
+                        clearInputValue("birthDate", setBirthYear, {
+                          afterClear: () => setIsBirthDayOpen(false),
+                        })
+                      }
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <div className="option-select" ref={birthMonthRef}>
+                  <button
+                    type="button"
+                    className={`option-select-trigger ${birthMonth ? "" : "is-placeholder"}`}
+                    aria-haspopup="listbox"
+                    aria-expanded={isBirthMonthOpen}
+                    onClick={() => setIsBirthMonthOpen((prev) => !prev)}
+                  >
+                    <span>{birthMonth ? `${birthMonth}월` : "월"}</span>
+                    <span className="option-select-arrow" aria-hidden="true">
+                      ▾
+                    </span>
+                  </button>
+                  {isBirthMonthOpen && (
+                    <div className="search-results option-select-list" role="listbox">
+                      {birthMonthOptions.map((month) => (
+                        <button
+                          key={month}
+                          type="button"
+                          className="search-item option-select-item"
+                          onClick={() => {
+                            setBirthMonth(month);
+                            const maxDay = isBirthYearValid
+                              ? new Date(Number(birthYear), Number(month), 0).getDate()
+                              : 31;
+                            if (birthDay && Number(birthDay) > maxDay) {
+                              setBirthDay("");
+                            }
+                            setIsBirthDayOpen(false);
+                            clearFieldError("birthDate");
+                            setSignupError("");
+                            setIsBirthMonthOpen(false);
+                          }}
+                        >
+                          <strong>{month}월</strong>
+                          {birthMonth === month && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="option-select" ref={birthDayRef}>
+                  <button
+                    type="button"
+                    className={`option-select-trigger ${birthDay ? "" : "is-placeholder"}`}
+                    aria-haspopup="listbox"
+                    aria-expanded={isBirthDayOpen}
+                    disabled={!isBirthYearValid || !birthMonth}
+                    onClick={() => setIsBirthDayOpen((prev) => !prev)}
+                  >
+                    <span>{birthDay ? `${birthDay}일` : "일"}</span>
+                    <span className="option-select-arrow" aria-hidden="true">
+                      ▾
+                    </span>
+                  </button>
+                  {isBirthDayOpen && isBirthYearValid && birthMonth && (
+                    <div className="search-results option-select-list" role="listbox">
+                      {birthDayOptions.map((day) => (
+                        <button
+                          key={day}
+                          type="button"
+                          className="search-item option-select-item"
+                          onClick={() => {
+                            setBirthDay(day);
+                            clearFieldError("birthDate");
+                            setSignupError("");
+                            setIsBirthDayOpen(false);
+                          }}
+                        >
+                          <strong>{day}일</strong>
+                          {birthDay === day && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {fieldErrors.birthDate && (
+                <p className="field-error-text">{fieldErrors.birthDate}</p>
+              )}
               <label htmlFor="signup-nickname">닉네임</label>
-              <input
-                id="signup-nickname"
-                type="text"
-                placeholder="닉네임"
-                value={nickname}
-                onChange={(event) => {
-                  setNickname(event.target.value);
-                  clearFieldError("nickname");
-                  setSignupError("");
-                }}
-              />
+              <div className="input-with-clear">
+                <input
+                  id="signup-nickname"
+                  type="text"
+                  placeholder="닉네임"
+                  value={nickname}
+                  onChange={(event) => {
+                    setNickname(event.target.value);
+                    clearFieldError("nickname");
+                    setSignupError("");
+                  }}
+                />
+                {nickname && (
+                  <button
+                    type="button"
+                    className="input-clear-btn"
+                    aria-label="닉네임 입력 지우기"
+                    onClick={() => clearInputValue("nickname", setNickname)}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {fieldErrors.nickname && <p className="field-error-text">{fieldErrors.nickname}</p>}
               <label htmlFor="signup-userid">아이디</label>
-              <input
-                id="signup-userid"
-                type="text"
-                placeholder="아이디"
-                value={userId}
-                onChange={(event) => {
-                  setuserId(event.target.value);
-                  clearFieldError("userId");
-                  setSignupError("");
-                }}
-              />
+              <div className="input-with-clear">
+                <input
+                  id="signup-userid"
+                  type="text"
+                  placeholder="아이디"
+                  value={userId}
+                  onChange={(event) => {
+                    setuserId(event.target.value);
+                    clearFieldError("userId");
+                    setSignupError("");
+                  }}
+                />
+                {userId && (
+                  <button
+                    type="button"
+                    className="input-clear-btn"
+                    aria-label="아이디 입력 지우기"
+                    onClick={() => clearInputValue("userId", setuserId)}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {fieldErrors.userId && <p className="field-error-text">{fieldErrors.userId}</p>}
               <label htmlFor="signup-password">비밀번호</label>
-              <input
-                id="signup-password"
-                type="password"
-                placeholder="********"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  clearFieldError("password");
-                  clearFieldError("confirm");
-                  setSignupError("");
-                }}
-              />
+              <div className="input-with-clear">
+                <input
+                  id="signup-password"
+                  type="password"
+                  placeholder="********"
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    clearFieldError("password");
+                    clearFieldError("confirm");
+                    setSignupError("");
+                  }}
+                />
+                {password && (
+                  <button
+                    type="button"
+                    className="input-clear-btn"
+                    aria-label="비밀번호 입력 지우기"
+                    onClick={() =>
+                      clearInputValue("password", setPassword, {
+                        alsoClearErrors: ["confirm"],
+                      })
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {fieldErrors.password && <p className="field-error-text">{fieldErrors.password}</p>}
               <label htmlFor="signup-confirm">비밀번호 확인</label>
-              <input
-                id="signup-confirm"
-                type="password"
-                placeholder="********"
-                value={confirm}
-                onChange={(event) => {
-                  setConfirm(event.target.value);
-                  clearFieldError("confirm");
-                  setSignupError("");
-                }}
-              />
+              <div className="input-with-clear">
+                <input
+                  id="signup-confirm"
+                  type="password"
+                  placeholder="********"
+                  value={confirm}
+                  onChange={(event) => {
+                    setConfirm(event.target.value);
+                    clearFieldError("confirm");
+                    setSignupError("");
+                  }}
+                />
+                {confirm && (
+                  <button
+                    type="button"
+                    className="input-clear-btn"
+                    aria-label="비밀번호 확인 입력 지우기"
+                    onClick={() => clearInputValue("confirm", setConfirm)}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
               <label htmlFor="signup-email">이메일</label>
-              <input
-                id="signup-email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  clearFieldError("email");
-                  setSignupError("");
-                }}
-              />
+              <div className="input-with-clear">
+                <input
+                  id="signup-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    clearFieldError("email");
+                    setSignupError("");
+                  }}
+                />
+                {email && (
+                  <button
+                    type="button"
+                    className="input-clear-btn"
+                    aria-label="이메일 입력 지우기"
+                    onClick={() => clearInputValue("email", setEmail)}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               {fieldErrors.email && <p className="field-error-text">{fieldErrors.email}</p>}
               <button
                 className="primary-btn"

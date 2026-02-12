@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { 
   simulateGroup, 
@@ -7,6 +7,8 @@ import {
   type UserProfile 
 } from "../api/ml";
 import { searchMovies, type Movie } from "../api/A2_movies";
+
+const groupTypeOptions = ["친구", "가족", "연인", "모임", "기타"];
 
 export default function GroupPage() {
   const [groupType, setGroupType] = useState("");
@@ -18,25 +20,48 @@ export default function GroupPage() {
   const [userQuery, setUserQuery] = useState("");
   const [movieQuery, setMovieQuery] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
+  const [isGroupTypeOpen, setIsGroupTypeOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [movieSearchResults, setMovieSearchResults] = useState<Movie[]>([]);
   const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const userSearchRef = useRef<HTMLDivElement | null>(null);
+  const groupTypeRef = useRef<HTMLDivElement | null>(null);
+  const userRequiredError = error === "사용자를 선택해주세요." ? error : null;
+  const movieRequiredError = error === "영화를 선택해주세요." ? error : null;
+  const formError =
+    error &&
+    error !== "영화를 선택해주세요." &&
+    error !== "사용자를 선택해주세요."
+      ? error
+      : null;
 
   // 더미 사용자 데이터 (실제로는 API에서 가져와야 함)
-  const userResults = [
+  const allUsers = [
     { id: "mirae_01", name: "미래", nickname: "미래" },
     { id: "noir_02", name: "노을", nickname: "노을빛" },
     { id: "summer_03", name: "여름", nickname: "summer" },
-  ].filter((user) => {
+  ];
+  const userResults = allUsers.filter((user) => {
     const query = userQuery.trim().toLowerCase();
-    if (!query) return false;
     return (
-      user.name.toLowerCase().includes(query) ||
-      user.nickname.toLowerCase().includes(query) ||
-      user.id.toLowerCase().includes(query)
+      !selectedMembers.includes(user.id) &&
+      (
+        !query ||
+        user.name.toLowerCase().includes(query) ||
+        user.nickname.toLowerCase().includes(query) ||
+        user.id.toLowerCase().includes(query)
+      )
     );
+  });
+  const selectedMemberItems = selectedMembers.map((memberId) => {
+    const matched = allUsers.find((user) => user.id === memberId);
+    return {
+      id: memberId,
+      nickname: matched ? matched.nickname : memberId,
+    };
   });
 
   const handleMemberToggle = (userId: string) => {
@@ -47,6 +72,72 @@ export default function GroupPage() {
           ? prev
           : [...prev, userId]
     );
+    if (userRequiredError) {
+      setError(null);
+    }
+  };
+
+  const memberSlots = Math.max(totalMembers - guestMembers, 0);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (event.target instanceof Node) {
+        if (userSearchRef.current && !userSearchRef.current.contains(event.target)) {
+          setIsUserSearchOpen(false);
+        }
+        if (groupTypeRef.current && !groupTypeRef.current.contains(event.target)) {
+          setIsGroupTypeOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  const handleApplyMemberConfig = () => {
+    if (!groupType) {
+      setError("그룹을 선택해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    const totalValue = Number(draftTotalMembers);
+    const guestValue = draftGuestMembers === "" ? 0 : Number(draftGuestMembers);
+
+    if (!draftTotalMembers || Number.isNaN(totalValue) || totalValue < 1) {
+      setError("총 인원은 1명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (Number.isNaN(guestValue) || guestValue < 0) {
+      setError("비회원 인원은 0명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (guestValue > totalValue) {
+      setError("비회원 인원은 총 인원보다 많을 수 없습니다.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    const nextSlots = Math.max(totalValue - guestValue, 0);
+    setTotalMembers(totalValue);
+    setGuestMembers(guestValue);
+    setSelectedMembers((prev) => prev.slice(0, nextSlots));
+    setUserQuery("");
+    setMovieQuery("");
+    setSelectedMovie(null);
+    setMovieSearchResults([]);
+    setIsUserSearchOpen(false);
+    setIsGroupTypeOpen(false);
+    setGroupResult(null);
+    setError(null);
+    setMemberConfigApplied(true);
   };
 
   const memberSlots = Math.max(totalMembers - guestMembers, 0);
@@ -113,8 +204,8 @@ export default function GroupPage() {
   };
 
   const handleAnalyze = async () => {
-    if (selectedMembers.length === 0) {
-      setError('최소 1명 이상의 멤버를 선택해주세요.');
+    if (memberSlots > 0 && selectedMembers.length < memberSlots) {
+      setError("사용자를 회원수만큼 선택해주세요.");
       return;
     }
 
@@ -189,24 +280,38 @@ export default function GroupPage() {
             <div className="group-config-grid">
               <div className="group-config-box">
                 <p className="group-member-title">그룹 선택</p>
-                <div className="group-select-wrap">
-                  <select
-                    className={`group-select ${groupType ? "" : "is-placeholder"}`}
-                    value={groupType}
-                    onChange={(event) => {
-                      setGroupType(event.target.value);
-                      setMemberConfigApplied(false);
-                    }}
+                <div className="group-select-wrap option-select" ref={groupTypeRef}>
+                  <button
+                    type="button"
+                    className={`option-select-trigger ${groupType ? "" : "is-placeholder"}`}
+                    aria-haspopup="listbox"
+                    aria-expanded={isGroupTypeOpen}
+                    onClick={() => setIsGroupTypeOpen((prev) => !prev)}
                   >
-                    <option value="" disabled>
-                      그룹을 선택해주세요
-                    </option>
-                    <option value="친구">친구</option>
-                    <option value="가족">가족</option>
-                    <option value="연인">연인</option>
-                    <option value="모임">모임</option>
-                    <option value="기타">기타</option>
-                  </select>
+                    <span>{groupType || "그룹을 선택해주세요"}</span>
+                    <span className="option-select-arrow" aria-hidden="true">
+                      ▾
+                    </span>
+                  </button>
+                  {isGroupTypeOpen && (
+                    <div className="search-results option-select-list" role="listbox">
+                      {groupTypeOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className="search-item option-select-item"
+                          onClick={() => {
+                            setGroupType(option);
+                            setMemberConfigApplied(false);
+                            setIsGroupTypeOpen(false);
+                          }}
+                        >
+                          <strong>{option}</strong>
+                          {groupType === option && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="group-config-box">
@@ -261,42 +366,61 @@ export default function GroupPage() {
                 적용된 인원: 총 {totalMembers}명 / 비회원 {guestMembers}명 / 회원 {memberSlots}명
               </p>
             )}
-            {error && <p className="error">{error}</p>}
+            {formError && <p className="error">{formError}</p>}
 
             {memberConfigApplied && (
               <>
                 <label>사용자 검색</label>
-                <input
-                  type="text"
-                  placeholder="사용자 이름/닉네임/아이디 검색"
-                  value={userQuery}
-                  onChange={(event) => setUserQuery(event.target.value)}
-                />
-                {userQuery.trim().length > 0 && (
-                  <div className="search-results">
-                    {userResults.length === 0 && (
-                      <div className="search-empty">검색 결과가 없습니다.</div>
-                    )}
-                    {userResults.map((user) => (
-                      <button
-                        className={`search-item ${
-                          selectedMembers.includes(user.id) ? "active" : ""
-                        }`}
-                        type="button"
-                        key={user.id}
-                        onClick={() => handleMemberToggle(user.id)}
-                      >
-                        <strong>{user.nickname}</strong>
-                        <span>{user.name}</span>
-                        <span className="muted">@{user.id}</span>
-                        {selectedMembers.includes(user.id) && <span> ✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div ref={userSearchRef}>
+                  <input
+                    type="text"
+                    placeholder="사용자 이름/닉네임/아이디 검색"
+                    value={userQuery}
+                    onClick={() => setIsUserSearchOpen(true)}
+                    onFocus={() => setIsUserSearchOpen(true)}
+                    onChange={(event) => setUserQuery(event.target.value)}
+                  />
+                  {isUserSearchOpen && (
+                    <div className="search-results group-user-results">
+                      {userResults.length === 0 && (
+                        <div className="search-empty">검색 결과가 없습니다.</div>
+                      )}
+                      {userResults.map((user) => (
+                        <button
+                          className={`search-item ${
+                            selectedMembers.includes(user.id) ? "active" : ""
+                          }`}
+                          type="button"
+                          key={user.id}
+                          onClick={() => handleMemberToggle(user.id)}
+                        >
+                          <strong>{user.nickname}</strong>
+                          <span>{user.name}</span>
+                          {selectedMembers.includes(user.id) && <span> ✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {userRequiredError && <p className="error">{userRequiredError}</p>}
 
                 {selectedMembers.length > 0 && (
-                  <div className="tag-list" style={{ marginTop: 8 }}>
+                  <div className="group-selected-members">
+                    <div className="tag-list">
+                      {selectedMemberItems.map((member) => (
+                        <span key={member.id} className="tag group-selected-tag">
+                          {member.nickname}
+                          <button
+                            className="group-selected-remove"
+                            type="button"
+                            aria-label={`${member.nickname} 선택 해제`}
+                            onClick={() => handleMemberToggle(member.id)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                     <p className="muted">
                       선택된 회원 멤버: {selectedMembers.length}/{memberSlots}명
                     </p>
@@ -311,6 +435,7 @@ export default function GroupPage() {
                     value={movieQuery}
                     onChange={(event) => {
                       setMovieQuery(event.target.value);
+                      if (movieRequiredError) setError(null);
                       if (event.target.value.length > 1) {
                         handleMovieSearch();
                       } else {
@@ -337,11 +462,12 @@ export default function GroupPage() {
                     </div>
                   )}
                 </div>
+                {movieRequiredError && <p className="error">{movieRequiredError}</p>}
 
                 <button
                   className="primary-btn"
                   onClick={handleAnalyze}
-                  disabled={analyzing || selectedMembers.length === 0 || !selectedMovie}
+                  disabled={analyzing}
                 >
                   {analyzing ? "분석 중..." : "분석하기"}
                 </button>

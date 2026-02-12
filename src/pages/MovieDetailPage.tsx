@@ -11,6 +11,20 @@ import {
   type PredictionExplanation 
 } from "../api/ml";
 
+const REVIEW_STORAGE_KEY = "mw_my_reviews";
+
+type StoredReviewItem = {
+  id: number;
+  movieId: number;
+  title: string;
+  poster?: string | null;
+  dateLabel?: string;
+  genre?: string;
+  rating?: number;
+  content?: string;
+  createdAt?: string;
+};
+
 export default function MovieDetailPage() {
   const { movieId } = useParams<{ movieId: string }>();
   const location = useLocation();
@@ -46,6 +60,31 @@ export default function MovieDetailPage() {
     : "오늘";
 
   useEffect(() => {
+    if (!movieId) return;
+    if (locationState?.userReview || locationState?.newReview) return;
+    const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const stored = JSON.parse(raw) as StoredReviewItem[];
+      if (!Array.isArray(stored)) return;
+      const match = stored.find((item) => String(item.movieId) === String(movieId));
+      if (!match) return;
+      setLocalPersonalReview({
+        id: match.id ?? Date.now(),
+        user_id: localStorage.getItem("mw_profile_id") || "me",
+        movie_id: Number(movieId),
+        rating: typeof match.rating === "number" ? match.rating : 5,
+        content: match.content ?? null,
+        created_at: match.createdAt ?? new Date().toISOString(),
+        likes_count: 0,
+        comments_count: 0,
+      });
+    } catch (err) {
+      console.error("Failed to parse stored reviews:", err);
+    }
+  }, [movieId, locationState?.userReview, locationState?.newReview]);
+
+  useEffect(() => {
     const fetchMovieData = async () => {
       if (!movieId) return;
       
@@ -76,6 +115,16 @@ export default function MovieDetailPage() {
 
     fetchMovieData();
   }, [movieId, personalReview?.id, personalReview?.movie_id]);
+
+  useEffect(() => {
+    if (location.hash !== "#my-review") return;
+    const target = document.getElementById("my-review");
+    if (!target) return;
+    const timeout = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [location.hash, movie?.id]);
 
   useEffect(() => {
     setReactions((prev) => {
@@ -118,6 +167,31 @@ export default function MovieDetailPage() {
       likes_count: 0,
       comments_count: 0,
     };
+    try {
+      const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
+      const stored = raw ? (JSON.parse(raw) as StoredReviewItem[]) : [];
+      const nextEntry: StoredReviewItem = {
+        id: nextReview.id,
+        movieId: movie.id,
+        title: movie.title,
+        poster:
+          movie.poster_url ||
+          "https://via.placeholder.com/500x750?text=No+Image",
+        dateLabel: new Date(nextReview.created_at).toLocaleDateString("ko-KR"),
+        genre: movie.genres?.[0] ?? "장르",
+        rating: nextReview.rating,
+        content: nextReview.content ?? "",
+        createdAt: nextReview.created_at,
+      };
+      const normalizedStored = Array.isArray(stored) ? stored : [];
+      const nextStored = [
+        nextEntry,
+        ...normalizedStored.filter((item) => item.movieId !== movie.id),
+      ];
+      localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(nextStored));
+    } catch (err) {
+      console.error("Failed to save review to storage:", err);
+    }
     setLocalPersonalReview(nextReview);
     setMyReviewOpen(false);
   };
@@ -309,7 +383,7 @@ export default function MovieDetailPage() {
           </article>
         </section>
 
-        <section className="section">
+        <section className="section" id="my-review">
           <div className="section-header">
             <h2>내 리뷰</h2>
           </div>
@@ -458,17 +532,17 @@ export default function MovieDetailPage() {
                         type="button"
                         onClick={() => toggleReplyOpen(review.id)}
                       >
-                        답글 달기
+                        댓글 달기
                       </button>
                       <button className="ghost-btn review-link-btn" type="button">
-                        답글 보기
+                        댓글 보기
                       </button>
                     </div>
                     {replyOpen[review.id] && (
                       <div className="review-reply-form">
                         <textarea
                           className="review-reply-input"
-                          placeholder="답글을 입력하세요"
+                          placeholder="댓글을 입력하세요"
                           value={replyDrafts[review.id] || ""}
                           onChange={(event) =>
                             handleReplyChange(review.id, event.target.value)
@@ -480,7 +554,7 @@ export default function MovieDetailPage() {
                             type="button"
                             onClick={() => handleReplySubmit(review.id)}
                           >
-                            답글 달기
+                            저장하기
                           </button>
                         </div>
                       </div>

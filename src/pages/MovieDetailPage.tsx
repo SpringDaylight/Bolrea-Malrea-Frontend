@@ -12,6 +12,7 @@ import {
 } from "../api/ml";
 
 const REVIEW_STORAGE_KEY = "mw_my_reviews";
+const WATCHED_STORAGE_KEY = "mw_watched_movies";
 
 type StoredReviewItem = {
   id: number;
@@ -25,6 +26,13 @@ type StoredReviewItem = {
   createdAt?: string;
 };
 
+type StoredWatchedItem = {
+  movieId: number;
+  title: string;
+  poster?: string | null;
+  addedAt?: string;
+};
+
 export default function MovieDetailPage() {
   const { movieId } = useParams<{ movieId: string }>();
   const location = useLocation();
@@ -34,6 +42,7 @@ export default function MovieDetailPage() {
     Record<number, { likes: number; dislikes: number }>
   >({});
   const [myReviewOpen, setMyReviewOpen] = useState(false);
+  const [isEditingMyReview, setIsEditingMyReview] = useState(false);
   const [myReviewContent, setMyReviewContent] = useState("");
   const [myReviewRating, setMyReviewRating] = useState(5);
   const [myReviewVisibility, setMyReviewVisibility] = useState<
@@ -41,6 +50,7 @@ export default function MovieDetailPage() {
   >("public");
   const [showReviewLoginMessage, setShowReviewLoginMessage] = useState(false);
   const [reviewLoginMessageTick, setReviewLoginMessageTick] = useState(0);
+  const [isMovieWatched, setIsMovieWatched] = useState(false);
   const [reviewDeleteConfirmOpen, setReviewDeleteConfirmOpen] = useState(false);
   const [isPersonalReviewDeleted, setIsPersonalReviewDeleted] = useState(false);
   const [localPersonalReview, setLocalPersonalReview] = useState<Review | null>(
@@ -68,6 +78,7 @@ export default function MovieDetailPage() {
   useEffect(() => {
     setIsPersonalReviewDeleted(false);
     setReviewDeleteConfirmOpen(false);
+    setIsEditingMyReview(false);
   }, [movieId]);
 
   useEffect(() => {
@@ -94,6 +105,23 @@ export default function MovieDetailPage() {
       console.error("Failed to parse stored reviews:", err);
     }
   }, [movieId, locationState?.userReview, locationState?.newReview]);
+
+  useEffect(() => {
+    if (!movieId) return;
+    try {
+      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
+      const stored = raw ? (JSON.parse(raw) as StoredWatchedItem[]) : [];
+      const normalizedStored = Array.isArray(stored) ? stored : [];
+      setIsMovieWatched(
+        normalizedStored.some(
+          (item) => String(item.movieId) === String(movieId)
+        )
+      );
+    } catch (err) {
+      console.error("Failed to parse watched movies:", err);
+      setIsMovieWatched(false);
+    }
+  }, [movieId]);
 
   useEffect(() => {
     const fetchMovieData = async () => {
@@ -173,13 +201,17 @@ export default function MovieDetailPage() {
     }
     const content = myReviewContent.trim();
     const userId = localStorage.getItem("mw_profile_id") || "me";
+    const createdAt =
+      isEditingMyReview && personalReview?.created_at
+        ? personalReview.created_at
+        : new Date().toISOString();
     const nextReview: Review = {
-      id: Date.now(),
+      id: isEditingMyReview && personalReview ? personalReview.id : Date.now(),
       user_id: userId,
       movie_id: movie.id,
       rating: myReviewRating,
       content: content.length ? content : null,
-      created_at: new Date().toISOString(),
+      created_at: createdAt,
       likes_count: 0,
       comments_count: 0,
     };
@@ -210,8 +242,18 @@ export default function MovieDetailPage() {
     }
     setLocalPersonalReview(nextReview);
     setIsPersonalReviewDeleted(false);
+    setIsEditingMyReview(false);
     setShowReviewLoginMessage(false);
     setMyReviewOpen(false);
+  };
+
+  const handleMyReviewEditOpen = () => {
+    if (!personalReview) return;
+    setMyReviewRating(personalReview.rating ?? 5);
+    setMyReviewContent(personalReview.content ?? "");
+    setIsEditingMyReview(true);
+    setShowReviewLoginMessage(false);
+    setMyReviewOpen(true);
   };
 
   const handleMyReviewDeleteConfirm = () => {
@@ -229,9 +271,35 @@ export default function MovieDetailPage() {
     }
     setLocalPersonalReview(null);
     setIsPersonalReviewDeleted(true);
+    setIsEditingMyReview(false);
     setMyReviewOpen(false);
     setShowReviewLoginMessage(false);
     setReviewDeleteConfirmOpen(false);
+  };
+
+  const handleMarkWatched = () => {
+    if (!movie) return;
+    try {
+      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
+      const stored = raw ? (JSON.parse(raw) as StoredWatchedItem[]) : [];
+      const normalizedStored = Array.isArray(stored) ? stored : [];
+      const nextItem: StoredWatchedItem = {
+        movieId: movie.id,
+        title: movie.title,
+        poster:
+          movie.poster_url ||
+          "https://via.placeholder.com/500x750?text=No+Image",
+        addedAt: new Date().toISOString(),
+      };
+      const nextStored = [
+        nextItem,
+        ...normalizedStored.filter((item) => item.movieId !== movie.id),
+      ];
+      localStorage.setItem(WATCHED_STORAGE_KEY, JSON.stringify(nextStored));
+      setIsMovieWatched(true);
+    } catch (err) {
+      console.error("Failed to save watched movie:", err);
+    }
   };
 
   const toggleReplyOpen = (reviewId: number) => {
@@ -342,7 +410,18 @@ export default function MovieDetailPage() {
         </section>
 
         <section className="section">
-          <article className="card">
+          <article className="card movie-detail-main-card">
+            <div className="movie-detail-card-actions">
+              <button
+                className={`secondary-btn movie-watch-btn ${
+                  isMovieWatched ? "is-active" : ""
+                }`}
+                type="button"
+                onClick={handleMarkWatched}
+              >
+                시청함
+              </button>
+            </div>
             <div className="movie-tile">
               <img
                 className="poster"
@@ -425,7 +504,7 @@ export default function MovieDetailPage() {
           <div className="section-header">
             <h2>내 리뷰</h2>
           </div>
-          {personalReview && personalReview.movie_id === movie.id ? (
+          {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
             <article className="card review-card">
               <div className="review-header">
                 <div className="review-user">
@@ -444,7 +523,11 @@ export default function MovieDetailPage() {
                 {personalReview.content || "리뷰 코멘트가 없습니다."}
               </p>
               <div className="review-link-row">
-                <button className="ghost-btn review-link-btn" type="button">
+                <button
+                  className="ghost-btn review-link-btn"
+                  type="button"
+                  onClick={handleMyReviewEditOpen}
+                >
                   리뷰 수정
                 </button>
                 <button
@@ -516,7 +599,7 @@ export default function MovieDetailPage() {
                       type="button"
                       onClick={handleMyReviewSave}
                     >
-                      저장하기
+                      {isEditingMyReview ? "수정하기" : "저장하기"}
                     </button>
                   </div>
                 </div>
@@ -527,6 +610,9 @@ export default function MovieDetailPage() {
                     className="primary-btn"
                     type="button"
                     onClick={() => {
+                      setIsEditingMyReview(false);
+                      setMyReviewRating(5);
+                      setMyReviewContent("");
                       setMyReviewOpen(true);
                       setShowReviewLoginMessage(false);
                     }}

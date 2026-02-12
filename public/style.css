@@ -278,6 +278,25 @@ textarea {
   color: var(--text-subtle);
 }
 
+.movie-detail-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.movie-watch-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  line-height: 1.2;
+}
+
+.movie-watch-btn.is-active {
+  background: var(--accent-soft);
+  border-color: rgba(255, 47, 110, 0.35);
+  color: var(--accent);
+}
+
 .section-header.centered {
   justify-content: center;
   text-align: center;
@@ -1052,6 +1071,37 @@ textarea {
   background: #ffffff;
 }
 
+.review-rating-row {
+  margin-top: 6px;
+}
+
+.review-rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.review-star {
+  color: #d5dbe8;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.review-star.is-active {
+  color: #ffbc2a;
+}
+
+.review-rating-value {
+  margin-left: 4px;
+  color: var(--text-subtle);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .profile-card {
   padding: 55px 22px;
   position: relative;
@@ -1745,6 +1795,40 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
+}
+
+.poster-card {
+  position: relative;
+}
+
+.poster-card > a {
+  display: block;
+}
+
+.poster-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #6f7280;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.poster-remove-btn:hover,
+.poster-remove-btn:focus-visible {
+  background: rgba(255, 47, 110, 0.14);
+  border-color: rgba(255, 47, 110, 0.35);
+  color: var(--accent);
 }
 
 .poster-grid-6 {

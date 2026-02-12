@@ -33,7 +33,15 @@ type ReviewItem = {
   replies: ReviewReply[];
 };
 
+type WatchedMovieItem = {
+  movieId: number;
+  title: string;
+  poster?: string | null;
+  addedAt?: string;
+};
+
 const REVIEW_STORAGE_KEY = "mw_my_reviews";
+const WATCHED_STORAGE_KEY = "mw_watched_movies";
 
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
@@ -55,189 +63,23 @@ export default function ActivityPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showAllPosters, setShowAllPosters] = useState(false);
   const [savedReviews, setSavedReviews] = useState<ReviewItem[]>([]);
+  const [savedWatchedMovies, setSavedWatchedMovies] = useState<WatchedMovieItem[]>([]);
 
-  const posterItems = [
-    {
-      id: 1,
-      to: "/movies/1",
-      src: "https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg",
-      alt: "이터널 선샤인 포스터",
-    },
-    {
-      id: 2,
-      to: "/movies/2",
-      src: "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg",
-      alt: "라라랜드 포스터",
-    },
-    {
-      id: 3,
-      to: "/movies/3",
-      src: "https://image.tmdb.org/t/p/w500/bgIt92V3IDysoAIcEfOo2ZK9PEv.jpg",
-      alt: "인셉션 포스터",
-    },
-    {
-      id: 4,
-      to: "/movies/4",
-      src: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
-      alt: "인터스텔라 포스터",
-    },
-    {
-      id: 5,
-      to: "/movies/5",
-      src: "https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
-      alt: "기생충 포스터",
-    },
-    {
-      id: 6,
-      to: "/movies/6",
-      src: "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
-      alt: "매트릭스 포스터",
-    },
-    {
-      id: 7,
-      to: "/movies/7",
-      src: "https://image.tmdb.org/t/p/w500/4q2hz2m8hubgvijz8Ez0T2Os2Yv.jpg",
-      alt: "타이타닉 포스터",
-    },
-    {
-      id: 8,
-      to: "/movies/8",
-      src: "https://image.tmdb.org/t/p/w500/kqjL17yufvn9OVLyXYpvtyrFfak.jpg",
-      alt: "듄 포스터",
-    },
-    {
-      id: 9,
-      to: "/movies/9",
-      src: "https://image.tmdb.org/t/p/w500/bKthjUmxjHjueYrEzdWjQfMArSg.jpg",
-      alt: "그랜드 부다페스트 호텔 포스터",
-    },
-    {
-      id: 10,
-      to: "/movies/10",
-      src: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
-      alt: "조커 포스터",
-    },
-    {
-      id: 11,
-      to: "/movies/11",
-      src: "https://image.tmdb.org/t/p/w500/2TeJfUZMGolfDdW6DKhfIWqvq8y.jpg",
-      alt: "조커 2 포스터",
-    },
-    {
-      id: 12,
-      to: "/movies/12",
-      src: "https://image.tmdb.org/t/p/w500/rc7j1oQOMxudcmGeYb5SPbII6e3.jpg",
-      alt: "조커 스핀오프 포스터",
-    },
+  const posterItems = useMemo(
+    () =>
+      savedWatchedMovies.map((item) => ({
+        id: item.movieId,
+        movieId: item.movieId,
+        to: `/movies/${item.movieId}`,
+        src:
+          item.poster ||
+          "https://via.placeholder.com/500x750?text=No+Image",
+        alt: `${item.title} 포스터`,
+      })),
+    [savedWatchedMovies]
+  );
 
-    {
-      id: 13,
-      to: "/movies/13",
-      src: "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
-      alt: "Avengers poster",
-    },
-    {
-      id: 14,
-      to: "/movies/14",
-      src: "https://image.tmdb.org/t/p/w500/cezWGskPY5x7GaglTTRN4Fugfb8.jpg",
-      alt: "Lord of the Rings poster",
-    },
-    {
-      id: 15,
-      to: "/movies/15",
-      src: "https://image.tmdb.org/t/p/w500/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg",
-      alt: "Wonder Woman poster",
-    },
-    {
-      id: 16,
-      to: "/movies/16",
-      src: "https://image.tmdb.org/t/p/w500/9O1Iy9od7V8n7Gd05m4d1nxyB2t.jpg",
-      alt: "Black Panther poster",
-    },
-    {
-      id: 17,
-      to: "/movies/17",
-      src: "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-      alt: "Superman poster",
-    },
-    {
-      id: 18,
-      to: "/movies/18",
-      src: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
-      alt: "The Dark Knight poster",
-    },
-    {
-      id: 19,
-      to: "/movies/19",
-      src: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
-      alt: "Interview with the Vampire poster",
-    },
-    {
-      id: 20,
-      to: "/movies/20",
-      src: "https://image.tmdb.org/t/p/w500/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg",
-      alt: "Midnight Memories poster",
-    },
-  ];
-
-  const reviewItems: ReviewItem[] = [
-    {
-      id: 1,
-      movieId: 6,
-      title: "매트릭스",
-      poster: "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
-      dateLabel: "2026.02.01",
-      genre: "액션",
-      rating: 4.5,
-      content: "과학보다 감정이 더 선명하게 남는 작품. 가족 서사가 깊게 와닿았다.",
-      createdAt: "2026-02-01T00:00:00.000Z",
-      replies: [
-        {
-          id: 1,
-          author: "Moviemong",
-          content: "Thanks for sharing your review!",
-          createdAt: "2026.02.02",
-        },
-      ],
-    },
-    {
-      id: 2,
-      movieId: 1,
-      title: "인터스텔라",
-      poster: "https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg",
-      dateLabel: "2026.01.26",
-      genre: "가족",
-      rating: 4.2,
-      content: "관계의 결이 살아있는 이야기라 여운이 길게 남았다.",
-      createdAt: "2026-01-26T00:00:00.000Z",
-      replies: [
-        {
-          id: 1,
-          author: "Reviewer",
-          content: "I felt the same way.",
-          createdAt: "2026.01.27",
-        },
-        {
-          id: 2,
-          author: "Moviemong",
-          content: "Great insight!",
-          createdAt: "2026.01.28",
-        },
-      ],
-    },
-    {
-      id: 3,
-      movieId: 2,
-      title: "라라랜드",
-      poster: "https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg",
-      dateLabel: "2026.01.20",
-      genre: "로맨스",
-      rating: 4.0,
-      content: "계절의 변화와 음악이 감정을 더욱 깊게 만든다.",
-      createdAt: "2026-01-20T00:00:00.000Z",
-      replies: [],
-    },
-  ];
+  const reviewItems: ReviewItem[] = [];
 
   const posterLimit = 18;
   const visiblePosters = showAllPosters
@@ -286,6 +128,32 @@ export default function ActivityPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as WatchedMovieItem[];
+      if (!Array.isArray(parsed)) return;
+      const normalized = parsed
+        .filter((item): item is WatchedMovieItem => {
+          if (!item || typeof item !== "object") return false;
+          const movieId = Number(item.movieId);
+          return Number.isFinite(movieId);
+        })
+        .map((item) => ({
+          movieId: Number(item.movieId),
+          title: item.title || "영화",
+          poster:
+            item.poster ||
+            "https://via.placeholder.com/500x750?text=No+Image",
+          addedAt: item.addedAt,
+        }));
+      setSavedWatchedMovies(normalized);
+    } catch (err) {
+      console.error("Failed to parse watched movies:", err);
+    }
+  }, []);
+
   const mergedReviewItems = useMemo(() => {
     const seen = new Set<number>();
     const combined = [...savedReviews, ...reviewItems];
@@ -295,6 +163,8 @@ export default function ActivityPage() {
       return true;
     });
   }, [savedReviews, reviewItems]);
+  const watchedCount = posterItems.length;
+  const reviewCount = mergedReviewItems.length;
 
   const avatarLabel = useMemo(
     () => profile.nickname.slice(0, 2),
@@ -365,6 +235,21 @@ export default function ActivityPage() {
     navigate("/login");
   };
 
+  const handleRemoveWatchedMovie = (movieId: number) => {
+    const nextWatchedMovies = savedWatchedMovies.filter(
+      (item) => item.movieId !== movieId
+    );
+    setSavedWatchedMovies(nextWatchedMovies);
+    try {
+      localStorage.setItem(
+        WATCHED_STORAGE_KEY,
+        JSON.stringify(nextWatchedMovies)
+      );
+    } catch (err) {
+      console.error("Failed to save watched movies:", err);
+    }
+  };
+
   const scrollToWithHeaderOffset = (elementId: string) => {
     const target = document.getElementById(elementId);
     if (!target) return;
@@ -375,6 +260,27 @@ export default function ActivityPage() {
       top: Math.max(0, targetTop - headerOffset),
       behavior: "smooth",
     });
+  };
+
+  const renderReviewRatingStars = (rating: number, reviewId: number) => {
+    const ratingValue = Number.isFinite(rating)
+      ? Math.max(0, Math.min(5, Math.round(rating)))
+      : 0;
+
+    return (
+      <div className="review-rating-stars" aria-label={`평점 ${ratingValue}점`}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <span
+            key={`${reviewId}-star-${index}`}
+            className={`review-star ${index < ratingValue ? "is-active" : ""}`}
+            aria-hidden="true"
+          >
+            ★
+          </span>
+        ))}
+        <span className="review-rating-value">{ratingValue}점</span>
+      </div>
+    );
   };
 
   if (!isLoggedIn) {
@@ -543,7 +449,7 @@ export default function ActivityPage() {
                 }
               }}
             >
-              <strong>128</strong>
+              <strong>{watchedCount}</strong>
               <span>시청작</span>
             </div>
             <div
@@ -566,7 +472,7 @@ export default function ActivityPage() {
                 }
               }}
             >
-              <strong>42</strong>
+              <strong>{reviewCount}</strong>
               <span>리뷰</span>
             </div>
           </div>
@@ -602,9 +508,23 @@ export default function ActivityPage() {
             <article className="section view-section" data-view="posters" id="posters-section">
               <div className="poster-grid poster-grid-6">
                 {visiblePosters.map((poster) => (
-                  <Link key={poster.id} to={poster.to}>
-                    <img src={poster.src} alt={poster.alt} />
-                  </Link>
+                  <div key={poster.id} className="poster-card">
+                    <Link to={poster.to}>
+                      <img src={poster.src} alt={poster.alt} />
+                    </Link>
+                    <button
+                      className="poster-remove-btn"
+                      type="button"
+                      aria-label={`${poster.alt} 제거`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleRemoveWatchedMovie(poster.movieId);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
               {posterItems.length > posterLimit && (
@@ -651,6 +571,9 @@ export default function ActivityPage() {
                           <div className="meta-list">
                             <span>{review.dateLabel}</span>
                             <span>{review.genre}</span>
+                          </div>
+                          <div className="review-rating-row">
+                            {renderReviewRatingStars(review.rating, review.id)}
                           </div>
                         </div>
                       </div>

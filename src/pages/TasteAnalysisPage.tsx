@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Link } from "react-router-dom";
-import { getTasteMap, type UserProfile, type TasteMapResponse } from "../api/ml";
+import { getTasteMap, type UserProfile } from "../api/ml";
 
 export default function TasteAnalysisPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [tasteMap, setTasteMap] = useState<TasteMapResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,11 +18,10 @@ export default function TasteAnalysisPage() {
           setUserProfile(profile);
 
           // 취향 지도 생성
-          const mapResult = await getTasteMap({
+          await getTasteMap({
             user_text: profile.user_text,
             k: 8,
           });
-          setTasteMap(mapResult);
         }
       } catch (err) {
         console.error('Failed to load taste analysis:', err);

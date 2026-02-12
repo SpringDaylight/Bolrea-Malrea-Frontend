@@ -14,6 +14,30 @@ export interface KakaoCallbackResponse {
   access_token: string;
 }
 
+export interface SignupRequest {
+  user_id: string;
+  name: string;
+  nickname: string;
+  email: string;
+  password: string;
+  password_confirm: string;
+}
+
+export interface LoginRequest {
+  user_id: string;
+  password: string;
+}
+
+export interface AuthUserResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  nickname: string;
+  email: string;
+  avatar_text?: string;
+  created_at: string;
+}
+
 /**
  * Get Kakao OAuth login URL
  */
@@ -26,6 +50,20 @@ export function getKakaoLoginUrl(): Promise<KakaoLoginResponse> {
  */
 export function handleKakaoCallback(code: string): Promise<KakaoCallbackResponse> {
   return get<KakaoCallbackResponse>('/api/auth/kakao/callback', { code });
+}
+
+/**
+ * Local signup
+ */
+export function signup(data: SignupRequest): Promise<AuthUserResponse> {
+  return post<AuthUserResponse>('/api/auth/signup', data);
+}
+
+/**
+ * Local login
+ */
+export function login(data: LoginRequest): Promise<AuthUserResponse> {
+  return post<AuthUserResponse>('/api/auth/login', data);
 }
 
 /**

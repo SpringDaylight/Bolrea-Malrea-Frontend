@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 import kakaoIcon from "../assets/kakao_sq_login.png";
+import { signup as signupApi } from "../api/auth";
 
 const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -19,6 +20,10 @@ const keywordOptions = [ "✨ 성장 / 청춘", "🤝 가족 / 우정", "💼 �
 const originOptions = [ "🇰🇷 한국 영화", "🇺🇸 미국/할리우드", "🇯🇵 일본 영화/애니", "🇪🇺 유럽/기타 해외", "🎞️ 고전 명작"];
 
 const totalSurveySteps = 6;
+const defaultProfileBio = "Enjoying drama and SF with strong emotional arcs.";
+
+type SignupField = "name" | "nickname" | "userId" | "email" | "password" | "confirm";
+type SignupFieldErrors = Partial<Record<SignupField, string>>;
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -35,6 +40,9 @@ export default function SignupPage() {
   const [vibe, setVibe] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [origin, setOrigin] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
+  const [signupError, setSignupError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleValueWithLimit = (
     value: string,
@@ -75,17 +83,79 @@ export default function SignupPage() {
     });
   };
 
-  const handleSignup = () => {
-    const nameValue = name.trim();
-    if (nameValue) {
-      localStorage.setItem("mw_profile_name", nameValue);
-      localStorage.setItem(
-        "mw_profile_bio",
-        "Enjoying drama and SF with strong emotional arcs."
-      );
+  const clearFieldError = (field: SignupField) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateSignupFields = () => {
+    const nextErrors: SignupFieldErrors = {};
+
+    if (!name.trim()) nextErrors.name = "내용을 입력해주세요.";
+    if (!nickname.trim()) nextErrors.nickname = "내용을 입력해주세요.";
+    if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
+    if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
+    if (!password.trim()) nextErrors.password = "내용을 입력해주세요.";
+    if (!confirm.trim()) nextErrors.confirm = "내용을 입력해주세요.";
+    if (password && confirm && password !== confirm) {
+      nextErrors.confirm = "비밀번호가 일치하지 않습니다.";
     }
-    localStorage.setItem("mw_logged_in", "true");
-    setSignupStep(0);
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSignup = async () => {
+    setSignupError("");
+    if (isSubmitting) return;
+    if (!validateSignupFields()) return;
+
+    const payload = {
+      user_id: userId.trim(),
+      name: name.trim(),
+      nickname: nickname.trim(),
+      email: email.trim(),
+      password,
+      password_confirm: confirm,
+    };
+
+    try {
+      setIsSubmitting(true);
+      const createdUser = await signupApi(payload);
+      const profileSnapshot = {
+        realname: createdUser.name || payload.name,
+        nickname: createdUser.nickname || payload.nickname,
+        id: createdUser.user_id || payload.user_id,
+        email: createdUser.email || payload.email,
+        age: "선택 안함",
+        gender: "선택 안함",
+      };
+
+      localStorage.setItem("mw_profile_name", profileSnapshot.nickname);
+      localStorage.setItem("mw_profile_realname", profileSnapshot.realname);
+      localStorage.setItem("mw_profile_nickname", profileSnapshot.nickname);
+      localStorage.setItem("mw_profile_id", profileSnapshot.id);
+      localStorage.setItem("mw_user_id", profileSnapshot.id);
+      localStorage.setItem("mw_profile_email", profileSnapshot.email);
+      localStorage.setItem("mw_profile_age", profileSnapshot.age);
+      localStorage.setItem("mw_profile_gender", profileSnapshot.gender);
+      localStorage.setItem("mw_profile_bio", defaultProfileBio);
+      localStorage.setItem("mw_signup_profile", JSON.stringify(profileSnapshot));
+      localStorage.setItem("mw_logged_in", "true");
+      window.dispatchEvent(new Event("mw_auth_change"));
+
+      setSignupStep(0);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "회원가입에 실패했습니다.";
+      setSignupError(message || "회원가입에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCompleteSurvey = () => {
@@ -101,7 +171,7 @@ export default function SignupPage() {
 
   const handleStart = () => {
     handleCompleteSurvey();
-    navigate("/");
+    navigate("/mypage");
   };
 
   const closeSurvey = () => setSignupStep(null);
@@ -122,51 +192,92 @@ export default function SignupPage() {
                 type="text"
                 placeholder="이름"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  clearFieldError("name");
+                  setSignupError("");
+                }}
               />
+              {fieldErrors.name && <p className="field-error-text">{fieldErrors.name}</p>}
               <label htmlFor="signup-nickname">닉네임</label>
               <input
                 id="signup-nickname"
                 type="text"
                 placeholder="닉네임"
                 value={nickname}
-                onChange={(event) => setNickname(event.target.value)}
+                onChange={(event) => {
+                  setNickname(event.target.value);
+                  clearFieldError("nickname");
+                  setSignupError("");
+                }}
               />
+              {fieldErrors.nickname && <p className="field-error-text">{fieldErrors.nickname}</p>}
               <label htmlFor="signup-userid">아이디</label>
               <input
                 id="signup-userid"
                 type="text"
                 placeholder="아이디"
                 value={userId}
-                onChange={(event) => setuserId(event.target.value)}
+                onChange={(event) => {
+                  setuserId(event.target.value);
+                  clearFieldError("userId");
+                  setSignupError("");
+                }}
               />
+              {fieldErrors.userId && <p className="field-error-text">{fieldErrors.userId}</p>}
               <label htmlFor="signup-password">비밀번호</label>
               <input
                 id="signup-password"
                 type="password"
                 placeholder="********"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  clearFieldError("password");
+                  clearFieldError("confirm");
+                  setSignupError("");
+                }}
               />
+              {fieldErrors.password && <p className="field-error-text">{fieldErrors.password}</p>}
               <label htmlFor="signup-confirm">비밀번호 확인</label>
               <input
                 id="signup-confirm"
                 type="password"
                 placeholder="********"
                 value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
+                onChange={(event) => {
+                  setConfirm(event.target.value);
+                  clearFieldError("confirm");
+                  setSignupError("");
+                }}
               />
+              {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
               <label htmlFor="signup-email">이메일</label>
               <input
                 id="signup-email"
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  clearFieldError("email");
+                  setSignupError("");
+                }}
               />
-              <button className="primary-btn" type="button" onClick={handleSignup}>
-                회원가입
+              {fieldErrors.email && <p className="field-error-text">{fieldErrors.email}</p>}
+              <button
+                className="primary-btn"
+                type="button"
+                onClick={handleSignup}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "가입 중..." : "회원가입"}
               </button>
+              {signupError && (
+                <p className="field-error-text" role="alert">
+                  {signupError}
+                </p>
+              )}
             </div>
             <div className="auth-actions">
               <Link className="secondary-btn" to="/login">

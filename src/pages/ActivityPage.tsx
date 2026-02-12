@@ -38,8 +38,8 @@ const REVIEW_STORAGE_KEY = "mw_my_reviews";
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
   realname: "사용자",
-  age: "20대",
-  gender: "여성",
+  age: "선택 안함",
+  gender: "선택 안함",
   id: "watched_01",
   email: "you@example.com",
   bio: "감정선 강한 드라마 · SF를 자주 봐요.",
@@ -300,6 +300,10 @@ export default function ActivityPage() {
     () => profile.nickname.slice(0, 2),
     [profile.nickname]
   );
+  const isLoggedIn = useMemo(
+    () => localStorage.getItem("mw_logged_in") === "true",
+    []
+  );
 
   const handleOpenEdit = () => {
     setEditDraft(profile);
@@ -373,10 +377,39 @@ export default function ActivityPage() {
     });
   };
 
+  if (!isLoggedIn) {
+    return (
+      <MainLayout>
+        <main className="container activity-page">
+          <div className="activity-top-grid">
+            <section className="section card taste-preview-section activity-top-card">
+              <article className="taste-preview">
+                <div className="taste-preview-header">
+                  <h2>프로필</h2>
+                </div>
+                <p className="muted login-required-text">로그인 후 이용해주세요.</p>
+              </article>
+            </section>
+
+            <section className="section card taste-preview-section activity-top-card">
+              <article className="taste-preview">
+                <div className="taste-preview-header">
+                  <h2>취향 분석</h2>
+                </div>
+                <p className="muted login-required-text">로그인 후 이용해주세요.</p>
+              </article>
+            </section>
+          </div>
+        </main>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <main className="container activity-page">
-        <section className="section card profile-card">
+        <div className="activity-top-grid">
+          <section className="section card profile-card activity-top-card">
           {/* <div className="page-title">
             <h1>프로필</h1>
             <p>프로필과 설정을 관리해요.</p>
@@ -434,7 +467,7 @@ export default function ActivityPage() {
           <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
         </section>
 
-        <section className="section card taste-preview-section">
+          <section className="section card taste-preview-section activity-top-card">
           <article className="taste-preview">
             <div className="taste-preview-header with-cta">
               <div>
@@ -471,7 +504,8 @@ export default function ActivityPage() {
               자세히보기
             </button> */}
           </article>
-        </section>
+          </section>
+        </div>
 
         <section className="section card activity-summary-card">
           <article className="taste-preview">
@@ -800,6 +834,7 @@ export default function ActivityPage() {
                     }))
                   }
                 >
+                  <option>선택 안함</option>
                   <option>10대</option>
                   <option>20대</option>
                   <option>30대</option>
@@ -817,9 +852,9 @@ export default function ActivityPage() {
                     }))
                   }
                 >
+                  <option>선택 안함</option>
                   <option>여성</option>
                   <option>남성</option>
-                  <option>선택 안 함</option>
                 </select>
                 <label htmlFor="profile-id-input">아이디</label>
                 <input

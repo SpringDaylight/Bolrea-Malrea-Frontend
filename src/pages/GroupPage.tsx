@@ -9,7 +9,12 @@ import {
 import { searchMovies, type Movie } from "../api/A2_movies";
 
 export default function GroupPage() {
-  const [groupType, setGroupType] = useState("친구");
+  const [groupType, setGroupType] = useState("");
+  const [draftTotalMembers, setDraftTotalMembers] = useState("2");
+  const [draftGuestMembers, setDraftGuestMembers] = useState("0");
+  const [totalMembers, setTotalMembers] = useState(2);
+  const [guestMembers, setGuestMembers] = useState(0);
+  const [memberConfigApplied, setMemberConfigApplied] = useState(false);
   const [userQuery, setUserQuery] = useState("");
   const [movieQuery, setMovieQuery] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -38,8 +43,53 @@ export default function GroupPage() {
     setSelectedMembers((prev) =>
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+        : prev.length >= memberSlots
+          ? prev
+          : [...prev, userId]
     );
+  };
+
+  const memberSlots = Math.max(totalMembers - guestMembers, 0);
+
+  const handleApplyMemberConfig = () => {
+    if (!groupType) {
+      setError("그룹을 선택해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    const totalValue = Number(draftTotalMembers);
+    const guestValue = draftGuestMembers === "" ? 0 : Number(draftGuestMembers);
+
+    if (!draftTotalMembers || Number.isNaN(totalValue) || totalValue < 1) {
+      setError("총 인원은 1명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (Number.isNaN(guestValue) || guestValue < 0) {
+      setError("비회원 인원은 0명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (guestValue > totalValue) {
+      setError("비회원 인원은 총 인원보다 많을 수 없습니다.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    const nextSlots = Math.max(totalValue - guestValue, 0);
+    setTotalMembers(totalValue);
+    setGuestMembers(guestValue);
+    setSelectedMembers((prev) => prev.slice(0, nextSlots));
+    setUserQuery("");
+    setMovieQuery("");
+    setSelectedMovie(null);
+    setMovieSearchResults([]);
+    setGroupResult(null);
+    setError(null);
+    setMemberConfigApplied(true);
   };
 
   const handleMovieSearch = async () => {
@@ -123,7 +173,7 @@ export default function GroupPage() {
 
   return (
     <MainLayout>
-      <main className="container">
+      <main className="container group-page">
         <section className="page-title">
           <h1>모두가 만족할 영화 찾기</h1>
           <p>모임 구성원들의 취향을 합쳐 한 번에 정리해드려요.</p>
@@ -131,97 +181,172 @@ export default function GroupPage() {
 
         <section className="section card">
           <div className="form-grid">
-            <label>그룹 선택</label>
-            <select
-              value={groupType}
-              onChange={(event) => setGroupType(event.target.value)}
-            >
-              <option>친구</option>
-              <option>가족</option>
-              <option>연인</option>
-              <option>기타</option>
-            </select>
 
-            <label>사용자 검색</label>
-            <input
-              type="text"
-              placeholder="사용자 이름/닉네임/아이디 검색"
-              value={userQuery}
-              onChange={(event) => setUserQuery(event.target.value)}
-            />
-            {userQuery.trim().length > 0 && (
-              <div className="search-results">
-                {userResults.length === 0 && (
-                  <div className="search-empty">검색 결과가 없습니다.</div>
-                )}
-                {userResults.map((user) => (
-                  <button
-                    className={`search-item ${
-                      selectedMembers.includes(user.id) ? "active" : ""
-                    }`}
-                    type="button"
-                    key={user.id}
-                    onClick={() => handleMemberToggle(user.id)}
+            {!memberConfigApplied && (
+              <p className="muted">인원을 입력하고 적용하기를 눌러주세요.</p>
+            )}
+            
+            <div className="group-config-grid">
+              <div className="group-config-box">
+                <p className="group-member-title">그룹 선택</p>
+                <div className="group-select-wrap">
+                  <select
+                    className={`group-select ${groupType ? "" : "is-placeholder"}`}
+                    value={groupType}
+                    onChange={(event) => {
+                      setGroupType(event.target.value);
+                      setMemberConfigApplied(false);
+                    }}
                   >
-                    <strong>{user.nickname}</strong>
-                    <span>{user.name}</span>
-                    <span className="muted">@{user.id}</span>
-                    {selectedMembers.includes(user.id) && <span> ✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {selectedMembers.length > 0 && (
-              <div className="tag-list" style={{ marginTop: 8 }}>
-                <p className="muted">선택된 멤버: {selectedMembers.length}명</p>
-              </div>
-            )}
-
-            <label>영화 선택</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder="영화 제목 입력"
-                value={movieQuery}
-                onChange={(event) => {
-                  setMovieQuery(event.target.value);
-                  if (event.target.value.length > 1) {
-                    handleMovieSearch();
-                  } else {
-                    setMovieSearchResults([]);
-                  }
-                }}
-              />
-              {movieSearchResults.length > 0 && (
-                <div className="search-results">
-                  {movieSearchResults.map((movie) => (
-                    <button
-                      className="search-item"
-                      type="button"
-                      key={movie.id}
-                      onClick={() => handleMovieSelect(movie)}
-                    >
-                      <strong>{movie.title}</strong>
-                      <span className="muted">
-                        {movie.release ? new Date(movie.release).getFullYear() : ''} · 
-                        {movie.genres.slice(0, 2).join('/')}
-                      </span>
-                    </button>
-                  ))}
+                    <option value="" disabled>
+                      그룹을 선택해주세요
+                    </option>
+                    <option value="친구">친구</option>
+                    <option value="가족">가족</option>
+                    <option value="연인">연인</option>
+                    <option value="모임">모임</option>
+                    <option value="기타">기타</option>
+                  </select>
                 </div>
-              )}
+              </div>
+              <div className="group-config-box">
+                <p className="group-member-title">인원 선택</p>
+                <div className="group-member-grid">
+                  <div className="group-member-box">
+                    <p className="group-member-title">총 인원</p>
+                    <div className="group-member-input-row">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={draftTotalMembers}
+                        onChange={(event) => {
+                          setDraftTotalMembers(event.target.value.replace(/\D/g, ""));
+                          setMemberConfigApplied(false);
+                        }}
+                        placeholder="0"
+                      />
+                      <span className="group-member-suffix">명</span>
+                    </div>
+                  </div>
+                  <div className="group-member-box">
+                    <p className="group-member-title">비회원 인원</p>
+                    <div className="group-member-input-row">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={draftGuestMembers}
+                        onChange={(event) => {
+                          setDraftGuestMembers(event.target.value.replace(/\D/g, ""));
+                          setMemberConfigApplied(false);
+                        }}
+                        placeholder="0"
+                      />
+                      <span className="group-member-suffix">명</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={handleApplyMemberConfig}
+            >
+              적용하기
+            </button>
+            {memberConfigApplied && (
+              <p className="muted">
+                적용된 인원: 총 {totalMembers}명 / 비회원 {guestMembers}명 / 회원 {memberSlots}명
+              </p>
+            )}
             {error && <p className="error">{error}</p>}
 
-            <button
-              className="primary-btn"
-              onClick={handleAnalyze}
-              disabled={analyzing || selectedMembers.length === 0 || !selectedMovie}
-            >
-              {analyzing ? '분석 중...' : '분석하기'}
-            </button>
+            {memberConfigApplied && (
+              <>
+                <label>사용자 검색</label>
+                <input
+                  type="text"
+                  placeholder="사용자 이름/닉네임/아이디 검색"
+                  value={userQuery}
+                  onChange={(event) => setUserQuery(event.target.value)}
+                />
+                {userQuery.trim().length > 0 && (
+                  <div className="search-results">
+                    {userResults.length === 0 && (
+                      <div className="search-empty">검색 결과가 없습니다.</div>
+                    )}
+                    {userResults.map((user) => (
+                      <button
+                        className={`search-item ${
+                          selectedMembers.includes(user.id) ? "active" : ""
+                        }`}
+                        type="button"
+                        key={user.id}
+                        onClick={() => handleMemberToggle(user.id)}
+                      >
+                        <strong>{user.nickname}</strong>
+                        <span>{user.name}</span>
+                        <span className="muted">@{user.id}</span>
+                        {selectedMembers.includes(user.id) && <span> ✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedMembers.length > 0 && (
+                  <div className="tag-list" style={{ marginTop: 8 }}>
+                    <p className="muted">
+                      선택된 회원 멤버: {selectedMembers.length}/{memberSlots}명
+                    </p>
+                  </div>
+                )}
+
+                <label>영화 선택</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    placeholder="영화 제목 입력"
+                    value={movieQuery}
+                    onChange={(event) => {
+                      setMovieQuery(event.target.value);
+                      if (event.target.value.length > 1) {
+                        handleMovieSearch();
+                      } else {
+                        setMovieSearchResults([]);
+                      }
+                    }}
+                  />
+                  {movieSearchResults.length > 0 && (
+                    <div className="search-results">
+                      {movieSearchResults.map((movie) => (
+                        <button
+                          className="search-item"
+                          type="button"
+                          key={movie.id}
+                          onClick={() => handleMovieSelect(movie)}
+                        >
+                          <strong>{movie.title}</strong>
+                          <span className="muted">
+                            {movie.release ? new Date(movie.release).getFullYear() : ""} ·
+                            {movie.genres.slice(0, 2).join("/")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  className="primary-btn"
+                  onClick={handleAnalyze}
+                  disabled={analyzing || selectedMembers.length === 0 || !selectedMovie}
+                >
+                  {analyzing ? "분석 중..." : "분석하기"}
+                </button>
+              </>
+            )}
           </div>
         </section>
 

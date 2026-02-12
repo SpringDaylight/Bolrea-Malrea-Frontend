@@ -39,6 +39,9 @@ export default function MovieDetailPage() {
   const [myReviewVisibility, setMyReviewVisibility] = useState<
     "public" | "private"
   >("public");
+  const [showReviewLoginMessage, setShowReviewLoginMessage] = useState(false);
+  const [reviewDeleteConfirmOpen, setReviewDeleteConfirmOpen] = useState(false);
+  const [isPersonalReviewDeleted, setIsPersonalReviewDeleted] = useState(false);
   const [localPersonalReview, setLocalPersonalReview] = useState<Review | null>(
     null
   );
@@ -53,11 +56,18 @@ export default function MovieDetailPage() {
     newReview?: Review;
     userReview?: Review;
   } | null;
-  const personalReview =
-    localPersonalReview ?? locationState?.userReview ?? locationState?.newReview;
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const personalReview = isPersonalReviewDeleted
+    ? null
+    : localPersonalReview ?? locationState?.userReview ?? locationState?.newReview;
   const personalReviewDate = personalReview?.created_at
     ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
     : "오늘";
+
+  useEffect(() => {
+    setIsPersonalReviewDeleted(false);
+    setReviewDeleteConfirmOpen(false);
+  }, [movieId]);
 
   useEffect(() => {
     if (!movieId) return;
@@ -155,6 +165,10 @@ export default function MovieDetailPage() {
 
   const handleMyReviewSave = () => {
     if (!movie) return;
+    if (!isLoggedIn) {
+      setShowReviewLoginMessage(true);
+      return;
+    }
     const content = myReviewContent.trim();
     const userId = localStorage.getItem("mw_profile_id") || "me";
     const nextReview: Review = {
@@ -193,7 +207,29 @@ export default function MovieDetailPage() {
       console.error("Failed to save review to storage:", err);
     }
     setLocalPersonalReview(nextReview);
+    setIsPersonalReviewDeleted(false);
+    setShowReviewLoginMessage(false);
     setMyReviewOpen(false);
+  };
+
+  const handleMyReviewDeleteConfirm = () => {
+    if (!movie) return;
+    try {
+      const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
+      const stored = raw ? (JSON.parse(raw) as StoredReviewItem[]) : [];
+      const normalizedStored = Array.isArray(stored) ? stored : [];
+      const nextStored = normalizedStored.filter(
+        (item) => String(item.movieId) !== String(movie.id)
+      );
+      localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(nextStored));
+    } catch (err) {
+      console.error("Failed to delete review from storage:", err);
+    }
+    setLocalPersonalReview(null);
+    setIsPersonalReviewDeleted(true);
+    setMyReviewOpen(false);
+    setShowReviewLoginMessage(false);
+    setReviewDeleteConfirmOpen(false);
   };
 
   const toggleReplyOpen = (reviewId: number) => {
@@ -409,30 +445,26 @@ export default function MovieDetailPage() {
                 <button className="ghost-btn review-link-btn" type="button">
                   리뷰 수정
                 </button>
-                <button className="ghost-btn review-link-btn" type="button">
+                <button
+                  className="ghost-btn review-link-btn"
+                  type="button"
+                  onClick={() => setReviewDeleteConfirmOpen(true)}
+                >
                   리뷰 삭제
                 </button>
               </div>
             </article>
           ) : (
             <article className="card review-card review-empty review-empty-stack">
-              <div className="review-empty-row">
-                <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
-                <button
-                  className="primary-btn"
-                  type="button"
-                  onClick={() => setMyReviewOpen((prev) => !prev)}
-                >
-                  리뷰 남기기
-                </button>
-              </div>
-              {myReviewOpen && (
+              {myReviewOpen ? (
                 <div className="review-form form-grid">
-                  <div className="review-form-row">
+                  <div className="review-form-row review-form-row-half">
                     <label htmlFor="my-review-rating">별점</label>
                     <select
                       id="my-review-rating"
+                      className="review-rating-select"
                       value={myReviewRating}
+                      disabled={!isLoggedIn}
                       onChange={(event) =>
                         setMyReviewRating(Number(event.target.value))
                       }
@@ -444,11 +476,28 @@ export default function MovieDetailPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="review-form-row">
-                    <label htmlFor="my-review-visibility">공개 여부</label>
+                  <div className="review-form-spacer" aria-hidden="true" />
+                  <div className="review-form-row review-form-row-full">
+                    <label htmlFor="my-review-content">리뷰</label>
+                    <textarea
+                      id="my-review-content"
+                      className="review-reply-input"
+                      placeholder={isLoggedIn ? "리뷰를 입력하세요" : ""}
+                      value={myReviewContent}
+                      readOnly={!isLoggedIn}
+                      onChange={(event) => setMyReviewContent(event.target.value)}
+                    />
+                    {!isLoggedIn && showReviewLoginMessage && (
+                      <p className="muted">로그인 후 이용해주세요.</p>
+                    )}
+                  </div>
+                  <div className="review-reply-actions review-form-actions">
                     <select
                       id="my-review-visibility"
+                      className="review-visibility-select"
+                      aria-label="공개 여부"
                       value={myReviewVisibility}
+                      disabled={!isLoggedIn}
                       onChange={(event) =>
                         setMyReviewVisibility(
                           event.target.value === "private" ? "private" : "public"
@@ -458,18 +507,6 @@ export default function MovieDetailPage() {
                       <option value="public">공개</option>
                       <option value="private">비공개</option>
                     </select>
-                  </div>
-                  <div>
-                    <label htmlFor="my-review-content">리뷰</label>
-                    <textarea
-                      id="my-review-content"
-                      className="review-reply-input"
-                      placeholder="리뷰를 입력하세요"
-                      value={myReviewContent}
-                      onChange={(event) => setMyReviewContent(event.target.value)}
-                    />
-                  </div>
-                  <div className="review-reply-actions">
                     <button
                       className="primary-btn review-reply-submit"
                       type="button"
@@ -478,6 +515,20 @@ export default function MovieDetailPage() {
                       저장하기
                     </button>
                   </div>
+                </div>
+              ) : (
+                <div className="review-empty-row">
+                  <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
+                  <button
+                    className="primary-btn"
+                    type="button"
+                    onClick={() => {
+                      setMyReviewOpen(true);
+                      setShowReviewLoginMessage(false);
+                    }}
+                  >
+                    리뷰 남기기
+                  </button>
                 </div>
               )}
             </article>
@@ -572,6 +623,42 @@ export default function MovieDetailPage() {
             </div>
           )}
         </section>
+
+        {reviewDeleteConfirmOpen && (
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="review-delete-title"
+          >
+            <div
+              className="modal-overlay"
+              onClick={() => setReviewDeleteConfirmOpen(false)}
+            />
+            <div className="modal-content review-delete-modal">
+              <div className="modal-header">
+                <h3 id="review-delete-title">리뷰 삭제</h3>
+              </div>
+              <p className="muted">삭제하시겠습니까?</p>
+              <div className="modal-footer">
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  onClick={() => setReviewDeleteConfirmOpen(false)}
+                >
+                  아니오
+                </button>
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={handleMyReviewDeleteConfirm}
+                >
+                  예
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </MainLayout>
   );

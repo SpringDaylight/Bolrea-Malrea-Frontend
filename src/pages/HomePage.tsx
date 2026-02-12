@@ -2,12 +2,75 @@ import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Link, useNavigate } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
+import { analyzePreference, predictSatisfaction, vectorizeMovie } from "../api/ml";
 
 export default function HomePage() {
   const navigate = useNavigate();
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
+  const [matchRates, setMatchRates] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const parseArrayFromStorage = (key: string) => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const fetchMovieMatchRates = async (movies: Movie[]) => {
+    if (movies.length === 0) {
+      setMatchRates({});
+      return;
+    }
+
+    try {
+      const userTasteText = localStorage.getItem("mw_taste_vibe") || "";
+      const userKeywords = parseArrayFromStorage("mw_taste_keywords") as string[];
+      const userAvoidGenres = parseArrayFromStorage("mw_taste_avoid_genres") as string[];
+
+      if (!userTasteText.trim()) {
+        setMatchRates({});
+        return;
+      }
+
+      const userProfile = await analyzePreference({
+        text: `${userTasteText} ${userKeywords.join(", ")}`.trim(),
+        dislikes: userAvoidGenres.length ? userAvoidGenres.join(", ") : undefined,
+      });
+
+      const pairs = await Promise.all(
+        movies.map(async (movie) => {
+          try {
+            const movieProfile = await vectorizeMovie({
+              movie_id: movie.id,
+              title: movie.title,
+              overview: movie.synopsis || undefined,
+              genres: movie.genres,
+              keywords: movie.tags,
+            });
+            const prediction = await predictSatisfaction({
+              user_profile: userProfile,
+              movie_profile: movieProfile,
+              dislike_tags: userProfile.dislike_tags,
+              boost_tags: userProfile.boost_tags,
+            });
+            return [movie.id, Math.round(prediction.match_rate)] as const;
+          } catch (error) {
+            console.error(`Failed to calculate match rate for movie ${movie.id}:`, error);
+            return [movie.id, 83] as const;
+          }
+        })
+      );
+
+      setMatchRates(Object.fromEntries(pairs));
+    } catch (error) {
+      console.error("Failed to calculate home match rates:", error);
+      setMatchRates({});
+    }
+  };
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -15,6 +78,7 @@ export default function HomePage() {
       try {
         const response = await getMovies({ sort: 'popular', page_size: 4 });
         setRecommendedMovies(response.movies);
+        void fetchMovieMatchRates(response.movies);
       } catch (err) {
         console.error('Failed to fetch recommendations:', err);
       } finally {
@@ -91,6 +155,7 @@ export default function HomePage() {
     try {
       const response = await getMovies({ sort: 'rating', page_size: 4 });
       setRecommendedMovies(response.movies);
+      void fetchMovieMatchRates(response.movies);
     } catch (err) {
       console.error('Failed to refresh recommendations:', err);
     } finally {
@@ -141,9 +206,9 @@ export default function HomePage() {
                     />
                     <div className="movie-info">
                       <h3>{movie.title}</h3>
-                      {/* <p className="movie-rating">
-                        평점 {typeof movie.rating === "number" ? movie.rating.toFixed(1) : "정보 없음"}
-                      </p> */}
+                      <p className="probability home-match-probability">
+                        적합 확률 {matchRates[movie.id] ?? 83}%
+                      </p>
                       <p className="muted">
                         {movie.synopsis 
                           ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')

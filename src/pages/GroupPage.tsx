@@ -9,6 +9,7 @@ import {
 import { searchMovies, type Movie } from "../api/A2_movies";
 
 const groupTypeOptions = ["친구", "가족", "연인", "모임", "기타"];
+const userRequiredMessage = "사용자를 회원수만큼 선택해주세요.";
 
 export default function GroupPage() {
   const [groupType, setGroupType] = useState("");
@@ -29,12 +30,12 @@ export default function GroupPage() {
   const [error, setError] = useState<string | null>(null);
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const groupTypeRef = useRef<HTMLDivElement | null>(null);
-  const userRequiredError = error === "사용자를 선택해주세요." ? error : null;
+  const userRequiredError = error === userRequiredMessage ? error : null;
   const movieRequiredError = error === "영화를 선택해주세요." ? error : null;
   const formError =
     error &&
     error !== "영화를 선택해주세요." &&
-    error !== "사용자를 선택해주세요."
+    error !== userRequiredMessage
       ? error
       : null;
 
@@ -162,7 +163,7 @@ export default function GroupPage() {
 
   const handleAnalyze = async () => {
     if (memberSlots > 0 && selectedMembers.length < memberSlots) {
-      setError("사용자를 회원수만큼 선택해주세요.");
+      setError(userRequiredMessage);
       return;
     }
 
@@ -272,7 +273,7 @@ export default function GroupPage() {
                 </div>
               </div>
               <div className="group-config-box">
-                <p className="group-member-title">인원 선택</p>
+                {/* <p className="group-member-title">인원 선택</p> */}
                 <div className="group-member-grid">
                   <div className="group-member-box">
                     <p className="group-member-title">총 인원</p>

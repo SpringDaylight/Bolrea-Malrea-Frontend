@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { analyzePreference } from "../api/ml";
 
 const genreLikeOptions = [ "로맨스/로코", "코미디", "드라마/휴먼", "스릴러/미스터리", "공포/호러", "액션", "범죄/느와르", "SF", "판타지", "애니메이션", "전쟁/역사", "다큐멘터리"];
 
-const avoidNoneLabel =["🆗 없음 (다 잘 봐요!)"];
+const avoidNoneLabel = "🆗 없음 (다 잘 봐요!)";
 
 const genreAvoidOptions = ["로맨스/로코", "코미디", "드라마/휴먼", "스릴러/미스터리", "공포/호러", "액션", "범죄/느와르", "SF", "판타지", "애니메이션", "전쟁/역사", "다큐멘터리", avoidNoneLabel];
 
@@ -30,7 +30,7 @@ export default function TasteSurveyPage() {
   const toggleValue = (
     value: string,
     list: string[],
-    setList: (next: string[]) => void
+    setList: Dispatch<SetStateAction<string[]>>
   ) => {
     if (list.includes(value)) {
       setList(list.filter((item) => item !== value));
@@ -41,7 +41,7 @@ export default function TasteSurveyPage() {
 
   const toggleValueWithLimit = (
     value: string,
-    setList: (next: string[]) => void,
+    setList: Dispatch<SetStateAction<string[]>>,
     limit: number
   ) => {
     setList((prev) => {

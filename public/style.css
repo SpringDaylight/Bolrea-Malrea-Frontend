@@ -400,6 +400,45 @@ textarea {
   text-decoration: underline;
 }
 
+.group-page .error {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(225, 75, 99, 0.45);
+  border-left: 4px solid #e14b63;
+  background: rgba(225, 75, 99, 0.12);
+  color: #b62345;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.35;
+  animation: warnPop 0.28s ease-out, warnShake 0.42s ease-out 0.08s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group-page .error {
+    animation: none;
+  }
+}
+
+@keyframes warnPop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes warnShake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
 
 .movie-grid {
   display: grid;
@@ -2461,7 +2500,7 @@ textarea {
 .mood-card {
   display: grid;
   gap: 8px;
-}ㅛㅛ
+}
 
 .meter {
   height: 8px;
@@ -2580,6 +2619,3 @@ textarea {
     flex-wrap: wrap;
   }
 }
-
-
-

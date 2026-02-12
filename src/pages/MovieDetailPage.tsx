@@ -40,6 +40,7 @@ export default function MovieDetailPage() {
     "public" | "private"
   >("public");
   const [showReviewLoginMessage, setShowReviewLoginMessage] = useState(false);
+  const [reviewLoginMessageTick, setReviewLoginMessageTick] = useState(0);
   const [reviewDeleteConfirmOpen, setReviewDeleteConfirmOpen] = useState(false);
   const [isPersonalReviewDeleted, setIsPersonalReviewDeleted] = useState(false);
   const [localPersonalReview, setLocalPersonalReview] = useState<Review | null>(
@@ -167,6 +168,7 @@ export default function MovieDetailPage() {
     if (!movie) return;
     if (!isLoggedIn) {
       setShowReviewLoginMessage(true);
+      setReviewLoginMessageTick((prev) => prev + 1);
       return;
     }
     const content = myReviewContent.trim();
@@ -314,7 +316,7 @@ export default function MovieDetailPage() {
   if (loading) {
     return (
       <MainLayout>
-        <main className="container">
+        <main className="container movie-detail-page">
           <p>로딩 중...</p>
         </main>
       </MainLayout>
@@ -324,7 +326,7 @@ export default function MovieDetailPage() {
   if (error || !movie) {
     return (
       <MainLayout>
-        <main className="container">
+        <main className="container movie-detail-page">
           <p className="error">{error || "영화를 찾을 수 없습니다."}</p>
         </main>
       </MainLayout>
@@ -333,7 +335,7 @@ export default function MovieDetailPage() {
 
   return (
     <MainLayout>
-      <main className="container">
+      <main className="container movie-detail-page">
         <section className="page-title">
           <h1>영화 상세</h1>
           <p>영화를 선택하면 상세 정보와 취향 적합도를 확인할 수 있어요.</p>
@@ -488,7 +490,9 @@ export default function MovieDetailPage() {
                       onChange={(event) => setMyReviewContent(event.target.value)}
                     />
                     {!isLoggedIn && showReviewLoginMessage && (
-                      <p className="muted">로그인 후 이용해주세요.</p>
+                      <p className="error" key={`review-login-warning-${reviewLoginMessageTick}`}>
+                        로그인 후 이용해주세요.
+                      </p>
                     )}
                   </div>
                   <div className="review-reply-actions review-form-actions">

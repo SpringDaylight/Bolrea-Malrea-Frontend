@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
 import { 
   analyzePreference, 
@@ -12,7 +12,6 @@ import {
 } from "../api/ml";
 
 export default function MovieDetailPage() {
-  const navigate = useNavigate();
   const { movieId } = useParams<{ movieId: string }>();
   const location = useLocation();
   const [movie, setMovie] = useState<Movie | null>(null);
@@ -77,6 +76,72 @@ export default function MovieDetailPage() {
 
     fetchMovieData();
   }, [movieId, personalReview?.id, personalReview?.movie_id]);
+
+  useEffect(() => {
+    setReactions((prev) => {
+      const next: Record<number, { likes: number; dislikes: number }> = {};
+      reviews.forEach((review) => {
+        const existing = prev[review.id];
+        next[review.id] = {
+          likes: existing?.likes ?? review.likes_count ?? 0,
+          dislikes: existing?.dislikes ?? 0,
+        };
+      });
+      return next;
+    });
+  }, [reviews]);
+
+  const incrementReaction = (reviewId: number, type: "likes" | "dislikes") => {
+    setReactions((prev) => {
+      const current = prev[reviewId] ?? { likes: 0, dislikes: 0 };
+      return {
+        ...prev,
+        [reviewId]: {
+          ...current,
+          [type]: current[type] + 1,
+        },
+      };
+    });
+  };
+
+  const handleMyReviewSave = () => {
+    if (!movie) return;
+    const content = myReviewContent.trim();
+    const userId = localStorage.getItem("mw_profile_id") || "me";
+    const nextReview: Review = {
+      id: Date.now(),
+      user_id: userId,
+      movie_id: movie.id,
+      rating: myReviewRating,
+      content: content.length ? content : null,
+      created_at: new Date().toISOString(),
+      likes_count: 0,
+      comments_count: 0,
+    };
+    setLocalPersonalReview(nextReview);
+    setMyReviewOpen(false);
+  };
+
+  const toggleReplyOpen = (reviewId: number) => {
+    setReplyOpen((prev) => ({
+      ...prev,
+      [reviewId]: !prev[reviewId],
+    }));
+  };
+
+  const handleReplyChange = (reviewId: number, value: string) => {
+    setReplyDrafts((prev) => ({
+      ...prev,
+      [reviewId]: value,
+    }));
+  };
+
+  const handleReplySubmit = (reviewId: number) => {
+    const nextValue = (replyDrafts[reviewId] || "").trim();
+    if (!nextValue) return;
+    setReplyDrafts((prev) => ({ ...prev, [reviewId]: "" }));
+    setReplyOpen((prev) => ({ ...prev, [reviewId]: false }));
+  };
 
   const fetchMovieRecommendation = async (movieData: Movie) => {
     setMlLoading(true);
@@ -370,7 +435,7 @@ export default function MovieDetailPage() {
                         >
                           좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
                         </button>
-                        <span className="muted">|</span>
+                        {/* <span className="muted">|</span> */}
                         <button
                           className="ghost-btn"
                           type="button"

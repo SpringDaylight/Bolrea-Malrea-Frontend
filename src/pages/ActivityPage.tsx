@@ -13,6 +13,28 @@ type ProfileState = {
   bio: string;
 };
 
+type ReviewReply = {
+  id: number;
+  author: string;
+  content: string;
+  createdAt: string;
+};
+
+type ReviewItem = {
+  id: number;
+  movieId: number;
+  title: string;
+  poster: string;
+  dateLabel: string;
+  genre: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+  replies: ReviewReply[];
+};
+
+const REVIEW_STORAGE_KEY = "mw_my_reviews";
+
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
   realname: "사용자",
@@ -32,7 +54,7 @@ export default function ActivityPage() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showAllPosters, setShowAllPosters] = useState(false);
-  const [expandedReviewId, setExpandedReviewId] = useState<number | null>(null);
+  const [savedReviews, setSavedReviews] = useState<ReviewItem[]>([]);
 
   const posterItems = [
     {
@@ -158,7 +180,7 @@ export default function ActivityPage() {
     },
   ];
 
-  const reviewItems = [
+  const reviewItems: ReviewItem[] = [
     {
       id: 1,
       movieId: 6,
@@ -245,6 +267,34 @@ export default function ActivityPage() {
     setProfile(nextProfile);
     setEditDraft(nextProfile);
   }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as ReviewItem[];
+      if (!Array.isArray(parsed)) return;
+      const normalized = parsed
+        .filter((item) => item && typeof item === "object")
+        .map((item) => ({
+          ...item,
+          replies: Array.isArray(item.replies) ? item.replies : [],
+        }));
+      setSavedReviews(normalized);
+    } catch (err) {
+      console.error("Failed to parse saved reviews:", err);
+    }
+  }, []);
+
+  const mergedReviewItems = useMemo(() => {
+    const seen = new Set<number>();
+    const combined = [...savedReviews, ...reviewItems];
+    return combined.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [savedReviews, reviewItems]);
 
   const avatarLabel = useMemo(
     () => profile.nickname.slice(0, 2),
@@ -541,24 +591,17 @@ export default function ActivityPage() {
             <article className="section view-section" data-view="reviews" id="reviews-section">
             <div className="section-header" id="reviews-header" />
               <div className="review-list">
-                {reviewItems.map((review) => (
+                {mergedReviewItems.map((review) => (
                   <div className="review-item" key={review.id}>
                     <article
                       className="card review-card review-card-toggle"
                       role="button"
                       tabIndex={0}
-                      aria-expanded={expandedReviewId === review.id}
-                      onClick={() =>
-                        setExpandedReviewId((prev) =>
-                          prev === review.id ? null : review.id
-                        )
-                      }
+                      onClick={() => navigate(`/movies/${review.movieId}#my-review`)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
-                          setExpandedReviewId((prev) =>
-                            prev === review.id ? null : review.id
-                          );
+                          navigate(`/movies/${review.movieId}#my-review`);
                         }
                       }}
                     >
@@ -578,25 +621,6 @@ export default function ActivityPage() {
                         </div>
                       </div>
                     </article>
-                  {expandedReviewId === review.id && (
-                    <div className="review-replies">
-                      {review.replies.length > 0 ? (
-                        <div className="comment-list">
-                          {review.replies.map((reply) => (
-                            <div className="comment-card" key={reply.id}>
-                              <div className="comment-meta">
-                                <span className="review-name">{reply.author}</span>
-                                <span className="muted">{reply.createdAt}</span>
-                              </div>
-                              <p className="review-text">{reply.content}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="muted">No replies yet.</p>
-                      )}
-                    </div>
-                  )}
                 </div>
                 ))}
               </div>

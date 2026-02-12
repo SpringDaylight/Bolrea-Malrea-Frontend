@@ -46,6 +46,7 @@ export default function MoviemongPage() {
     null
   );
   const [questionQuery, setQuestionQuery] = useState("");
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
   const expMax = getNextExpRequirement(level + 1);
   const expPercent =
     expMax > 0 ? Math.min(100, Math.round((expValue / expMax) * 100)) : 0;
@@ -92,24 +93,32 @@ export default function MoviemongPage() {
       <main className="container reviewmong-page">
         <section className="section">
           <div className="reviewmong-hero">
-            <div className="reviewmong-stats">
-              <span>레벨 {level}</span>
-              <span>팝콘 {popcornCount}</span>
-            </div>
-            <div className="reviewmong-hero-content">
-              <img src={moviemong1} alt="Moviemong preview" />
-              <div className="reviewmong-exp">
-                <div className="reviewmong-exp-header">
-                  <span>EXP</span>
-                  <span>
-                    {expValue}/{expMax}
-                  </span>
+            {isLoggedIn ? (
+              <>
+                <div className="reviewmong-stats">
+                  <span>레벨 {level}</span>
+                  <span>팝콘 {popcornCount}</span>
                 </div>
-                <div className="reviewmong-exp-bar">
-                  <span style={{ width: `${expPercent}%` }} />
+                <div className="reviewmong-hero-content">
+                  <img src={moviemong1} alt="Moviemong preview" />
+                  <div className="reviewmong-exp">
+                    <div className="reviewmong-exp-header">
+                      <span>EXP</span>
+                      <span>
+                        {expValue}/{expMax}
+                      </span>
+                    </div>
+                    <div className="reviewmong-exp-bar">
+                      <span style={{ width: `${expPercent}%` }} />
+                    </div>
+                  </div>
                 </div>
+              </>
+            ) : (
+              <div className="reviewmong-login-placeholder">
+                <p className="muted login-required-text">로그인 후 이용해주세요.</p>
               </div>
-            </div>
+            )}
           </div>
         </section>
         <section>
@@ -155,139 +164,147 @@ export default function MoviemongPage() {
             </button>
           </div>
           <div className="reviewmong-panel">
-            {activeTab === "question" && (
-              <div className="reviewmong-question">
-                <p className="question-title">오늘의 질문?</p>
-                <p className="question-text">
-                  Q1. 태어나서 처음으로 극장에서 봤던 영화, 어렴풋이 기억나요?
-                </p>
-                <textarea
-                  className="question-input"
-                  placeholder="답변(250bytes)"
-                  maxLength={250}
-                />
-                <div className="question-actions">
-                  <button className="primary-btn question-submit-btn" type="button">
-                    답변하기
-                  </button>
-                </div>
-                <div className="question-history">
-                  <div className="question-history-header">
-                    <span>내 질문 목록</span>
-                    <span>
-                      {filteredQuestions.length}개 중 {rangeStart}-{rangeEnd}개
-                    </span>
-                  </div>
-                  <div className="question-list">
-                    {pagedQuestions.map((item) => {
-                      const isOpen = expandedQuestionId === item.id;
-                      return (
-                        <div className="question-item" key={item.id}>
-                          <button
-                            className="question-item-header"
-                            type="button"
-                            onClick={() =>
-                              setExpandedQuestionId((prev) =>
-                                prev === item.id ? null : item.id
-                              )
-                            }
-                          >
-                            <span className="question-item-number">Q{item.id}.</span>
-                            <span className="question-item-text">{item.question}</span>
-                            <span className="question-item-date">{item.createdAt}</span>
-                          </button>
-                          {isOpen && (
-                            <div className="question-item-answer">
-                              <span className="question-item-answer-label">내 답변</span>
-                              <p>{item.answer}</p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {totalQuestionPages > 1 && (
-                    <div className="question-pagination">
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() =>
-                          setQuestionPage((prev) => Math.max(1, prev - 1))
-                        }
-                        disabled={safeQuestionPage === 1}
-                      >
-                        이전
-                      </button>
-                      {Array.from(
-                        { length: totalQuestionPages },
-                        (_, index) => index + 1
-                      ).map((page) => (
-                        <button
-                          key={page}
-                          type="button"
-                          className={`secondary-btn ${
-                            page === safeQuestionPage ? "is-active" : ""
-                          }`}
-                          onClick={() => setQuestionPage(page)}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() =>
-                          setQuestionPage((prev) =>
-                            Math.min(totalQuestionPages, prev + 1)
-                          )
-                        }
-                        disabled={safeQuestionPage === totalQuestionPages}
-                      >
-                        다음
+            {!isLoggedIn ? (
+              <div className="reviewmong-login-placeholder">
+                <p className="muted login-required-text">로그인 후 이용해주세요.</p>
+              </div>
+            ) : (
+              <>
+                {activeTab === "question" && (
+                  <div className="reviewmong-question">
+                    <p className="question-title">오늘의 질문?</p>
+                    <p className="question-text">
+                      Q1. 태어나서 처음으로 극장에서 봤던 영화, 어렴풋이 기억나요?
+                    </p>
+                    <textarea
+                      className="question-input"
+                      placeholder="답변(250bytes)"
+                      maxLength={250}
+                    />
+                    <div className="question-actions">
+                      <button className="primary-btn question-submit-btn" type="button">
+                        답변하기
                       </button>
                     </div>
-                  )}
-                  <div className="question-search">
-                    <input
-                      type="text"
-                      value={questionQuery}
-                      onChange={(event) => {
-                        setQuestionQuery(event.target.value);
-                        setQuestionPage(1);
-                      }}
-                      placeholder="질문/답변 검색"
-                    />
-                    <button
-                      type="button"
-                      className="primary-btn question-search-btn"
-                      onClick={() => setQuestionPage(1)}
-                    >
-                      검색
-                    </button>
+                    <div className="question-history">
+                      <div className="question-history-header">
+                        <span>내 질문 목록</span>
+                        <span>
+                          {filteredQuestions.length}개 중 {rangeStart}-{rangeEnd}개
+                        </span>
+                      </div>
+                      <div className="question-list">
+                        {pagedQuestions.map((item) => {
+                          const isOpen = expandedQuestionId === item.id;
+                          return (
+                            <div className="question-item" key={item.id}>
+                              <button
+                                className="question-item-header"
+                                type="button"
+                                onClick={() =>
+                                  setExpandedQuestionId((prev) =>
+                                    prev === item.id ? null : item.id
+                                  )
+                                }
+                              >
+                                <span className="question-item-number">Q{item.id}.</span>
+                                <span className="question-item-text">{item.question}</span>
+                                <span className="question-item-date">{item.createdAt}</span>
+                              </button>
+                              {isOpen && (
+                                <div className="question-item-answer">
+                                  <span className="question-item-answer-label">내 답변</span>
+                                  <p>{item.answer}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {totalQuestionPages > 1 && (
+                        <div className="question-pagination">
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() =>
+                              setQuestionPage((prev) => Math.max(1, prev - 1))
+                            }
+                            disabled={safeQuestionPage === 1}
+                          >
+                            이전
+                          </button>
+                          {Array.from(
+                            { length: totalQuestionPages },
+                            (_, index) => index + 1
+                          ).map((page) => (
+                            <button
+                              key={page}
+                              type="button"
+                              className={`secondary-btn ${
+                                page === safeQuestionPage ? "is-active" : ""
+                              }`}
+                              onClick={() => setQuestionPage(page)}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() =>
+                              setQuestionPage((prev) =>
+                                Math.min(totalQuestionPages, prev + 1)
+                              )
+                            }
+                            disabled={safeQuestionPage === totalQuestionPages}
+                          >
+                            다음
+                          </button>
+                        </div>
+                      )}
+                      <div className="question-search">
+                        <input
+                          type="text"
+                          value={questionQuery}
+                          onChange={(event) => {
+                            setQuestionQuery(event.target.value);
+                            setQuestionPage(1);
+                          }}
+                          placeholder="질문/답변 검색"
+                        />
+                        <button
+                          type="button"
+                          className="primary-btn question-search-btn"
+                          onClick={() => setQuestionPage(1)}
+                        >
+                          검색
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
-            {activeTab === "feed" && (
-              <Roulette items={rouletteItems} onResult={handleRouletteResult} />
-            )}
-            {activeTab === "theme" &&(
-              <div className="reviewmong-question">
-                <p className="question-title">테마</p>
-                <p className="question-text">준비 중이에요.</p>
-              </div>
-            )}
-            {activeTab === "recipe" && (
-              <div className="reviewmong-question">
-                <p className="question-title">취향 레시피</p>
-                <p className="question-text">준비 중이에요.</p>
-              </div>
-            )}
-            {activeTab === "bag" && (
-              <div className="reviewmong-question">
-                <p className="question-title">내 가방</p>
-                <p className="question-text">준비 중이에요.</p>
-              </div>
+                )}
+                {activeTab === "feed" && (
+                  <Roulette items={rouletteItems} onResult={handleRouletteResult} />
+                )}
+                {activeTab === "theme" &&(
+                  <div className="reviewmong-question">
+                    <p className="question-title">테마</p>
+                    <p className="question-text">준비 중이에요.</p>
+                  </div>
+                )}
+                {activeTab === "recipe" && (
+                  <div className="reviewmong-question">
+                    <p className="question-title">취향 레시피</p>
+                    <p className="question-text">준비 중이에요.</p>
+                  </div>
+                )}
+                {activeTab === "bag" && (
+                  <div className="reviewmong-question">
+                    <p className="question-title">내 가방</p>
+                    <p className="question-text">준비 중이에요.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>

@@ -9,19 +9,46 @@ const sortFilters = [
   { value: "rating", label: "평점 높은순" },
 ];
 
+type GenreFilter = {
+  value: string;
+  label: string;
+  queryGenres: string[];
+};
+
 const genreFilters = [
-  { value: "로맨스/로코", label: "로맨스/로코" },
-  { value: "드라마/휴먼", label: "드라마/휴먼" },
-  { value: "스릴러/미스터리", label: "스릴러/미스터리" },
-  { value: "공포/호러", label: "공포/호러" },
-  { value: "액션", label: "액션" },
-  { value: "범죄/느와르", label: "범죄/느와르" },
-  { value: "SF", label: "SF" },
-  { value: "판타지", label: "판타지" },
-  { value: "코미디", label: "코미디" },
-  { value: "애니메이션", label: "애니메이션" },
-  { value: "역사/다큐", label: "역사/다큐" },
-];
+  { value: "로맨스/로코", label: "로맨스/로코", queryGenres: ["로맨스"] },
+  { value: "드라마/휴먼", label: "드라마/휴먼", queryGenres: ["드라마"] },
+  {
+    value: "스릴러/미스터리",
+    label: "스릴러/미스터리",
+    queryGenres: ["스릴러", "미스터리"],
+  },
+  { value: "공포/호러", label: "공포/호러", queryGenres: ["공포"] },
+  { value: "액션", label: "액션", queryGenres: ["액션"] },
+  { value: "범죄/느와르", label: "범죄/느와르", queryGenres: ["범죄"] },
+  { value: "SF", label: "SF", queryGenres: ["SF"] },
+  { value: "판타지", label: "판타지", queryGenres: ["판타지"] },
+  { value: "코미디", label: "코미디", queryGenres: ["코미디"] },
+  { value: "애니메이션", label: "애니메이션", queryGenres: ["애니메이션"] },
+  { value: "역사/다큐", label: "역사/다큐", queryGenres: ["역사", "다큐멘터리"] },
+] as const satisfies GenreFilter[];
+
+const resolveFilterToGenres = (values: string[]) => {
+  return Array.from(
+    new Set(
+      values.flatMap((value) => {
+        const matched = genreFilters.find((filter) => filter.value === value);
+        return matched ? matched.queryGenres : [value];
+      })
+    )
+  );
+};
+
+const resolveGenresToFilterValues = (genres: string[]) => {
+  return genreFilters
+    .filter((filter) => filter.queryGenres.some((genre) => genres.includes(genre)))
+    .map((filter) => filter.value);
+};
 
 export default function MoviesPage() {
   const [searchParams] = useSearchParams();
@@ -48,7 +75,8 @@ export default function MoviesPage() {
 
     if (genresFromUrl) {
       const genreList = genresFromUrl.split(",").map((genre) => genre.trim());
-      setSelectedGenres(genreList);
+      const selectedFilterValues = resolveGenresToFilterValues(genreList);
+      setSelectedGenres(selectedFilterValues.length > 0 ? selectedFilterValues : genreList);
       setAppliedGenres(genreList);
     }
 
@@ -93,25 +121,27 @@ export default function MoviesPage() {
     fetchMovies();
   }, [appliedSorts, appliedGenres, appliedQuery, currentPage]);
 
-  const toggleValue = (
-    value: string,
-    list: string[],
-    setList: (next: string[]) => void
-  ) => {
-    if (list.includes(value)) {
-      setList(list.filter((item) => item !== value));
-      return;
-    }
-    setList([...list, value]);
+  const handleSortSelect = (value: string) => {
+    setSelectedSorts((prev) => {
+      const nextSorts = prev[0] === value ? [] : [value];
+      setAppliedSorts(nextSorts);
+      setCurrentPage(1);
+      return nextSorts;
+    });
   };
 
-  const handleSortSelect = (value: string) => {
-    setSelectedSorts((prev) => (prev[0] === value ? [] : [value]));
+  const handleGenreToggle = (value: string) => {
+    setSelectedGenres((prev) => {
+      const nextSelected = prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value];
+      setAppliedGenres(resolveFilterToGenres(nextSelected));
+      setCurrentPage(1);
+      return nextSelected;
+    });
   };
 
   const handleApplyFilters = () => {
-    setAppliedSorts(selectedSorts);
-    setAppliedGenres(selectedGenres);
     setAppliedQuery(searchQuery);
     setCurrentPage(1);
   };
@@ -191,9 +221,7 @@ export default function MoviesPage() {
                       selectedGenres.includes(filter.value) ? "active" : ""
                     }`}
                     type="button"
-                    onClick={() =>
-                      toggleValue(filter.value, selectedGenres, setSelectedGenres)
-                    }
+                    onClick={() => handleGenreToggle(filter.value)}
                   >
                     {filter.label}
                   </button>

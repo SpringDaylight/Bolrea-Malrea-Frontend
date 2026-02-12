@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import logoToggle from "../../assets/logo-toggle-ver1.png";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -36,7 +37,7 @@ export default function Header() {
     <header className="top-bar">
       <div className="top-bar-inner">
         <Link className="brand" to="/">
-          <div className="brand-mark">W</div>
+          <img className="brand-logo" src={logoToggle} alt="서비스 로고" />
           <div>
             <p className="brand-title">볼래! 말래?</p>
             <p className="brand-sub">취향 기반 영화 탐색</p>
@@ -74,3 +75,6 @@ export default function Header() {
     </header>
   );
 }
+
+
+

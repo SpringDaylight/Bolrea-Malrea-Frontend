@@ -405,6 +405,14 @@ export default function MovieDetailPage() {
               <p className="review-text">
                 {personalReview.content || "리뷰 코멘트가 없습니다."}
               </p>
+              <div className="review-link-row">
+                <button className="ghost-btn review-link-btn" type="button">
+                  리뷰 수정
+                </button>
+                <button className="ghost-btn review-link-btn" type="button">
+                  리뷰 삭제
+                </button>
+              </div>
             </article>
           ) : (
             <article className="card review-card review-empty review-empty-stack">
@@ -568,4 +576,5 @@ export default function MovieDetailPage() {
     </MainLayout>
   );
 }
+
 

@@ -332,6 +332,16 @@ textarea {
   gap: 16px;
 }
 
+.field-error-text {
+  margin: -10px 0 0;
+  font-size: 0.82rem;
+  color: #e14b63;
+  line-height: 1.3;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+
 .movie-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -506,6 +516,10 @@ textarea {
 .muted {
   color: var(--text-subtle);
   font-size: 0.9rem;
+}
+
+.login-required-text {
+  text-align: center;
 }
 
 .list {
@@ -730,6 +744,20 @@ textarea {
 
 .activity-page .section.card {
   padding: 55px 22px;
+}
+
+.activity-page .activity-top-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 32px;
+}
+
+.activity-page .activity-top-grid > .section,
+.activity-page .activity-top-grid .activity-top-card {
+  margin-top: 0;
+  height: 100%;
 }
 
 .profile-header {
@@ -2146,6 +2174,10 @@ textarea {
   .hero {
     padding: 22px;
   }
+
+  .activity-page .activity-top-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2190,3 +2222,6 @@ textarea {
     flex-wrap: wrap;
   }
 }
+
+
+

@@ -15,8 +15,8 @@ type ProfileState = {
 const defaultProfile: ProfileState = {
   nickname: "도슨",
   realname: "도현",
-  age: "20대",
-  gender: "남성",
+  age: "선택 안함",
+  gender: "선택 안함",
   id: "watched_01",
   email: "you@example.com",
   bio: "감정선 강한 드라마 · SF를 자주 봐요.",
@@ -31,22 +31,32 @@ export default function ProfilePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
+    const rawSnapshot = localStorage.getItem("mw_signup_profile");
+    let snapshot: Partial<ProfileState> = {};
+    if (rawSnapshot) {
+      try {
+        snapshot = JSON.parse(rawSnapshot) as Partial<ProfileState>;
+      } catch (error) {
+        console.error("Failed to parse signup profile snapshot:", error);
+      }
+    }
+
     const savedName = localStorage.getItem("mw_profile_name");
     const savedBio = localStorage.getItem("mw_profile_bio");
     const savedNickname = localStorage.getItem("mw_profile_nickname");
     const savedRealname = localStorage.getItem("mw_profile_realname");
     const savedAge = localStorage.getItem("mw_profile_age");
     const savedGender = localStorage.getItem("mw_profile_gender");
-    const savedId = localStorage.getItem("mw_profile_id");
+    const savedId = localStorage.getItem("mw_profile_id") || localStorage.getItem("mw_user_id");
     const savedEmail = localStorage.getItem("mw_profile_email");
 
     const nextProfile: ProfileState = {
-      nickname: savedNickname || savedName || defaultProfile.nickname,
-      realname: savedRealname || defaultProfile.realname,
-      age: savedAge || defaultProfile.age,
-      gender: savedGender || defaultProfile.gender,
-      id: savedId || defaultProfile.id,
-      email: savedEmail || defaultProfile.email,
+      nickname: savedNickname || snapshot.nickname || savedName || defaultProfile.nickname,
+      realname: savedRealname || snapshot.realname || defaultProfile.realname,
+      age: savedAge || snapshot.age || defaultProfile.age,
+      gender: savedGender || snapshot.gender || defaultProfile.gender,
+      id: savedId || snapshot.id || defaultProfile.id,
+      email: savedEmail || snapshot.email || defaultProfile.email,
       bio: savedBio || defaultProfile.bio,
     };
 
@@ -89,6 +99,18 @@ export default function ProfilePage() {
     localStorage.setItem("mw_profile_email", nextProfile.email);
     localStorage.setItem("mw_profile_name", nextProfile.nickname);
     localStorage.setItem("mw_profile_bio", nextProfile.bio);
+    localStorage.setItem(
+      "mw_signup_profile",
+      JSON.stringify({
+        realname: nextProfile.realname,
+        nickname: nextProfile.nickname,
+        id: nextProfile.id,
+        email: nextProfile.email,
+        age: nextProfile.age,
+        gender: nextProfile.gender,
+      })
+    );
+    window.dispatchEvent(new Event("mw_auth_change"));
 
     setProfile(nextProfile);
     setEditVisible(false);
@@ -221,6 +243,7 @@ export default function ProfilePage() {
                       }))
                     }
                   >
+                    <option>선택 안함</option>
                     <option>10대</option>
                     <option>20대</option>
                     <option>30대</option>
@@ -238,9 +261,9 @@ export default function ProfilePage() {
                       }))
                     }
                   >
+                    <option>선택 안함</option>
                     <option>남성</option>
                     <option>여성</option>
-                    <option>선택 안 함</option>
                   </select>
                   <label htmlFor="profile-id-input">아이디</label>
                   <input

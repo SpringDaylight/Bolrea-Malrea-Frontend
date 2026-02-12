@@ -3,25 +3,105 @@ import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 import kakaoIcon from "../assets/kakao_sq_login.png";
-import { getKakaoLoginUrl } from "../api/auth";
+import { getKakaoLoginUrl, login as loginApi } from "../api/auth";
+
+const defaultProfileBio = "Enjoying drama and SF with strong emotional arcs.";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = () => {
-    const nameValue = name.trim();
-    if (nameValue) {
-      localStorage.setItem("mw_profile_name", nameValue);
-      localStorage.setItem("mw_user_id", nameValue);
-      localStorage.setItem(
-        "mw_profile_bio",
-        "Enjoying drama and SF with strong emotional arcs."
-      );
+  const handleLogin = async () => {
+    if (isSubmitting) return;
+    setLoginError("");
+
+    const userIdValue = userId.trim();
+    if (!userIdValue || !password.trim()) {
+      setLoginError("아이디와 비밀번호를 입력해주세요.");
+      return;
     }
-    localStorage.setItem("mw_logged_in", "true");
-    navigate("/mypage");
+
+    const existingRealname = localStorage.getItem("mw_profile_realname") || "";
+    const existingNickname = localStorage.getItem("mw_profile_nickname") || "";
+    const existingProfileId = localStorage.getItem("mw_profile_id") || "";
+    const existingEmail = localStorage.getItem("mw_profile_email") || "";
+    const existingAge = localStorage.getItem("mw_profile_age") || "";
+    const existingGender = localStorage.getItem("mw_profile_gender") || "";
+    const rawSnapshot = localStorage.getItem("mw_signup_profile");
+    let snapshot: {
+      realname?: string;
+      nickname?: string;
+      id?: string;
+      email?: string;
+      age?: string;
+      gender?: string;
+    } = {};
+
+    if (rawSnapshot) {
+      try {
+        snapshot = JSON.parse(rawSnapshot) as typeof snapshot;
+      } catch (error) {
+        console.error("Failed to parse signup profile snapshot:", error);
+      }
+    }
+
+    try {
+      setIsSubmitting(true);
+      const loggedInUser = await loginApi({
+        user_id: userIdValue,
+        password,
+      });
+      const profileSnapshot = {
+        realname: loggedInUser.name || snapshot.realname || existingRealname || userIdValue,
+        nickname:
+          loggedInUser.nickname ||
+          snapshot.nickname ||
+          existingNickname ||
+          loggedInUser.name ||
+          userIdValue,
+        id: loggedInUser.user_id || snapshot.id || existingProfileId || userIdValue,
+        email: loggedInUser.email || snapshot.email || existingEmail,
+        age: snapshot.age || existingAge || "선택 안함",
+        gender: snapshot.gender || existingGender || "선택 안함",
+      };
+
+      localStorage.setItem(
+        "mw_profile_name",
+        profileSnapshot.nickname
+      );
+      localStorage.setItem(
+        "mw_profile_realname",
+        profileSnapshot.realname
+      );
+      localStorage.setItem(
+        "mw_profile_nickname",
+        profileSnapshot.nickname
+      );
+      localStorage.setItem("mw_profile_id", profileSnapshot.id);
+      localStorage.setItem("mw_profile_email", profileSnapshot.email);
+      localStorage.setItem("mw_profile_age", profileSnapshot.age);
+      localStorage.setItem(
+        "mw_profile_gender",
+        profileSnapshot.gender
+      );
+      localStorage.setItem("mw_user_id", profileSnapshot.id);
+      localStorage.setItem("mw_profile_bio", defaultProfileBio);
+      localStorage.setItem(
+        "mw_signup_profile",
+        JSON.stringify(profileSnapshot)
+      );
+      localStorage.setItem("mw_logged_in", "true");
+      window.dispatchEvent(new Event("mw_auth_change"));
+      navigate("/mypage");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "로그인에 실패했습니다.";
+      setLoginError(message || "로그인에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleKakaoLogin = async () => {
@@ -50,8 +130,11 @@ export default function LoginPage() {
                 id="login-name"
                 type="text"
                 placeholder="아이디"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
+                value={userId}
+                onChange={(event) => {
+                  setUserId(event.target.value);
+                  setLoginError("");
+                }}
               />
               <label htmlFor="login-password">비밀번호</label>
               <input
@@ -59,11 +142,24 @@ export default function LoginPage() {
                 type="password"
                 placeholder="********"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setLoginError("");
+                }}
               />
-              <button className="primary-btn" type="button" onClick={handleLogin}>
-                로그인
+              <button
+                className="primary-btn"
+                type="button"
+                onClick={handleLogin}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "로그인 중..." : "로그인"}
               </button>
+              {loginError && (
+                <p className="field-error-text" role="alert">
+                  {loginError}
+                </p>
+              )}
             </div>
             <ul className="auth-actions">
               <li>

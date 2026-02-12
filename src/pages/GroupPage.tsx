@@ -140,6 +140,49 @@ export default function GroupPage() {
     setMemberConfigApplied(true);
   };
 
+  const memberSlots = Math.max(totalMembers - guestMembers, 0);
+
+  const handleApplyMemberConfig = () => {
+    if (!groupType) {
+      setError("그룹을 선택해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    const totalValue = Number(draftTotalMembers);
+    const guestValue = draftGuestMembers === "" ? 0 : Number(draftGuestMembers);
+
+    if (!draftTotalMembers || Number.isNaN(totalValue) || totalValue < 1) {
+      setError("총 인원은 1명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (Number.isNaN(guestValue) || guestValue < 0) {
+      setError("비회원 인원은 0명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (guestValue > totalValue) {
+      setError("비회원 인원은 총 인원보다 많을 수 없습니다.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    const nextSlots = Math.max(totalValue - guestValue, 0);
+    setTotalMembers(totalValue);
+    setGuestMembers(guestValue);
+    setSelectedMembers((prev) => prev.slice(0, nextSlots));
+    setUserQuery("");
+    setMovieQuery("");
+    setSelectedMovie(null);
+    setMovieSearchResults([]);
+    setGroupResult(null);
+    setError(null);
+    setMemberConfigApplied(true);
+  };
+
   const handleMovieSearch = async () => {
     if (!movieQuery.trim()) {
       setMovieSearchResults([]);

@@ -400,7 +400,8 @@ textarea {
   text-decoration: underline;
 }
 
-.group-page .error {
+.group-page .error,
+.movie-detail-page .error {
   margin: 4px 0 0;
   padding: 10px 12px;
   border-radius: 10px;
@@ -415,7 +416,8 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .group-page .error {
+  .group-page .error,
+  .movie-detail-page .error {
     animation: none;
   }
 }

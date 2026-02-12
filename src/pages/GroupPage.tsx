@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
-import { 
-  simulateGroup, 
+import {
+  simulateGroup,
   vectorizeMovie,
   type GroupSimulationResult,
-  type UserProfile 
+  type UserProfile,
 } from "../api/ml";
 import { searchMovies, type Movie } from "../api/A2_movies";
 
@@ -28,8 +28,16 @@ export default function GroupPage() {
   const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorTick, setErrorTick] = useState(0);
+
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const groupTypeRef = useRef<HTMLDivElement | null>(null);
+
+  const showError = (message: string) => {
+    setError(message);
+    setErrorTick((prev) => prev + 1);
+  };
+
   const userRequiredError = error === userRequiredMessage ? error : null;
   const movieRequiredError = error === "영화를 선택해주세요." ? error : null;
   const formError =
@@ -39,24 +47,24 @@ export default function GroupPage() {
       ? error
       : null;
 
-  // 더미 사용자 데이터 (실제로는 API에서 가져와야 함)
+  // TODO: 실제 API 사용자 검색으로 교체
   const allUsers = [
     { id: "mirae_01", name: "미래", nickname: "미래" },
     { id: "noir_02", name: "노을", nickname: "노을빛" },
     { id: "summer_03", name: "여름", nickname: "summer" },
   ];
+
   const userResults = allUsers.filter((user) => {
     const query = userQuery.trim().toLowerCase();
     return (
       !selectedMembers.includes(user.id) &&
-      (
-        !query ||
+      (!query ||
         user.name.toLowerCase().includes(query) ||
         user.nickname.toLowerCase().includes(query) ||
-        user.id.toLowerCase().includes(query)
-      )
+        user.id.toLowerCase().includes(query))
     );
   });
+
   const selectedMemberItems = selectedMembers.map((memberId) => {
     const matched = allUsers.find((user) => user.id === memberId);
     return {
@@ -64,6 +72,8 @@ export default function GroupPage() {
       nickname: matched ? matched.nickname : memberId,
     };
   });
+
+  const memberSlots = Math.max(totalMembers - guestMembers, 0);
 
   const handleMemberToggle = (userId: string) => {
     setSelectedMembers((prev) =>
@@ -78,17 +88,15 @@ export default function GroupPage() {
     }
   };
 
-  const memberSlots = Math.max(totalMembers - guestMembers, 0);
-
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
-      if (event.target instanceof Node) {
-        if (userSearchRef.current && !userSearchRef.current.contains(event.target)) {
-          setIsUserSearchOpen(false);
-        }
-        if (groupTypeRef.current && !groupTypeRef.current.contains(event.target)) {
-          setIsGroupTypeOpen(false);
-        }
+      if (!(event.target instanceof Node)) return;
+
+      if (userSearchRef.current && !userSearchRef.current.contains(event.target)) {
+        setIsUserSearchOpen(false);
+      }
+      if (groupTypeRef.current && !groupTypeRef.current.contains(event.target)) {
+        setIsGroupTypeOpen(false);
       }
     };
 
@@ -100,7 +108,7 @@ export default function GroupPage() {
 
   const handleApplyMemberConfig = () => {
     if (!groupType) {
-      setError("그룹을 선택해주세요.");
+      showError("그룹을 선택해주세요.");
       setMemberConfigApplied(false);
       return;
     }
@@ -109,19 +117,19 @@ export default function GroupPage() {
     const guestValue = draftGuestMembers === "" ? 0 : Number(draftGuestMembers);
 
     if (!draftTotalMembers || Number.isNaN(totalValue) || totalValue < 1) {
-      setError("총 인원은 1명 이상 입력해주세요.");
+      showError("총 인원은 1명 이상 입력해주세요.");
       setMemberConfigApplied(false);
       return;
     }
 
     if (Number.isNaN(guestValue) || guestValue < 0) {
-      setError("비회원 인원은 0명 이상 입력해주세요.");
+      showError("비회원 인원은 0명 이상 입력해주세요.");
       setMemberConfigApplied(false);
       return;
     }
 
     if (guestValue > totalValue) {
-      setError("비회원 인원은 총 인원보다 많을 수 없습니다.");
+      showError("비회원 인원은 총 인원보다 많을 수 없습니다.");
       setMemberConfigApplied(false);
       return;
     }
@@ -151,11 +159,11 @@ export default function GroupPage() {
       const results = await searchMovies(movieQuery, 1);
       setMovieSearchResults(results.movies.slice(0, 5));
     } catch (err) {
-      console.error('Failed to search movies:', err);
+      console.error("Failed to search movies:", err);
     }
   };
 
-  const handleMovieSelect = async (movie: Movie) => {
+  const handleMovieSelect = (movie: Movie) => {
     setSelectedMovie(movie);
     setMovieSearchResults([]);
     setMovieQuery(movie.title);
@@ -163,12 +171,12 @@ export default function GroupPage() {
 
   const handleAnalyze = async () => {
     if (memberSlots > 0 && selectedMembers.length < memberSlots) {
-      setError(userRequiredMessage);
+      showError(userRequiredMessage);
       return;
     }
 
     if (!selectedMovie) {
-      setError('영화를 선택해주세요.');
+      showError("영화를 선택해주세요.");
       return;
     }
 
@@ -176,18 +184,14 @@ export default function GroupPage() {
     setError(null);
 
     try {
-      // 각 멤버의 취향 프로필 가져오기 (더미 데이터)
-      // 실제로는 각 사용자의 저장된 프로필을 가져와야 함
       const currentUserProfile = localStorage.getItem("mw_user_profile");
       if (!currentUserProfile) {
-        setError('취향 분석 데이터가 없습니다. 먼저 취향 설문을 완료해주세요.');
+        showError("취향 분석 데이터가 없습니다. 먼저 취향 설문을 완료해주세요.");
         setAnalyzing(false);
         return;
       }
 
       const userProfile = JSON.parse(currentUserProfile) as UserProfile;
-
-      // 영화 벡터화
       const movieProfile = await vectorizeMovie({
         movie_id: selectedMovie.id,
         title: selectedMovie.title,
@@ -196,7 +200,6 @@ export default function GroupPage() {
         keywords: selectedMovie.tags,
       });
 
-      // 그룹 시뮬레이션 (현재는 본인만 포함)
       const result = await simulateGroup({
         members: [
           {
@@ -205,7 +208,6 @@ export default function GroupPage() {
             dislikes: userProfile.dislike_tags,
             likes: userProfile.boost_tags,
           },
-          // 실제로는 선택된 멤버들의 프로필을 모두 포함
         ],
         movie_profile: movieProfile,
         strategy: "least_misery",
@@ -213,8 +215,8 @@ export default function GroupPage() {
 
       setGroupResult(result);
     } catch (err) {
-      console.error('Failed to analyze group:', err);
-      setError('그룹 분석에 실패했습니다.');
+      console.error("Failed to analyze group:", err);
+      showError("그룹 분석에 실패했습니다.");
     } finally {
       setAnalyzing(false);
     }
@@ -230,11 +232,10 @@ export default function GroupPage() {
 
         <section className="section card">
           <div className="form-grid">
-
             {!memberConfigApplied && (
               <p className="muted">인원을 입력하고 적용하기를 눌러주세요.</p>
             )}
-            
+
             <div className="group-config-grid">
               <div className="group-config-box">
                 <p className="group-member-title">그룹 선택</p>
@@ -272,8 +273,8 @@ export default function GroupPage() {
                   )}
                 </div>
               </div>
+
               <div className="group-config-box">
-                {/* <p className="group-member-title">인원 선택</p> */}
                 <div className="group-member-grid">
                   <div className="group-member-box">
                     <p className="group-member-title">총 인원</p>
@@ -312,19 +313,22 @@ export default function GroupPage() {
                 </div>
               </div>
             </div>
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={handleApplyMemberConfig}
-            >
+
+            <button className="secondary-btn" type="button" onClick={handleApplyMemberConfig}>
               적용하기
             </button>
+
             {memberConfigApplied && (
               <p className="muted">
                 적용된 인원: 총 {totalMembers}명 / 비회원 {guestMembers}명 / 회원 {memberSlots}명
               </p>
             )}
-            {formError && <p className="error">{formError}</p>}
+
+            {formError && (
+              <p className="error" key={`form-error-${errorTick}`}>
+                {formError}
+              </p>
+            )}
 
             {memberConfigApplied && (
               <>
@@ -360,7 +364,12 @@ export default function GroupPage() {
                     </div>
                   )}
                 </div>
-                {userRequiredError && <p className="error">{userRequiredError}</p>}
+
+                {userRequiredError && (
+                  <p className="error" key={`user-error-${errorTick}`}>
+                    {userRequiredError}
+                  </p>
+                )}
 
                 {selectedMembers.length > 0 && (
                   <div className="group-selected-members">
@@ -420,13 +429,14 @@ export default function GroupPage() {
                     </div>
                   )}
                 </div>
-                {movieRequiredError && <p className="error">{movieRequiredError}</p>}
 
-                <button
-                  className="primary-btn"
-                  onClick={handleAnalyze}
-                  disabled={analyzing}
-                >
+                {movieRequiredError && (
+                  <p className="error" key={`movie-error-${errorTick}`}>
+                    {movieRequiredError}
+                  </p>
+                )}
+
+                <button className="primary-btn" onClick={handleAnalyze} disabled={analyzing}>
                   {analyzing ? "분석 중..." : "분석하기"}
                 </button>
               </>
@@ -440,7 +450,7 @@ export default function GroupPage() {
               <div className="movie-tile">
                 <img
                   className="poster"
-                  src={selectedMovie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
+                  src={selectedMovie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
                   alt={`${selectedMovie.title} 포스터`}
                 />
                 <div className="movie-info">
@@ -483,3 +493,4 @@ export default function GroupPage() {
     </MainLayout>
   );
 }
+

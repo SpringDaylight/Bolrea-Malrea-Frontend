@@ -553,6 +553,21 @@ textarea {
   height: 100%;
 }
 
+.movies-page .movie-card-clickable {
+  cursor: pointer;
+}
+
+.movies-page .movie-card-clickable:hover,
+.movies-page .movie-card-clickable:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 32px rgba(23, 23, 28, 0.12);
+}
+
+.movies-page .movie-card-clickable:focus-visible {
+  outline: 2px solid rgba(95, 135, 170, 0.40);
+  outline-offset: 4px;
+}
+
 .movie-grid .poster {
   width: 100%;
   height: auto;
@@ -1072,15 +1087,21 @@ textarea {
   font-size: 0.82rem;
 }
 
-.meta-list span {
+.meta-list > span:not(.review-rating-stars) {
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: #ffffff;
 }
 
-.review-rating-row {
-  margin-top: 6px;
+.review-meta-inline {
+  flex-wrap: nowrap;
+  align-items: center;
+  margin-top: auto;
+}
+
+.review-meta-inline .review-rating-stars {
+  flex: 0 0 auto;
 }
 
 .review-rating-stars {
@@ -1918,7 +1939,8 @@ textarea {
 }
 
 .reviewmong-hero {
-  width: min(640px, 100%);
+  width: 100%;
+  max-width: 100%;
   aspect-ratio: 16 / 9;
   margin: 0 auto;
   border-radius: var(--radius-lg);
@@ -1933,15 +1955,21 @@ textarea {
   position: relative;
 }
 
+.reviewmong-hero.has-theme-bg {
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
 .reviewmong-page {
   text-align: center;
 }
 
 .reviewmong-hero img {
-  width: 26%;
+  width: 18%;
   height: auto;
   object-fit: contain;
-  transform: translateY(-12px);
+  transform: translateY(300px);
   filter: drop-shadow(0 14px 18px rgba(17, 17, 17, 0.18));
 }
 
@@ -1951,6 +1979,7 @@ textarea {
   align-items: center;
   gap: 12px;
   width: 100%;
+  height: 100%;
 }
 
 .reviewmong-stats {
@@ -2045,6 +2074,151 @@ textarea {
   display: grid;
   gap: 12px;
   text-align: center;
+}
+
+.reviewmong-theme-wrap {
+  position: relative;
+  margin-top: 4px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.reviewmong-theme-scroll {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  padding: 4px 42px 6px 42px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(17, 17, 17, 0.35) transparent;
+  cursor: grab;
+  touch-action: pan-x;
+}
+
+.reviewmong-theme-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.reviewmong-theme-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reviewmong-theme-scroll::-webkit-scrollbar-thumb {
+  background: rgba(17, 17, 17, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.reviewmong-theme-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 17, 17, 0.5);
+}
+
+.reviewmong-theme-scroll.is-dragging {
+  cursor: grabbing;
+}
+
+.reviewmong-theme-scroll.is-dragging,
+.reviewmong-theme-scroll.is-dragging * {
+  user-select: none;
+}
+
+.moviemong-theme-card {
+  flex: 0 0 342px;
+  display: block;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  line-height: 1;
+  box-shadow: 0 8px 14px rgba(23, 23, 28, 0.08);
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+}
+
+.moviemong-theme-card img {
+  width: 100%;
+  display: block;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.moviemong-theme-card.is-selected {
+  border-color: rgba(95, 135, 170, 0.72);
+  box-shadow: 0 0 0 2px rgba(111, 163, 200, 0.2), 0 12px 22px rgba(23, 23, 28, 0.14);
+}
+
+.moviemong-theme-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(95, 135, 170, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 8px 14px rgba(23, 23, 28, 0.14);
+  pointer-events: none;
+}
+
+.moviemong-theme-card:hover,
+.moviemong-theme-card:focus-visible {
+  border-color: rgba(95, 135, 170, 0.45);
+  box-shadow: 0 12px 20px rgba(23, 23, 28, 0.12);
+  transform: translateY(-2px);
+}
+
+.reviewmong-theme-prev-btn,
+.reviewmong-theme-next-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 10px 18px rgba(23, 23, 28, 0.14);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.reviewmong-theme-prev-btn {
+  left: 0;
+}
+
+.reviewmong-theme-next-btn {
+  right: 0;
+}
+
+.reviewmong-theme-prev-btn:hover,
+.reviewmong-theme-prev-btn:focus-visible,
+.reviewmong-theme-next-btn:hover,
+.reviewmong-theme-next-btn:focus-visible {
+  background: #ffffff;
+  border-color: rgba(95, 135, 170, 0.45);
+  color: var(--accent);
 }
 
 .reviewmong-login-placeholder {
@@ -2196,13 +2370,22 @@ textarea {
   .question-item-date {
     text-align: left;
   }
+
+  .moviemong-theme-card {
+    flex-basis: 288px;
+  }
+
+  .reviewmong-theme-scroll {
+    padding-left: 38px;
+    padding-right: 38px;
+  }
 }
 
 .reviewmong-exp {
   display: grid;
   gap: 8px;
   width: min(520px, 90%);
-  margin: 0 auto;
+  margin: auto auto 0;
 }
 
 .reviewmong-exp-header {
@@ -2352,6 +2535,38 @@ textarea {
   font-weight: 600;
 }
 
+.review-meta-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.review-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-visibility-indicator {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.95;
+}
+
+.review-visibility-indicator.is-public {
+  background-image: url("/images/lock-open-mono.svg");
+}
+
+.review-visibility-indicator.is-private {
+  background-image: url("/images/lock-closed-mono.svg");
+}
+
 .review-text {
   color: var(--text);
   font-size: 0.95rem;
@@ -2400,6 +2615,14 @@ textarea {
   padding: 12px;
   background: #ffffff;
   resize: vertical;
+}
+
+.review-char-count {
+  margin-top: 4px;
+  text-align: right;
+  color: var(--text-subtle);
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 .review-reply-actions {
@@ -2454,17 +2677,154 @@ textarea {
   justify-content: flex-end;
 }
 
+.review-rating-actions-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.review-rating-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.review-rating-actions-row .review-form-actions {
+  grid-column: auto;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .review-visibility-select {
   width: 98px;
   min-width: 98px;
-  height: 38px;
-  padding: 8px 12px;
-  border-radius: 12px;
+}
+
+.review-visibility-wrap {
+  width: 156px;
+  min-width: 156px;
+}
+
+.review-visibility-wrap .option-select-list {
+  width: 100%;
+  min-width: 100%;
+}
+
+.review-visibility-wrap .option-select-item {
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.review-visibility-wrap .option-select-trigger {
+  white-space: nowrap;
+}
+
+.movie-detail-page #my-review {
+  position: relative;
+  z-index: 60;
+}
+
+.movie-detail-page #my-review .review-form {
+  position: relative;
+  z-index: 61;
+}
+
+.movie-detail-page #my-review .review-visibility-wrap {
+  position: relative;
+  z-index: 80;
+}
+
+.movie-detail-page #my-review .review-visibility-wrap .option-select-list {
+  z-index: 90;
 }
 
 .review-rating-select {
   width: 110px;
   min-width: 110px;
+}
+
+.review-rating-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+}
+
+.review-rating-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.review-rating-input:focus-visible {
+  outline: 2px solid rgba(95, 135, 170, 0.40);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.review-rating-input.is-disabled {
+  opacity: 0.6;
+}
+
+.review-rating-star-hitbox {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.review-rating-star-hitbox:not(.is-disabled):hover {
+  transform: translateY(-1px);
+}
+
+.review-rating-star-hitbox.is-disabled {
+  cursor: not-allowed;
+}
+
+.review-rating-star-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.review-rating-star-empty {
+  background-image: url("/images/star-empty.svg");
+}
+
+.review-rating-star-fill-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  width: 0;
+  pointer-events: none;
+}
+
+.review-rating-star-filled {
+  background-image: url("/images/star-filled.svg");
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.review-rating-current {
+  min-width: 36px;
+  color: var(--text-subtle);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .review-delete-modal {

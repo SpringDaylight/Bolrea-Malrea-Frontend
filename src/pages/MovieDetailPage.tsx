@@ -1,4 +1,10 @@
-﻿import { useEffect, useState } from "react";
+﻿import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
@@ -13,6 +19,31 @@ import {
 
 const REVIEW_STORAGE_KEY = "mw_my_reviews";
 const WATCHED_STORAGE_KEY = "mw_watched_movies";
+const REVIEW_CONTENT_MAX_LENGTH = 500;
+
+const formatRatingLabel = (rating: number) =>
+  Number.isInteger(rating) ? `${rating}` : rating.toFixed(1);
+
+const normalizeReviewRating = (value: number) => {
+  if (!Number.isFinite(value)) return 5;
+  return Math.max(0.5, Math.min(5, Math.round(value * 2) / 2));
+};
+
+type ReviewVisibility = "public" | "private";
+
+const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
+  value === "private" ? "private" : "public";
+
+const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
+  visibility === "private"
+    ? { className: "is-private", label: "비공개 리뷰" }
+    : { className: "is-public", label: "공개 리뷰" };
+
+const getStarFillPercent = (rating: number, starNumber: number) => {
+  const normalized = normalizeReviewRating(rating);
+  const fill = Math.max(0, Math.min(1, normalized - (starNumber - 1)));
+  return Math.round(fill * 100);
+};
 
 type StoredReviewItem = {
   id: number;
@@ -24,6 +55,7 @@ type StoredReviewItem = {
   rating?: number;
   content?: string;
   createdAt?: string;
+  visibility?: ReviewVisibility;
 };
 
 type StoredWatchedItem = {
@@ -45,9 +77,12 @@ export default function MovieDetailPage() {
   const [isEditingMyReview, setIsEditingMyReview] = useState(false);
   const [myReviewContent, setMyReviewContent] = useState("");
   const [myReviewRating, setMyReviewRating] = useState(5);
-  const [myReviewVisibility, setMyReviewVisibility] = useState<
-    "public" | "private"
-  >("public");
+  const [hoverReviewRating, setHoverReviewRating] = useState<number | null>(null);
+  const [myReviewVisibility, setMyReviewVisibility] =
+    useState<ReviewVisibility>("public");
+  const [personalReviewVisibility, setPersonalReviewVisibility] =
+    useState<ReviewVisibility>("public");
+  const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [showReviewLoginMessage, setShowReviewLoginMessage] = useState(false);
   const [reviewLoginMessageTick, setReviewLoginMessageTick] = useState(0);
   const [isMovieWatched, setIsMovieWatched] = useState(false);
@@ -63,6 +98,7 @@ export default function MovieDetailPage() {
   const [prediction, setPrediction] = useState<SatisfactionPrediction | null>(null);
   const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
+  const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
   const locationState = location.state as {
     newReview?: Review;
     userReview?: Review;
@@ -74,12 +110,34 @@ export default function MovieDetailPage() {
   const personalReviewDate = personalReview?.created_at
     ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
     : "오늘";
+  const previewReviewRating = hoverReviewRating ?? myReviewRating;
 
   useEffect(() => {
     setIsPersonalReviewDeleted(false);
     setReviewDeleteConfirmOpen(false);
     setIsEditingMyReview(false);
+    setHoverReviewRating(null);
+    setIsVisibilityOpen(false);
+    setMyReviewVisibility("public");
+    setPersonalReviewVisibility("public");
   }, [movieId]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (
+        visibilitySelectRef.current &&
+        !visibilitySelectRef.current.contains(event.target)
+      ) {
+        setIsVisibilityOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
 
   useEffect(() => {
     if (!movieId) return;
@@ -91,11 +149,14 @@ export default function MovieDetailPage() {
       if (!Array.isArray(stored)) return;
       const match = stored.find((item) => String(item.movieId) === String(movieId));
       if (!match) return;
+      const nextVisibility = normalizeReviewVisibility(match.visibility);
+      setMyReviewVisibility(nextVisibility);
+      setPersonalReviewVisibility(nextVisibility);
       setLocalPersonalReview({
         id: match.id ?? Date.now(),
         user_id: localStorage.getItem("mw_profile_id") || "me",
         movie_id: Number(movieId),
-        rating: typeof match.rating === "number" ? match.rating : 5,
+        rating: normalizeReviewRating(typeof match.rating === "number" ? match.rating : 5),
         content: match.content ?? null,
         created_at: match.createdAt ?? new Date().toISOString(),
         likes_count: 0,
@@ -105,6 +166,23 @@ export default function MovieDetailPage() {
       console.error("Failed to parse stored reviews:", err);
     }
   }, [movieId, locationState?.userReview, locationState?.newReview]);
+
+  useEffect(() => {
+    if (!movieId) return;
+    const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const stored = JSON.parse(raw) as StoredReviewItem[];
+      if (!Array.isArray(stored)) return;
+      const match = stored.find((item) => String(item.movieId) === String(movieId));
+      if (!match) return;
+      const nextVisibility = normalizeReviewVisibility(match.visibility);
+      setMyReviewVisibility(nextVisibility);
+      setPersonalReviewVisibility(nextVisibility);
+    } catch (err) {
+      console.error("Failed to parse stored reviews:", err);
+    }
+  }, [movieId]);
 
   useEffect(() => {
     if (!movieId) return;
@@ -199,7 +277,7 @@ export default function MovieDetailPage() {
       setReviewLoginMessageTick((prev) => prev + 1);
       return;
     }
-    const content = myReviewContent.trim();
+    const content = myReviewContent.trim().slice(0, REVIEW_CONTENT_MAX_LENGTH);
     const userId = localStorage.getItem("mw_profile_id") || "me";
     const createdAt =
       isEditingMyReview && personalReview?.created_at
@@ -230,6 +308,7 @@ export default function MovieDetailPage() {
         rating: nextReview.rating,
         content: nextReview.content ?? "",
         createdAt: nextReview.created_at,
+        visibility: myReviewVisibility,
       };
       const normalizedStored = Array.isArray(stored) ? stored : [];
       const nextStored = [
@@ -241,19 +320,27 @@ export default function MovieDetailPage() {
       console.error("Failed to save review to storage:", err);
     }
     setLocalPersonalReview(nextReview);
+    setPersonalReviewVisibility(myReviewVisibility);
     setIsPersonalReviewDeleted(false);
     setIsEditingMyReview(false);
     setShowReviewLoginMessage(false);
     setMyReviewOpen(false);
+    setHoverReviewRating(null);
+    setIsVisibilityOpen(false);
   };
 
   const handleMyReviewEditOpen = () => {
     if (!personalReview) return;
-    setMyReviewRating(personalReview.rating ?? 5);
-    setMyReviewContent(personalReview.content ?? "");
+    setMyReviewRating(normalizeReviewRating(personalReview.rating ?? 5));
+    setMyReviewContent(
+      (personalReview.content ?? "").slice(0, REVIEW_CONTENT_MAX_LENGTH)
+    );
+    setMyReviewVisibility(personalReviewVisibility);
     setIsEditingMyReview(true);
     setShowReviewLoginMessage(false);
     setMyReviewOpen(true);
+    setHoverReviewRating(null);
+    setIsVisibilityOpen(false);
   };
 
   const handleMyReviewDeleteConfirm = () => {
@@ -273,7 +360,11 @@ export default function MovieDetailPage() {
     setIsPersonalReviewDeleted(true);
     setIsEditingMyReview(false);
     setMyReviewOpen(false);
+    setHoverReviewRating(null);
     setShowReviewLoginMessage(false);
+    setMyReviewVisibility("public");
+    setPersonalReviewVisibility("public");
+    setIsVisibilityOpen(false);
     setReviewDeleteConfirmOpen(false);
   };
 
@@ -302,6 +393,63 @@ export default function MovieDetailPage() {
     }
   };
 
+  const resolveRatingFromPointer = (
+    event: ReactMouseEvent<HTMLSpanElement>,
+    starNumber: number
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const isLeftHalf = pointerX < rect.width / 2;
+    const nextValue = starNumber - (isLeftHalf ? 0.5 : 0);
+    return normalizeReviewRating(nextValue);
+  };
+
+  const handleReviewRatingHover = (
+    event: ReactMouseEvent<HTMLSpanElement>,
+    starNumber: number
+  ) => {
+    if (!isLoggedIn) return;
+    setHoverReviewRating(resolveRatingFromPointer(event, starNumber));
+  };
+
+  const handleReviewRatingSelect = (
+    event: ReactMouseEvent<HTMLSpanElement>,
+    starNumber: number
+  ) => {
+    if (!isLoggedIn) return;
+    const nextRating = resolveRatingFromPointer(event, starNumber);
+    setMyReviewRating(nextRating);
+    setHoverReviewRating(nextRating);
+  };
+
+  const handleReviewRatingKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!isLoggedIn) return;
+
+    let nextRating = myReviewRating;
+
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowUp":
+        nextRating = normalizeReviewRating(myReviewRating + 0.5);
+        break;
+      case "ArrowLeft":
+      case "ArrowDown":
+        nextRating = normalizeReviewRating(myReviewRating - 0.5);
+        break;
+      case "Home":
+        nextRating = 0.5;
+        break;
+      case "End":
+        nextRating = 5;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    setMyReviewRating(nextRating);
+    setHoverReviewRating(null);
+  };
   const toggleReplyOpen = (reviewId: number) => {
     setReplyOpen((prev) => ({
       ...prev,
@@ -322,6 +470,10 @@ export default function MovieDetailPage() {
     setReplyDrafts((prev) => ({ ...prev, [reviewId]: "" }));
     setReplyOpen((prev) => ({ ...prev, [reviewId]: false }));
   };
+
+  const personalReviewVisibilityMeta = getReviewVisibilityMeta(
+    personalReviewVisibility
+  );
 
   const fetchMovieRecommendation = async (movieData: Movie) => {
     setMlLoading(true);
@@ -513,8 +665,17 @@ export default function MovieDetailPage() {
                   </div>
                   <div>
                     <p className="review-name">{personalReview.user_id}</p>
-                    <p className="muted">
-                      {personalReviewDate} · 평점 {personalReview.rating}
+                    <p className="muted review-meta-line">
+                      <span>
+                        {personalReviewDate} · 평점{" "}
+                        {formatRatingLabel(personalReview.rating)}
+                      </span>
+                      <span
+                        className={`review-visibility-indicator ${personalReviewVisibilityMeta.className}`}
+                        role="img"
+                        aria-label={personalReviewVisibilityMeta.label}
+                        title={personalReviewVisibilityMeta.label}
+                      />
                     </p>
                   </div>
                 </div>
@@ -543,25 +704,6 @@ export default function MovieDetailPage() {
             <article className="card review-card review-empty review-empty-stack">
               {myReviewOpen ? (
                 <div className="review-form form-grid">
-                  <div className="review-form-row review-form-row-half">
-                    <label htmlFor="my-review-rating">별점</label>
-                    <select
-                      id="my-review-rating"
-                      className="review-rating-select"
-                      value={myReviewRating}
-                      disabled={!isLoggedIn}
-                      onChange={(event) =>
-                        setMyReviewRating(Number(event.target.value))
-                      }
-                    >
-                      {[5, 4, 3, 2, 1].map((value) => (
-                        <option key={value} value={value}>
-                          {value}점
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="review-form-spacer" aria-hidden="true" />
                   <div className="review-form-row review-form-row-full">
                     <label htmlFor="my-review-content">리뷰</label>
                     <textarea
@@ -569,38 +711,136 @@ export default function MovieDetailPage() {
                       className="review-reply-input"
                       placeholder={isLoggedIn ? "리뷰를 입력하세요" : ""}
                       value={myReviewContent}
+                      maxLength={REVIEW_CONTENT_MAX_LENGTH}
                       readOnly={!isLoggedIn}
-                      onChange={(event) => setMyReviewContent(event.target.value)}
+                      onChange={(event) =>
+                        setMyReviewContent(
+                          event.target.value.slice(0, REVIEW_CONTENT_MAX_LENGTH)
+                        )
+                      }
                     />
+                    <p className="review-char-count" aria-live="polite">
+                      {myReviewContent.length} / {REVIEW_CONTENT_MAX_LENGTH}
+                    </p>
                     {!isLoggedIn && showReviewLoginMessage && (
                       <p className="error" key={`review-login-warning-${reviewLoginMessageTick}`}>
                         로그인 후 이용해주세요.
                       </p>
                     )}
                   </div>
-                  <div className="review-reply-actions review-form-actions">
-                    <select
-                      id="my-review-visibility"
-                      className="review-visibility-select"
-                      aria-label="공개 여부"
-                      value={myReviewVisibility}
-                      disabled={!isLoggedIn}
-                      onChange={(event) =>
-                        setMyReviewVisibility(
-                          event.target.value === "private" ? "private" : "public"
-                        )
-                      }
-                    >
-                      <option value="public">공개</option>
-                      <option value="private">비공개</option>
-                    </select>
-                    <button
-                      className="primary-btn review-reply-submit"
-                      type="button"
-                      onClick={handleMyReviewSave}
-                    >
-                      {isEditingMyReview ? "수정하기" : "저장하기"}
-                    </button>
+                  <div className="review-form-row review-form-row-full review-rating-actions-row">
+                    <div className="review-rating-block">
+                      <label>별점</label>
+                      <div className="review-rating-input-wrap">
+                        <div
+                          id="my-review-rating"
+                          className={`review-rating-input ${!isLoggedIn ? "is-disabled" : ""}`}
+                          role="slider"
+                          aria-label="별점"
+                          aria-valuemin={0.5}
+                          aria-valuemax={5}
+                          aria-valuenow={previewReviewRating}
+                          aria-valuetext={`${formatRatingLabel(previewReviewRating)}점`}
+                          aria-disabled={!isLoggedIn}
+                          tabIndex={isLoggedIn ? 0 : -1}
+                          onKeyDown={handleReviewRatingKeyDown}
+                          onMouseLeave={() => setHoverReviewRating(null)}
+                        >
+                          {Array.from({ length: 5 }, (_, index) => {
+                            const starNumber = index + 1;
+                            const fillPercent = getStarFillPercent(previewReviewRating, starNumber);
+
+                            return (
+                              <span
+                                key={starNumber}
+                                className={`review-rating-star-hitbox ${
+                                  !isLoggedIn ? "is-disabled" : ""
+                                }`}
+                                aria-label={`${starNumber}점`}
+                                onMouseMove={(event) => handleReviewRatingHover(event, starNumber)}
+                                onClick={(event) => handleReviewRatingSelect(event, starNumber)}
+                              >
+                                <span className="review-rating-star-image review-rating-star-empty" aria-hidden="true" />
+                                <span
+                                  className="review-rating-star-fill-wrap"
+                                  aria-hidden="true"
+                                  style={{ width: `${fillPercent}%` }}
+                                >
+                                  <span className="review-rating-star-image review-rating-star-filled" />
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <span className="review-rating-current">
+                          {formatRatingLabel(previewReviewRating)}점
+                        </span>
+                      </div>
+                    </div>
+                    <div className="review-reply-actions review-form-actions">
+                      <div
+                        className="group-select-wrap option-select review-visibility-wrap"
+                        ref={visibilitySelectRef}
+                      >
+                        <button
+                          type="button"
+                          className="option-select-trigger"
+                          aria-haspopup="listbox"
+                          aria-expanded={isVisibilityOpen}
+                          aria-controls="review-visibility-options"
+                          disabled={!isLoggedIn}
+                          onClick={() => setIsVisibilityOpen((prev) => !prev)}
+                        >
+                          <span>
+                            {myReviewVisibility === "private" ? "비공개" : "공개"}
+                          </span>
+                          <span className="option-select-arrow" aria-hidden="true">
+                            ▾
+                          </span>
+                        </button>
+                        {isVisibilityOpen && isLoggedIn && (
+                          <div
+                            id="review-visibility-options"
+                            className="search-results option-select-list"
+                            role="listbox"
+                          >
+                            <button
+                              type="button"
+                              className="search-item option-select-item"
+                              role="option"
+                              aria-selected={myReviewVisibility === "public"}
+                              onClick={() => {
+                                setMyReviewVisibility("public");
+                                setIsVisibilityOpen(false);
+                              }}
+                            >
+                              <strong>공개</strong>
+                              {myReviewVisibility === "public" && <span>✓</span>}
+                            </button>
+                            <button
+                              type="button"
+                              className="search-item option-select-item"
+                              role="option"
+                              aria-selected={myReviewVisibility === "private"}
+                              onClick={() => {
+                                setMyReviewVisibility("private");
+                                setIsVisibilityOpen(false);
+                              }}
+                            >
+                              <strong>비공개</strong>
+                              {myReviewVisibility === "private" && <span>✓</span>}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        className="primary-btn review-reply-submit"
+                        type="button"
+                        onClick={handleMyReviewSave}
+                      >
+                        {isEditingMyReview ? "수정하기" : "저장하기"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -611,9 +851,12 @@ export default function MovieDetailPage() {
                     type="button"
                     onClick={() => {
                       setIsEditingMyReview(false);
-                      setMyReviewRating(5);
+                      setMyReviewRating(normalizeReviewRating(5));
                       setMyReviewContent("");
+                      setMyReviewVisibility("public");
                       setMyReviewOpen(true);
+                      setHoverReviewRating(null);
+                      setIsVisibilityOpen(false);
                       setShowReviewLoginMessage(false);
                     }}
                   >
@@ -753,5 +996,13 @@ export default function MovieDetailPage() {
     </MainLayout>
   );
 }
+
+
+
+
+
+
+
+
 
 

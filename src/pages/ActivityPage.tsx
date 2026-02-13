@@ -20,6 +20,8 @@ type ReviewReply = {
   createdAt: string;
 };
 
+type ReviewVisibility = "public" | "private";
+
 type ReviewItem = {
   id: number;
   movieId: number;
@@ -30,6 +32,7 @@ type ReviewItem = {
   rating: number;
   content: string;
   createdAt: string;
+  visibility?: ReviewVisibility;
   replies: ReviewReply[];
 };
 
@@ -43,6 +46,14 @@ type WatchedMovieItem = {
 const REVIEW_STORAGE_KEY = "mw_my_reviews";
 const WATCHED_STORAGE_KEY = "mw_watched_movies";
 
+const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
+  value === "private" ? "private" : "public";
+
+const getReviewVisibilityMeta = (visibility: unknown) =>
+  normalizeReviewVisibility(visibility) === "private"
+    ? { className: "is-private", label: "비공개 리뷰" }
+    : { className: "is-public", label: "공개 리뷰" };
+
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
   realname: "사용자",
@@ -50,7 +61,8 @@ const defaultProfile: ProfileState = {
   gender: "선택 안함",
   id: "watched_01",
   email: "you@example.com",
-  bio: "감정선 강한 드라마 · SF를 자주 봐요.",
+  bio: "",
+  // bio: "감정선 강한 드라마 · SF를 자주 봐요.",
 };
 
 export default function ActivityPage() {
@@ -120,6 +132,7 @@ export default function ActivityPage() {
         .filter((item) => item && typeof item === "object")
         .map((item) => ({
           ...item,
+          visibility: normalizeReviewVisibility(item.visibility),
           replies: Array.isArray(item.replies) ? item.replies : [],
         }));
       setSavedReviews(normalized);
@@ -264,22 +277,25 @@ export default function ActivityPage() {
 
   const renderReviewRatingStars = (rating: number, reviewId: number) => {
     const ratingValue = Number.isFinite(rating)
-      ? Math.max(0, Math.min(5, Math.round(rating)))
+      ? Math.max(0, Math.min(5, Math.round(rating * 2) / 2))
       : 0;
+    const activeStars = Math.floor(ratingValue);
+    const ratingLabel =
+      Number.isInteger(ratingValue) ? `${ratingValue}` : ratingValue.toFixed(1);
 
     return (
-      <div className="review-rating-stars" aria-label={`평점 ${ratingValue}점`}>
+      <span className="review-rating-stars" aria-label={`평점 ${ratingLabel}점`}>
         {Array.from({ length: 5 }).map((_, index) => (
           <span
             key={`${reviewId}-star-${index}`}
-            className={`review-star ${index < ratingValue ? "is-active" : ""}`}
+            className={`review-star ${index < activeStars ? "is-active" : ""}`}
             aria-hidden="true"
           >
             ★
           </span>
         ))}
-        <span className="review-rating-value">{ratingValue}점</span>
-      </div>
+        <span className="review-rating-value">{ratingLabel}점</span>
+      </span>
     );
   };
 
@@ -370,7 +386,7 @@ export default function ActivityPage() {
               </div> */}
             </div>
           </div>
-          <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
+          {/* <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p> */}
         </section>
 
           <section className="section card taste-preview-section activity-top-card">
@@ -545,7 +561,9 @@ export default function ActivityPage() {
             <article className="section view-section" data-view="reviews" id="reviews-section">
             <div className="section-header" id="reviews-header" />
               <div className="review-list">
-                {mergedReviewItems.map((review) => (
+                {mergedReviewItems.map((review) => {
+                  const visibilityMeta = getReviewVisibilityMeta(review.visibility);
+                  return (
                   <div className="review-item" key={review.id}>
                     <article
                       className="card review-card review-card-toggle"
@@ -566,20 +584,27 @@ export default function ActivityPage() {
                           alt={`${review.title} 포스터`}
                         />
                         <div className="movie-info">
-                          <h3>{review.title}</h3>
+                          <h3 className="review-title-row">
+                            <span>{review.title}</span>
+                            <span
+                              className={`review-visibility-indicator ${visibilityMeta.className}`}
+                              role="img"
+                              aria-label={visibilityMeta.label}
+                              title={visibilityMeta.label}
+                            />
+                          </h3>
                           <p className="muted">"{review.content}"</p>
-                          <div className="meta-list">
+                          <div className="meta-list review-meta-inline">
                             <span>{review.dateLabel}</span>
                             <span>{review.genre}</span>
-                          </div>
-                          <div className="review-rating-row">
                             {renderReviewRatingStars(review.rating, review.id)}
                           </div>
                         </div>
                       </div>
                     </article>
                 </div>
-                ))}
+                  );
+                })}
               </div>
             </article>
           )}
@@ -803,7 +828,7 @@ export default function ActivityPage() {
                     }))
                   }
                 />
-                <label htmlFor="profile-bio-input">한줄소개</label>
+                {/* <label htmlFor="profile-bio-input">한줄소개</label>
                 <textarea
                   id="profile-bio-input"
                   value={editDraft.bio}
@@ -813,7 +838,7 @@ export default function ActivityPage() {
                       bio: event.target.value,
                     }))
                   }
-                />
+                /> */}
                 <div className="profile-edit-actions">
                   <button
                     className="primary-btn"

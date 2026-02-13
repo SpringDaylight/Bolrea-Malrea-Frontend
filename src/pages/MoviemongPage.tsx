@@ -1,7 +1,16 @@
-﻿import { useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import MainLayout from "../components/layout/MainLayout";
 import "../components/roulette/roulette.css";
-import moviemong1 from "../assets/reviewmong_1.png";
+import moviemongLv1 from "../assets/monkeymong-lv1.png";
+import moviemongTheme1 from "../assets/moviemong-theme1.png";
+import moviemongTheme2 from "../assets/moviemong-theme2.png";
+import moviemongTheme3 from "../assets/moviemong-theme3.png";
+import moviemongTheme4 from "../assets/moviemong-theme4.png";
 import Roulette from "../components/roulette/Roulette";
 import { rouletteItems } from "../components/roulette/rouletteItems";
 
@@ -10,6 +19,12 @@ type QuestionItem = {
   question: string;
   createdAt: string;
   answer: string;
+};
+
+type MoviemongThemeItem = {
+  id: string;
+  imageSrc: string;
+  alt: string;
 };
 
 type TabType = "question" | "feed" | "theme" | "recipe" | "bag";
@@ -24,6 +39,13 @@ const questionItems: QuestionItem[] = Array.from({ length: 32 }, (_, index) => {
     answer: `내 답변 내용 ${index + 1}번입니다.`,
   };
 });
+
+const moviemongThemeItems: MoviemongThemeItem[] = [
+  { id: "theme-1", imageSrc: moviemongTheme1, alt: "무비몽 테마 1" },
+  { id: "theme-2", imageSrc: moviemongTheme2, alt: "무비몽 테마 2" },
+  { id: "theme-3", imageSrc: moviemongTheme3, alt: "무비몽 테마 3" },
+  { id: "theme-4", imageSrc: moviemongTheme4, alt: "무비몽 테마 4" },
+];
 
 export default function MoviemongPage() {
   const getNextExpRequirement = (nextLevel: number) => {
@@ -47,7 +69,27 @@ export default function MoviemongPage() {
     null
   );
   const [questionQuery, setQuestionQuery] = useState("");
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [canThemeScrollLeft, setCanThemeScrollLeft] = useState(false);
+  const [canThemeScrollRight, setCanThemeScrollRight] = useState(false);
+  const [isThemeDragging, setIsThemeDragging] = useState(false);
+  const themeScrollRef = useRef<HTMLDivElement | null>(null);
+  const themeDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    themeId: string | null;
+  } | null>(null);
+  const themeDragMovedRef = useRef(false);
   const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const selectedTheme = moviemongThemeItems.find(
+    (theme) => theme.id === selectedThemeId
+  );
+  const heroThemeBackgroundStyle = selectedTheme
+    ? {
+        backgroundImage: `url(${selectedTheme.imageSrc})`,
+      }
+    : undefined;
   const expMax = getNextExpRequirement(level + 1);
   const expPercent =
     expMax > 0 ? Math.min(100, Math.round((expValue / expMax) * 100)) : 0;
@@ -107,11 +149,136 @@ export default function MoviemongPage() {
     setPanelVersion((prev) => prev + 1);
   };
 
+  const updateThemeScrollState = () => {
+    const scrollEl = themeScrollRef.current;
+    if (!scrollEl) {
+      setCanThemeScrollLeft(false);
+      setCanThemeScrollRight(false);
+      return;
+    }
+    const maxScrollLeft = scrollEl.scrollWidth - scrollEl.clientWidth;
+    setCanThemeScrollLeft(scrollEl.scrollLeft > 1);
+    setCanThemeScrollRight(maxScrollLeft - scrollEl.scrollLeft > 1);
+  };
+
+  useEffect(() => {
+    if (activeTab !== "theme") {
+      setCanThemeScrollLeft(false);
+      setCanThemeScrollRight(false);
+      setIsThemeDragging(false);
+      themeDragRef.current = null;
+      return;
+    }
+
+    const scrollEl = themeScrollRef.current;
+    if (!scrollEl) return;
+
+    updateThemeScrollState();
+
+    const handleScroll = () => updateThemeScrollState();
+    const handleResize = () => updateThemeScrollState();
+    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleResize);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => updateThemeScrollState());
+      resizeObserver.observe(scrollEl);
+    }
+
+    return () => {
+      scrollEl.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleResize);
+      resizeObserver?.disconnect();
+    };
+  }, [activeTab, panelVersion]);
+
+  const handleThemeScrollPrev = () => {
+    const scrollEl = themeScrollRef.current;
+    if (!scrollEl) return;
+    const prevStep = Math.max(180, Math.round(scrollEl.clientWidth * 0.72));
+    scrollEl.scrollBy({ left: -prevStep, behavior: "smooth" });
+  };
+
+  const handleThemeScrollNext = () => {
+    const scrollEl = themeScrollRef.current;
+    if (!scrollEl) return;
+    const nextStep = Math.max(180, Math.round(scrollEl.clientWidth * 0.72));
+    scrollEl.scrollBy({ left: nextStep, behavior: "smooth" });
+  };
+
+  const handleThemePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    if (event.pointerType !== "mouse") return;
+    const scrollEl = themeScrollRef.current;
+    if (!scrollEl) return;
+    const target = event.target as HTMLElement;
+    const themeCard = target.closest<HTMLElement>(".moviemong-theme-card");
+    const themeId = themeCard?.dataset.themeId ?? null;
+
+    themeDragMovedRef.current = false;
+    themeDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: scrollEl.scrollLeft,
+      themeId,
+    };
+    setIsThemeDragging(true);
+    scrollEl.setPointerCapture(event.pointerId);
+  };
+
+  const handleThemePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    const scrollEl = themeScrollRef.current;
+    const dragState = themeDragRef.current;
+    if (!scrollEl || !dragState || dragState.pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - dragState.startX;
+    if (Math.abs(deltaX) > 6) {
+      themeDragMovedRef.current = true;
+    }
+    scrollEl.scrollLeft = dragState.startScrollLeft - deltaX;
+  };
+
+  const handleThemePointerEnd = (
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    const scrollEl = themeScrollRef.current;
+    const dragState = themeDragRef.current;
+    if (!scrollEl || !dragState || dragState.pointerId !== event.pointerId) return;
+    const shouldSelectTheme =
+      !themeDragMovedRef.current && Boolean(dragState.themeId);
+
+    if (scrollEl.hasPointerCapture(event.pointerId)) {
+      scrollEl.releasePointerCapture(event.pointerId);
+    }
+    themeDragRef.current = null;
+    setIsThemeDragging(false);
+    updateThemeScrollState();
+    if (shouldSelectTheme && dragState.themeId) {
+      setSelectedThemeId(dragState.themeId);
+    }
+    themeDragMovedRef.current = false;
+  };
+
+  const handleThemeSelect = (themeId: string) => {
+    if (themeDragMovedRef.current) {
+      themeDragMovedRef.current = false;
+      return;
+    }
+    setSelectedThemeId(themeId);
+  };
+
   return (
     <MainLayout>
       <main className="container reviewmong-page">
         <section className="section">
-          <div className="reviewmong-hero">
+          <div
+            className={`reviewmong-hero ${selectedTheme ? "has-theme-bg" : ""}`}
+            style={heroThemeBackgroundStyle}
+          >
             {isLoggedIn ? (
               <>
                 <div className="reviewmong-stats">
@@ -119,7 +286,7 @@ export default function MoviemongPage() {
                   <span>팝콘 {popcornCount}</span>
                 </div>
                 <div className="reviewmong-hero-content">
-                  <img src={moviemong1} alt="Moviemong preview" />
+                  <img src={moviemongLv1} alt="Moviemong preview" />
                   <div className="reviewmong-exp">
                     <div className="reviewmong-exp-header">
                       <span>EXP</span>
@@ -311,7 +478,64 @@ export default function MoviemongPage() {
                 {activeTab === "theme" && (
                   <div className="reviewmong-question">
                     <p className="question-title">테마</p>
-                    <p className="question-text">준비 중이에요.</p>
+                    <p className="question-text">무비몽 테마를 골라보세요.</p>
+                    <div className="reviewmong-theme-wrap">
+                      {canThemeScrollLeft && (
+                        <button
+                          type="button"
+                          className="reviewmong-theme-prev-btn"
+                          aria-label="이전 테마 보기"
+                          onClick={handleThemeScrollPrev}
+                        >
+                          ◀
+                        </button>
+                      )}
+                      <div
+                        className={`reviewmong-theme-scroll ${
+                          isThemeDragging ? "is-dragging" : ""
+                        }`}
+                        ref={themeScrollRef}
+                        onPointerDown={handleThemePointerDown}
+                        onPointerMove={handleThemePointerMove}
+                        onPointerUp={handleThemePointerEnd}
+                        onPointerCancel={handleThemePointerEnd}
+                      >
+                        {moviemongThemeItems.map((theme) => (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            className={`moviemong-theme-card ${
+                              selectedThemeId === theme.id ? "is-selected" : ""
+                            }`}
+                            data-theme-id={theme.id}
+                            aria-pressed={selectedThemeId === theme.id}
+                            onClick={() => handleThemeSelect(theme.id)}
+                          >
+                            <img
+                              src={theme.imageSrc}
+                              alt={theme.alt}
+                              loading="lazy"
+                              draggable={false}
+                            />
+                            {selectedThemeId === theme.id && (
+                              <span className="moviemong-theme-check" aria-hidden="true">
+                                ✓
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {canThemeScrollRight && (
+                        <button
+                          type="button"
+                          className="reviewmong-theme-next-btn"
+                          aria-label="다음 테마 보기"
+                          onClick={handleThemeScrollNext}
+                        >
+                          ▶
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 {activeTab === "recipe" && (

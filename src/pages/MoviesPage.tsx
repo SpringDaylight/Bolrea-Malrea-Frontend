@@ -1,7 +1,46 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { getMovies, type Movie } from "../api/A2_movies";
+
+const WATCHED_STORAGE_KEY = "mw_watched_movies";
+const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
+
+type StoredWatchedItem = {
+  movieId: number;
+  title: string;
+  poster?: string | null;
+  addedAt?: string;
+};
+
+type MoviesPageSnapshot = {
+  searchQuery: string;
+  selectedSorts: string[];
+  selectedGenres: string[];
+  appliedSorts: string[];
+  appliedGenres: string[];
+  appliedQuery: string;
+  currentPage: number;
+  scrollY: number;
+  restoreOnReturn: boolean;
+};
+
+const normalizeStoredWatchedItems = (value: unknown): StoredWatchedItem[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is StoredWatchedItem => {
+      if (!item || typeof item !== "object") return false;
+      const movieId = Number((item as { movieId?: unknown }).movieId);
+      return Number.isFinite(movieId);
+    })
+    .map((item) => ({
+      movieId: Number(item.movieId),
+      title: item.title || "영화",
+      poster: item.poster,
+      addedAt: item.addedAt,
+    }));
+};
 
 const sortFilters = [
   { value: "latest", label: "최신 개봉순" },
@@ -51,6 +90,8 @@ const resolveGenresToFilterValues = (genres: string[]) => {
 };
 
 export default function MoviesPage() {
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,8 +104,76 @@ export default function MoviesPage() {
   const [appliedQuery, setAppliedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pendingScrollRestore, setPendingScrollRestore] = useState<number | null>(
+    null
+  );
+  const [watchedMovieIds, setWatchedMovieIds] = useState<Set<number>>(
+    () => new Set()
+  );
+  const shouldSkipSearchParamInitRef = useRef(false);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
+      const stored = raw ? (JSON.parse(raw) as unknown) : [];
+      const normalizedStored = normalizeStoredWatchedItems(stored);
+      const nextWatchedIds = new Set(
+        normalizedStored
+          .map((item) => Number(item.movieId))
+          .filter((movieId) => Number.isFinite(movieId))
+      );
+      setWatchedMovieIds(nextWatchedIds);
+    } catch (err) {
+      console.error("Failed to parse watched movies:", err);
+      setWatchedMovieIds(new Set());
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(MOVIES_PAGE_SNAPSHOT_KEY);
+      if (!raw) return;
+      if (navigationType !== "POP") {
+        sessionStorage.removeItem(MOVIES_PAGE_SNAPSHOT_KEY);
+        return;
+      }
+      const parsed = JSON.parse(raw) as MoviesPageSnapshot;
+
+      if (!parsed || parsed.restoreOnReturn !== true) return;
+
+      const toStringArray = (value: unknown) =>
+        Array.isArray(value)
+          ? value.filter((item): item is string => typeof item === "string")
+          : [];
+
+      setSearchQuery(typeof parsed.searchQuery === "string" ? parsed.searchQuery : "");
+      setSelectedSorts(toStringArray(parsed.selectedSorts));
+      setSelectedGenres(toStringArray(parsed.selectedGenres));
+      setAppliedSorts(toStringArray(parsed.appliedSorts));
+      setAppliedGenres(toStringArray(parsed.appliedGenres));
+      setAppliedQuery(typeof parsed.appliedQuery === "string" ? parsed.appliedQuery : "");
+      setCurrentPage(
+        Number.isFinite(parsed.currentPage) && parsed.currentPage > 0
+          ? Math.floor(parsed.currentPage)
+          : 1
+      );
+      setPendingScrollRestore(
+        Number.isFinite(parsed.scrollY) && parsed.scrollY >= 0
+          ? parsed.scrollY
+          : 0
+      );
+      shouldSkipSearchParamInitRef.current = true;
+    } catch (err) {
+      console.error("Failed to restore movies page state:", err);
+    }
+  }, [navigationType]);
+
+  useEffect(() => {
+    if (shouldSkipSearchParamInitRef.current) {
+      shouldSkipSearchParamInitRef.current = false;
+      return;
+    }
+
     const queryFromUrl = searchParams.get("query");
     const genresFromUrl = searchParams.get("genres");
 
@@ -86,6 +195,23 @@ export default function MoviesPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (pendingScrollRestore === null) return;
+    if (loading) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({
+        top: pendingScrollRestore,
+        behavior: "auto",
+      });
+      setPendingScrollRestore(null);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, pendingScrollRestore, movies.length]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
     const fetchMovies = async () => {
       setLoading(true);
       setError(null);
@@ -104,6 +230,7 @@ export default function MoviesPage() {
           page_size: 20,
         });
 
+        if (isCancelled) return;
         setMovies(response.movies);
         const nextTotalPages = Math.max(
           1,
@@ -111,14 +238,19 @@ export default function MoviesPage() {
         );
         setTotalPages(nextTotalPages);
       } catch (err) {
+        if (isCancelled) return;
         setError("영화 목록을 불러오는데 실패했습니다.");
         console.error("Failed to fetch movies:", err);
       } finally {
+        if (isCancelled) return;
         setLoading(false);
       }
     };
 
     fetchMovies();
+    return () => {
+      isCancelled = true;
+    };
   }, [appliedSorts, appliedGenres, appliedQuery, currentPage]);
 
   const handleSortSelect = (value: string) => {
@@ -144,6 +276,56 @@ export default function MoviesPage() {
   const handleApplyFilters = () => {
     setAppliedQuery(searchQuery);
     setCurrentPage(1);
+  };
+
+  const handleMarkWatched = (movie: Movie) => {
+    try {
+      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
+      const stored = raw ? (JSON.parse(raw) as unknown) : [];
+      const normalizedStored = normalizeStoredWatchedItems(stored);
+      const nextItem: StoredWatchedItem = {
+        movieId: movie.id,
+        title: movie.title,
+        poster:
+          movie.poster_url ||
+          "https://via.placeholder.com/500x750?text=No+Image",
+        addedAt: new Date().toISOString(),
+      };
+      const nextStored = [
+        nextItem,
+        ...normalizedStored.filter(
+          (item) => Number(item.movieId) !== Number(movie.id)
+        ),
+      ];
+      localStorage.setItem(WATCHED_STORAGE_KEY, JSON.stringify(nextStored));
+      setWatchedMovieIds((prev) => {
+        const next = new Set(prev);
+        next.add(movie.id);
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to save watched movie:", err);
+    }
+  };
+
+  const saveSnapshot = (restoreOnReturn: boolean) => {
+    const snapshot: MoviesPageSnapshot = {
+      searchQuery,
+      selectedSorts,
+      selectedGenres,
+      appliedSorts,
+      appliedGenres,
+      appliedQuery,
+      currentPage,
+      scrollY: window.scrollY,
+      restoreOnReturn,
+    };
+    sessionStorage.setItem(MOVIES_PAGE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  };
+
+  const handleOpenMovieDetail = (movieId: number) => {
+    saveSnapshot(true);
+    navigate(`/movies/${movieId}`);
   };
 
   const pageWindow = (() => {
@@ -247,40 +429,63 @@ export default function MoviesPage() {
           {!loading && !error && movies.length > 0 && (
             <div className="movie-grid">
               {movies.map((movie) => (
-                <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                  <article className="card movie-tile">
-                    <img
-                      className="poster"
-                      src={
-                        movie.poster_url ||
-                        "https://via.placeholder.com/500x750?text=No+Image"
-                      }
-                      alt={`${movie.title} 포스터`}
-                    />
-                    <div className="movie-info">
-                      <h3>{movie.title}</h3>
-                      <p className="movie-rating">
-                        평점{" "}
-                        {typeof movie.avg_rating === "number"
-                          ? movie.avg_rating.toFixed(1)
-                          : "정보 없음"}
-                      </p>
-                      <p className="muted">
-                        {movie.synopsis
-                          ? movie.synopsis.substring(0, 60) +
-                            (movie.synopsis.length > 60 ? "..." : "")
-                          : "줄거리 정보가 없습니다."}
-                      </p>
-                      <div className="meta-list">
-                        {movie.genres.slice(0, 3).map((genre) => (
-                          <span key={genre}>{genre}</span>
-                        ))}
-                        {movie.runtime && <span>{movie.runtime}분</span>}
-                      </div>
-                      <span className="ghost-btn movie-detail-btn">상세보기</span>
+                <article
+                  className="card movie-tile movie-card-clickable"
+                  key={movie.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenMovieDetail(movie.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleOpenMovieDetail(movie.id);
+                    }
+                  }}
+                >
+                  <img
+                    className="poster"
+                    src={
+                      movie.poster_url ||
+                      "https://via.placeholder.com/500x750?text=No+Image"
+                    }
+                    alt={`${movie.title} 포스터`}
+                  />
+                  <div className="movie-info">
+                    <h3>{movie.title}</h3>
+                    <p className="movie-rating">
+                      평점{" "}
+                      {typeof movie.avg_rating === "number"
+                        ? movie.avg_rating.toFixed(1)
+                        : "정보 없음"}
+                    </p>
+                    <p className="muted">
+                      {movie.synopsis
+                        ? movie.synopsis.substring(0, 60) +
+                          (movie.synopsis.length > 60 ? "..." : "")
+                        : "줄거리 정보가 없습니다."}
+                    </p>
+                    <div className="meta-list">
+                      {movie.genres.slice(0, 3).map((genre) => (
+                        <span key={genre}>{genre}</span>
+                      ))}
+                      {movie.runtime && <span>{movie.runtime}분</span>}
                     </div>
-                  </article>
-                </Link>
+                    <button
+                      className={`secondary-btn movie-watch-btn movie-detail-btn ${
+                        watchedMovieIds.has(movie.id) ? "is-active" : ""
+                      }`}
+                      type="button"
+                      aria-pressed={watchedMovieIds.has(movie.id)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleMarkWatched(movie);
+                      }}
+                    >
+                      시청함
+                    </button>
+                  </div>
+                </article>
               ))}
             </div>
           )}

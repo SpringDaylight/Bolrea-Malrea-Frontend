@@ -30,7 +30,13 @@ export default function KakaoCallbackPage() {
         
         // Save user info to localStorage
         localStorage.setItem("mw_logged_in", "true");
-        localStorage.setItem("mw_user_id", response.user_id);
+        if (response.id) {
+          localStorage.setItem("mw_user_pk", response.id);
+        }
+        if (response.user_id) {
+          localStorage.setItem("mw_user_id", response.user_id);
+          localStorage.setItem("mw_profile_id", response.user_id);
+        }
         localStorage.setItem("mw_profile_name", response.name);
         localStorage.setItem("mw_profile_bio", response.avatar_text);
         localStorage.setItem("mw_access_token", response.access_token);

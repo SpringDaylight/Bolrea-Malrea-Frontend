@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import { getMovie } from "../api/A2_movies";
+import { getCurrentUserReviews } from "../api/A7_profile";
+import {
+  deleteCurrentUserWatchedMovie,
+  getCurrentUserWatchedMovies,
+} from "../api/A8_watched";
 
 type ViewMode = "posters" | "reviews";
 type ProfileState = {
@@ -43,8 +49,8 @@ type WatchedMovieItem = {
   addedAt?: string;
 };
 
-const REVIEW_STORAGE_KEY = "mw_my_reviews";
-const WATCHED_STORAGE_KEY = "mw_watched_movies";
+const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
+const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
 
 const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
   value === "private" ? "private" : "public";
@@ -53,6 +59,95 @@ const getReviewVisibilityMeta = (visibility: unknown) =>
   normalizeReviewVisibility(visibility) === "private"
     ? { className: "is-private", label: "비공개 리뷰" }
     : { className: "is-public", label: "공개 리뷰" };
+
+const buildVisibilityKey = (
+  movieId: string | number,
+  ownerUserId: string
+) => `${ownerUserId}:${String(movieId)}`;
+
+const buildReviewVisibilityKey = (reviewId: number | string) =>
+  `review:${String(reviewId)}`;
+
+const getResolvedReviewVisibility = ({
+  movieId,
+  reviewId,
+  ownerUserId,
+  currentUserId,
+  latestVisibilityMap,
+  legacyVisibilityMap,
+}: {
+  movieId: string | number;
+  reviewId?: number | null;
+  ownerUserId?: string | null;
+  currentUserId?: string | null;
+  latestVisibilityMap: Record<string, ReviewVisibility>;
+  legacyVisibilityMap: Record<string, ReviewVisibility>;
+}): ReviewVisibility => {
+  if (typeof reviewId === "number") {
+    const reviewKey = buildReviewVisibilityKey(reviewId);
+    if (latestVisibilityMap[reviewKey]) {
+      return latestVisibilityMap[reviewKey];
+    }
+  }
+
+  if (ownerUserId) {
+    const scopedKey = buildVisibilityKey(movieId, ownerUserId);
+    if (latestVisibilityMap[scopedKey]) {
+      return latestVisibilityMap[scopedKey];
+    }
+  }
+
+  // Legacy visibility: 현재 로그인 사용자의 본인 리뷰에만 적용
+  if (ownerUserId && currentUserId && ownerUserId === currentUserId) {
+    const legacyKey = String(movieId);
+    if (legacyVisibilityMap[legacyKey]) {
+      return legacyVisibilityMap[legacyKey];
+    }
+  }
+
+  return "public";
+};
+
+const getStoredReviewVisibilityMap = (): Record<string, ReviewVisibility> => {
+  try {
+    const raw = localStorage.getItem(REVIEW_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<Record<string, ReviewVisibility>>(
+      (acc, [key, value]) => {
+        acc[key] = normalizeReviewVisibility(value);
+        return acc;
+      },
+      {}
+    );
+  } catch (err) {
+    console.error("Failed to parse review visibility storage:", err);
+    return {};
+  }
+};
+
+const getLegacyReviewVisibilityMap = (): Record<string, ReviewVisibility> => {
+  try {
+    const raw = localStorage.getItem(LEGACY_REVIEW_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Array<{ movieId?: unknown; visibility?: unknown }>;
+    if (!Array.isArray(parsed)) return {};
+
+    return parsed.reduce<Record<string, ReviewVisibility>>((acc, item) => {
+      const movieId = Number(item.movieId);
+      if (!Number.isFinite(movieId)) return acc;
+      acc[String(movieId)] = normalizeReviewVisibility(item.visibility);
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("Failed to parse legacy review storage:", err);
+    return {};
+  }
+};
 
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
@@ -63,6 +158,52 @@ const defaultProfile: ProfileState = {
   email: "you@example.com",
   bio: "",
   // bio: "감정선 강한 드라마 · SF를 자주 봐요.",
+};
+
+const normalizeLegacyProfileAge = (value: string | null): string | null => {
+  if (!value) return value;
+
+  const allowed = new Set(["선택 안함", "10대", "20대", "30대", "40대", "50대+"]);
+  if (allowed.has(value)) return value;
+
+  if (value.startsWith("10")) return "10대";
+  if (value.startsWith("20")) return "20대";
+  if (value.startsWith("30")) return "30대";
+  if (value.startsWith("40")) return "40대";
+  if (value.startsWith("50")) return "50대+";
+
+  return "선택 안함";
+};
+
+const normalizeLegacyProfileGender = (value: string | null): string | null => {
+  if (!value) return value;
+  if (value === "선택 안함" || value === "여성" || value === "남성") {
+    return value;
+  }
+  return "선택 안함";
+};
+const getAgeLabelFromBirthdate = (birthdate: string | null): string | null => {
+  if (!birthdate) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthdate.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  const hasNotHadBirthdayThisYear =
+    now.getMonth() + 1 < month ||
+    (now.getMonth() + 1 === month && now.getDate() < day);
+  if (hasNotHadBirthdayThisYear) age -= 1;
+  if (age < 0 || age > 130) return null;
+
+  return `${age}세`;
 };
 
 export default function ActivityPage() {
@@ -76,6 +217,10 @@ export default function ActivityPage() {
   const [showAllPosters, setShowAllPosters] = useState(false);
   const [savedReviews, setSavedReviews] = useState<ReviewItem[]>([]);
   const [savedWatchedMovies, setSavedWatchedMovies] = useState<WatchedMovieItem[]>([]);
+  const isLoggedIn = useMemo(
+    () => localStorage.getItem("mw_logged_in") === "true",
+    []
+  );
 
   const posterItems = useMemo(
     () =>
@@ -91,8 +236,6 @@ export default function ActivityPage() {
     [savedWatchedMovies]
   );
 
-  const reviewItems: ReviewItem[] = [];
-
   const posterLimit = 18;
   const visiblePosters = showAllPosters
     ? posterItems
@@ -103,15 +246,19 @@ export default function ActivityPage() {
     const savedBio = localStorage.getItem("mw_profile_bio");
     const savedNickname = localStorage.getItem("mw_profile_nickname");
     const savedRealname = localStorage.getItem("mw_profile_realname");
-    const savedAge = localStorage.getItem("mw_profile_age");
-    const savedGender = localStorage.getItem("mw_profile_gender");
+    const savedAge = normalizeLegacyProfileAge(localStorage.getItem("mw_profile_age"));
+    const savedBirthdate =
+      localStorage.getItem("mw_profile_birthdate") ||
+      localStorage.getItem("mw_profile_birth_date");
+    const calculatedAge = getAgeLabelFromBirthdate(savedBirthdate);
+    const savedGender = normalizeLegacyProfileGender(localStorage.getItem("mw_profile_gender"));
     const savedId = localStorage.getItem("mw_profile_id");
     const savedEmail = localStorage.getItem("mw_profile_email");
 
     const nextProfile: ProfileState = {
       nickname: savedNickname || savedName || defaultProfile.nickname,
       realname: savedRealname || defaultProfile.realname,
-      age: savedAge || defaultProfile.age,
+      age: calculatedAge || savedAge || defaultProfile.age,
       gender: savedGender || defaultProfile.gender,
       id: savedId || defaultProfile.id,
       email: savedEmail || defaultProfile.email,
@@ -123,69 +270,162 @@ export default function ActivityPage() {
   }, []);
 
   useEffect(() => {
-    const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as ReviewItem[];
-      if (!Array.isArray(parsed)) return;
-      const normalized = parsed
-        .filter((item) => item && typeof item === "object")
-        .map((item) => ({
-          ...item,
-          visibility: normalizeReviewVisibility(item.visibility),
-          replies: Array.isArray(item.replies) ? item.replies : [],
-        }));
-      setSavedReviews(normalized);
-    } catch (err) {
-      console.error("Failed to parse saved reviews:", err);
+    if (!isLoggedIn) {
+      setSavedReviews([]);
+      return;
     }
-  }, []);
+
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      setSavedReviews([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchSavedReviews = async () => {
+      try {
+        const reviewResponse = await getCurrentUserReviews(userId, {
+          page: 1,
+          page_size: 100,
+        });
+        const legacyVisibilityMap = getLegacyReviewVisibilityMap();
+        const latestVisibilityMap = getStoredReviewVisibilityMap();
+
+        const normalizedReviews = await Promise.all(
+          reviewResponse.reviews.map(async (review): Promise<ReviewItem> => {
+            try {
+              const movie = await getMovie(review.movie_id);
+              return {
+                id: review.id,
+                movieId: review.movie_id,
+                title: movie.title || `영화 #${review.movie_id}`,
+                poster:
+                  movie.poster_url ||
+                  "https://via.placeholder.com/500x750?text=No+Image",
+                dateLabel: new Date(review.created_at).toLocaleDateString("ko-KR"),
+                genre: movie.genres?.[0] ?? "장르",
+                rating: Number(review.rating) || 0,
+                content: review.content ?? "",
+                createdAt: review.created_at,
+                visibility: getResolvedReviewVisibility({
+                  movieId: review.movie_id,
+                  reviewId: review.id,
+                  ownerUserId: review.user_id,
+                  currentUserId: userId,
+                  latestVisibilityMap,
+                  legacyVisibilityMap,
+                }),
+                replies: [],
+              };
+            } catch (movieErr) {
+              console.error(
+                `Failed to fetch movie detail for movie_id=${review.movie_id}:`,
+                movieErr
+              );
+              return {
+                id: review.id,
+                movieId: review.movie_id,
+                title: `영화 #${review.movie_id}`,
+                poster: "https://via.placeholder.com/500x750?text=No+Image",
+                dateLabel: new Date(review.created_at).toLocaleDateString("ko-KR"),
+                genre: "장르",
+                rating: Number(review.rating) || 0,
+                content: review.content ?? "",
+                createdAt: review.created_at,
+                visibility: getResolvedReviewVisibility({
+                  movieId: review.movie_id,
+                  reviewId: review.id,
+                  ownerUserId: review.user_id,
+                  currentUserId: userId,
+                  latestVisibilityMap,
+                  legacyVisibilityMap,
+                }),
+                replies: [],
+              };
+            }
+          })
+        );
+
+        if (isCancelled) return;
+        normalizedReviews.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setSavedReviews(normalizedReviews);
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch current user reviews:", err);
+        setSavedReviews([]);
+      }
+    };
+
+    fetchSavedReviews();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoggedIn, profile.id]);
 
   useEffect(() => {
-    const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as WatchedMovieItem[];
-      if (!Array.isArray(parsed)) return;
-      const normalized = parsed
-        .filter((item): item is WatchedMovieItem => {
-          if (!item || typeof item !== "object") return false;
-          const movieId = Number(item.movieId);
-          return Number.isFinite(movieId);
-        })
-        .map((item) => ({
-          movieId: Number(item.movieId),
-          title: item.title || "영화",
-          poster:
-            item.poster ||
-            "https://via.placeholder.com/500x750?text=No+Image",
-          addedAt: item.addedAt,
-        }));
-      setSavedWatchedMovies(normalized);
-    } catch (err) {
-      console.error("Failed to parse watched movies:", err);
+    if (!isLoggedIn) {
+      setSavedWatchedMovies([]);
+      return;
     }
-  }, []);
+
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      setSavedWatchedMovies([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchWatchedMovies = async () => {
+      try {
+        const response = await getCurrentUserWatchedMovies(userId, {
+          page: 1,
+          page_size: 500,
+        });
+        if (isCancelled) return;
+
+        const normalized = response.watched_movies.map((item) => ({
+          movieId: Number(item.movie_id),
+          title: item.movie_title || `영화 #${item.movie_id}`,
+          poster:
+            item.poster_url ||
+            "https://via.placeholder.com/500x750?text=No+Image",
+          addedAt: item.created_at,
+        }));
+        setSavedWatchedMovies(normalized);
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch watched movies:", err);
+        setSavedWatchedMovies([]);
+      }
+    };
+
+    fetchWatchedMovies();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoggedIn]);
 
   const mergedReviewItems = useMemo(() => {
     const seen = new Set<number>();
-    const combined = [...savedReviews, ...reviewItems];
-    return combined.filter((item) => {
+    return savedReviews.filter((item) => {
       if (seen.has(item.id)) return false;
       seen.add(item.id);
       return true;
     });
-  }, [savedReviews, reviewItems]);
+  }, [savedReviews]);
   const watchedCount = posterItems.length;
   const reviewCount = mergedReviewItems.length;
 
   const avatarLabel = useMemo(
     () => profile.nickname.slice(0, 2),
     [profile.nickname]
-  );
-  const isLoggedIn = useMemo(
-    () => localStorage.getItem("mw_logged_in") === "true",
-    []
   );
 
   const handleOpenEdit = () => {
@@ -248,18 +488,17 @@ export default function ActivityPage() {
     navigate("/login");
   };
 
-  const handleRemoveWatchedMovie = (movieId: number) => {
-    const nextWatchedMovies = savedWatchedMovies.filter(
-      (item) => item.movieId !== movieId
-    );
-    setSavedWatchedMovies(nextWatchedMovies);
+  const handleRemoveWatchedMovie = async (movieId: number) => {
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) return;
+
     try {
-      localStorage.setItem(
-        WATCHED_STORAGE_KEY,
-        JSON.stringify(nextWatchedMovies)
+      await deleteCurrentUserWatchedMovie(userId, movieId);
+      setSavedWatchedMovies((prev) =>
+        prev.filter((item) => item.movieId !== movieId)
       );
     } catch (err) {
-      console.error("Failed to save watched movies:", err);
+      console.error("Failed to delete watched movie:", err);
     }
   };
 
@@ -362,7 +601,7 @@ export default function ActivityPage() {
                     <strong>{profile.realname}</strong>
                   </div>
                   <div>
-                    <span className="muted">나이대</span>
+                    <span className="muted">나이</span>
                     <strong>{profile.age}</strong>
                   </div>
                   <div>
@@ -410,7 +649,7 @@ export default function ActivityPage() {
                 <div className="tag-list" style={{ marginTop: 8 }}>
                   <span className="tag">감정선</span>
                   <span className="tag">몰입</span>
-                  <span className="tag">여운</span>
+                  <span className="tag">서사</span>
                 </div>
               </div>
               <div className="taste-preview-side">
@@ -465,7 +704,7 @@ export default function ActivityPage() {
                 }
               }}
             >
-              <strong>{watchedCount}</strong>
+                <strong>{watchedCount}</strong>
               <span>시청작</span>
             </div>
             <div
@@ -550,7 +789,7 @@ export default function ActivityPage() {
                     type="button"
                     onClick={() => setShowAllPosters((prev) => !prev)}
                   >
-                    {showAllPosters ? "접기▲" : "펼치기▼"}
+                    {showAllPosters ? "접기" : "펼쳐보기"}
                   </button>
                 </div>
               )}
@@ -878,16 +1117,16 @@ export default function ActivityPage() {
                   aria-label="비밀번호 변경 닫기"
                   onClick={handlePasswordCancel}
                 >
-                  ✕
+                  ??
                 </button>
               </div>
               <div className="profile-edit">
                 <label htmlFor="password-current">현재 비밀번호</label>
-                <input id="password-current" type="password" placeholder="••••••••" />
+                <input id="password-current" type="password" placeholder="********" />
                 <label htmlFor="password-next">새 비밀번호</label>
-                <input id="password-next" type="password" placeholder="••••••••" />
+                <input id="password-next" type="password" placeholder="********" />
                 <label htmlFor="password-confirm">새 비밀번호 확인</label>
-                <input id="password-confirm" type="password" placeholder="••••••••" />
+                <input id="password-confirm" type="password" placeholder="********" />
                 <div className="profile-edit-actions">
                   <button
                     className="primary-btn"
@@ -912,3 +1151,5 @@ export default function ActivityPage() {
     </MainLayout>
   );
 }
+
+

@@ -8,6 +8,12 @@
 import MainLayout from "../components/layout/MainLayout";
 import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
+import { createReview, deleteReview, updateReview } from "../api/A6_reviews";
+import { getCurrentUserReviews, getUser } from "../api/A7_profile";
+import {
+  getCurrentUserWatchedMovies,
+  saveCurrentUserWatchedMovie,
+} from "../api/A8_watched";
 import { 
   analyzePreference, 
   vectorizeMovie, 
@@ -17,8 +23,8 @@ import {
   type PredictionExplanation 
 } from "../api/ml";
 
-const REVIEW_STORAGE_KEY = "mw_my_reviews";
-const WATCHED_STORAGE_KEY = "mw_watched_movies";
+const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
+const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 
 const formatRatingLabel = (rating: number) =>
@@ -30,6 +36,7 @@ const normalizeReviewRating = (value: number) => {
 };
 
 type ReviewVisibility = "public" | "private";
+type ReviewVisibilityMap = Record<string, ReviewVisibility>;
 
 const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
   value === "private" ? "private" : "public";
@@ -45,24 +52,153 @@ const getStarFillPercent = (rating: number, starNumber: number) => {
   return Math.round(fill * 100);
 };
 
-type StoredReviewItem = {
-  id: number;
-  movieId: number;
-  title: string;
-  poster?: string | null;
-  dateLabel?: string;
-  genre?: string;
-  rating?: number;
-  content?: string;
-  createdAt?: string;
-  visibility?: ReviewVisibility;
+const buildVisibilityKey = (
+  movieId: string | number,
+  ownerUserId: string
+) => `${ownerUserId}:${String(movieId)}`;
+
+const buildReviewVisibilityKey = (reviewId: number | string) =>
+  `review:${String(reviewId)}`;
+
+const getStoredReviewVisibilityMap = (): ReviewVisibilityMap => {
+  try {
+    const raw = localStorage.getItem(REVIEW_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<ReviewVisibilityMap>((acc, [key, value]) => {
+      acc[key] = normalizeReviewVisibility(value);
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("Failed to parse review visibility storage:", err);
+    return {};
+  }
 };
 
-type StoredWatchedItem = {
-  movieId: number;
-  title: string;
-  poster?: string | null;
-  addedAt?: string;
+const getLegacyStoredVisibility = (movieId: string | number): ReviewVisibility | null => {
+  try {
+    const raw = localStorage.getItem(LEGACY_REVIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Array<{ movieId?: unknown; visibility?: unknown }>;
+    if (!Array.isArray(parsed)) return null;
+
+    const targetMovieId = String(movieId);
+    const match = parsed.find((item) => String(item?.movieId ?? "") === targetMovieId);
+    if (!match) return null;
+    return normalizeReviewVisibility(match.visibility);
+  } catch (err) {
+    console.error("Failed to parse legacy review storage:", err);
+    return null;
+  }
+};
+
+const getSavedReviewVisibility = ({
+  movieId,
+  ownerUserId,
+  currentUserId,
+  reviewId,
+}: {
+  movieId: string | number;
+  ownerUserId?: string | null;
+  currentUserId?: string | null;
+  reviewId?: number | null;
+}): ReviewVisibility => {
+  const savedMap = getStoredReviewVisibilityMap();
+  if (typeof reviewId === "number") {
+    const reviewKey = buildReviewVisibilityKey(reviewId);
+    if (savedMap[reviewKey]) return savedMap[reviewKey];
+  }
+
+  if (ownerUserId) {
+    const scopedKey = buildVisibilityKey(movieId, ownerUserId);
+    if (savedMap[scopedKey]) return savedMap[scopedKey];
+  }
+
+  // Legacy visibility는 현재 로그인 사용자 본인 리뷰에만 적용
+  if (ownerUserId && currentUserId && ownerUserId === currentUserId) {
+    const legacyVisibility = getLegacyStoredVisibility(movieId);
+    if (legacyVisibility) return legacyVisibility;
+  }
+
+  return "public";
+};
+
+const saveReviewVisibility = (
+  {
+    movieId,
+    ownerUserId,
+    reviewId,
+    visibility,
+  }: {
+    movieId: string | number;
+    ownerUserId: string;
+    reviewId?: number | null;
+    visibility: ReviewVisibility;
+  }
+) => {
+  try {
+    const savedMap = getStoredReviewVisibilityMap();
+    const nextMap: ReviewVisibilityMap = {
+      ...savedMap,
+      [buildVisibilityKey(movieId, ownerUserId)]: visibility,
+    };
+    if (typeof reviewId === "number") {
+      nextMap[buildReviewVisibilityKey(reviewId)] = visibility;
+    }
+    localStorage.setItem(REVIEW_VISIBILITY_STORAGE_KEY, JSON.stringify(nextMap));
+  } catch (err) {
+    console.error("Failed to save review visibility:", err);
+  }
+};
+
+const removeSavedReviewVisibility = (
+  {
+    movieId,
+    ownerUserId,
+    reviewId,
+  }: {
+    movieId: string | number;
+    ownerUserId: string;
+    reviewId?: number | null;
+  }
+) => {
+  try {
+    const savedMap = getStoredReviewVisibilityMap();
+    const key = buildVisibilityKey(movieId, ownerUserId);
+    if (key in savedMap) {
+      delete savedMap[key];
+    }
+    if (typeof reviewId === "number") {
+      const reviewKey = buildReviewVisibilityKey(reviewId);
+      if (reviewKey in savedMap) {
+        delete savedMap[reviewKey];
+      }
+    }
+    localStorage.setItem(REVIEW_VISIBILITY_STORAGE_KEY, JSON.stringify(savedMap));
+  } catch (err) {
+    console.error("Failed to remove review visibility:", err);
+  }
+};
+
+const removeLegacyStoredVisibility = (movieId: string | number) => {
+  try {
+    const raw = localStorage.getItem(LEGACY_REVIEW_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Array<{ movieId?: unknown }>;
+    if (!Array.isArray(parsed)) return;
+
+    const targetMovieId = String(movieId);
+    const next = parsed.filter(
+      (item) => String(item?.movieId ?? "") !== targetMovieId
+    );
+    localStorage.setItem(LEGACY_REVIEW_STORAGE_KEY, JSON.stringify(next));
+  } catch (err) {
+    console.error("Failed to remove legacy review storage:", err);
+  }
 };
 
 export default function MovieDetailPage() {
@@ -88,39 +224,63 @@ export default function MovieDetailPage() {
   const [isMovieWatched, setIsMovieWatched] = useState(false);
   const [reviewDeleteConfirmOpen, setReviewDeleteConfirmOpen] = useState(false);
   const [isPersonalReviewDeleted, setIsPersonalReviewDeleted] = useState(false);
+  const [isSavingMyReview, setIsSavingMyReview] = useState(false);
+  const [isDeletingMyReview, setIsDeletingMyReview] = useState(false);
+  const [myReviewErrorMessage, setMyReviewErrorMessage] = useState<string | null>(
+    null
+  );
   const [localPersonalReview, setLocalPersonalReview] = useState<Review | null>(
     null
   );
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replyOpen, setReplyOpen] = useState<Record<number, boolean>>({});
+  const [reviewAuthorNames, setReviewAuthorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<SatisfactionPrediction | null>(null);
   const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
-  const locationState = location.state as {
-    newReview?: Review;
-    userReview?: Review;
-  } | null;
   const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const currentUserPk = localStorage.getItem("mw_user_pk");
   const personalReview = isPersonalReviewDeleted
     ? null
-    : localPersonalReview ?? locationState?.userReview ?? locationState?.newReview;
+    : localPersonalReview;
   const personalReviewDate = personalReview?.created_at
     ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
     : "오늘";
   const previewReviewRating = hoverReviewRating ?? myReviewRating;
+  const currentUserNickname =
+    localStorage.getItem("mw_profile_nickname") ||
+    localStorage.getItem("mw_profile_name") ||
+    "나";
+
+  const getDisplayAuthorName = (authorId: string) => {
+    if (currentUserPk && authorId === currentUserPk) {
+      return currentUserNickname;
+    }
+    return reviewAuthorNames[authorId] || authorId;
+  };
 
   useEffect(() => {
     setIsPersonalReviewDeleted(false);
     setReviewDeleteConfirmOpen(false);
     setIsEditingMyReview(false);
+    setIsSavingMyReview(false);
+    setIsDeletingMyReview(false);
+    setMyReviewErrorMessage(null);
     setHoverReviewRating(null);
     setIsVisibilityOpen(false);
-    setMyReviewVisibility("public");
-    setPersonalReviewVisibility("public");
-  }, [movieId]);
+    const nextVisibility = movieId
+      ? getSavedReviewVisibility({
+          movieId,
+          ownerUserId: currentUserPk,
+          currentUserId: currentUserPk,
+        })
+      : "public";
+    setMyReviewVisibility(nextVisibility);
+    setPersonalReviewVisibility(nextVisibility);
+  }, [movieId, currentUserPk]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -141,65 +301,97 @@ export default function MovieDetailPage() {
 
   useEffect(() => {
     if (!movieId) return;
-    if (locationState?.userReview || locationState?.newReview) return;
-    const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const stored = JSON.parse(raw) as StoredReviewItem[];
-      if (!Array.isArray(stored)) return;
-      const match = stored.find((item) => String(item.movieId) === String(movieId));
-      if (!match) return;
-      const nextVisibility = normalizeReviewVisibility(match.visibility);
-      setMyReviewVisibility(nextVisibility);
-      setPersonalReviewVisibility(nextVisibility);
-      setLocalPersonalReview({
-        id: match.id ?? Date.now(),
-        user_id: localStorage.getItem("mw_profile_id") || "me",
-        movie_id: Number(movieId),
-        rating: normalizeReviewRating(typeof match.rating === "number" ? match.rating : 5),
-        content: match.content ?? null,
-        created_at: match.createdAt ?? new Date().toISOString(),
-        likes_count: 0,
-        comments_count: 0,
-      });
-    } catch (err) {
-      console.error("Failed to parse stored reviews:", err);
+    const nextVisibility = getSavedReviewVisibility({
+      movieId,
+      ownerUserId: currentUserPk,
+      currentUserId: currentUserPk,
+    });
+    setMyReviewVisibility(nextVisibility);
+    setPersonalReviewVisibility(nextVisibility);
+
+    if (!isLoggedIn) {
+      setLocalPersonalReview(null);
+      return;
     }
-  }, [movieId, locationState?.userReview, locationState?.newReview]);
+
+    const userId = currentUserPk;
+    if (!userId) {
+      setLocalPersonalReview(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchPersonalReview = async () => {
+      try {
+        const myReviews = await getCurrentUserReviews(userId, {
+          page: 1,
+          page_size: 100,
+        });
+        if (isCancelled) return;
+
+        const match = myReviews.reviews.find(
+          (item) => String(item.movie_id) === String(movieId)
+        );
+        setLocalPersonalReview(match ?? null);
+        if (match) {
+          const myVisibility = getSavedReviewVisibility({
+            movieId: match.movie_id,
+            ownerUserId: match.user_id,
+            currentUserId: currentUserPk,
+            reviewId: match.id,
+          });
+          setMyReviewVisibility(myVisibility);
+          setPersonalReviewVisibility(myVisibility);
+        }
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch my review:", err);
+        setLocalPersonalReview(null);
+      }
+    };
+
+    fetchPersonalReview();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [movieId, isLoggedIn, currentUserPk]);
 
   useEffect(() => {
     if (!movieId) return;
-    const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const stored = JSON.parse(raw) as StoredReviewItem[];
-      if (!Array.isArray(stored)) return;
-      const match = stored.find((item) => String(item.movieId) === String(movieId));
-      if (!match) return;
-      const nextVisibility = normalizeReviewVisibility(match.visibility);
-      setMyReviewVisibility(nextVisibility);
-      setPersonalReviewVisibility(nextVisibility);
-    } catch (err) {
-      console.error("Failed to parse stored reviews:", err);
-    }
-  }, [movieId]);
-
-  useEffect(() => {
-    if (!movieId) return;
-    try {
-      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
-      const stored = raw ? (JSON.parse(raw) as StoredWatchedItem[]) : [];
-      const normalizedStored = Array.isArray(stored) ? stored : [];
-      setIsMovieWatched(
-        normalizedStored.some(
-          (item) => String(item.movieId) === String(movieId)
-        )
-      );
-    } catch (err) {
-      console.error("Failed to parse watched movies:", err);
+    if (!isLoggedIn || !currentUserPk) {
       setIsMovieWatched(false);
+      return;
     }
-  }, [movieId]);
+
+    let isCancelled = false;
+
+    const fetchWatchedState = async () => {
+      try {
+        const watched = await getCurrentUserWatchedMovies(currentUserPk, {
+          page: 1,
+          page_size: 500,
+        });
+        if (isCancelled) return;
+        const movieIdNumber = Number(movieId);
+        setIsMovieWatched(
+          watched.watched_movies.some(
+            (item) => Number(item.movie_id) === movieIdNumber
+          )
+        );
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch watched movies:", err);
+        setIsMovieWatched(false);
+      }
+    };
+
+    fetchWatchedState();
+    return () => {
+      isCancelled = true;
+    };
+  }, [movieId, isLoggedIn, currentUserPk]);
 
   useEffect(() => {
     const fetchMovieData = async () => {
@@ -212,12 +404,23 @@ export default function MovieDetailPage() {
         setMovie(movieData);
         
         const reviewsData = await getMovieReviews(Number(movieId), { page_size: 10 });
+        const visibleReviews = reviewsData.reviews.filter((review) => {
+          const visibility = getSavedReviewVisibility({
+            movieId: movieData.id,
+            ownerUserId: review.user_id,
+            currentUserId: currentUserPk,
+            reviewId: review.id,
+          });
+          if (visibility !== "private") return true;
+          return Boolean(currentUserPk && review.user_id === currentUserPk);
+        });
+
         if (personalReview && personalReview.movie_id === movieData.id) {
           setReviews(
-            reviewsData.reviews.filter((review) => review.id !== personalReview.id)
+            visibleReviews.filter((review) => review.id !== personalReview.id)
           );
         } else {
-          setReviews(reviewsData.reviews);
+          setReviews(visibleReviews);
         }
 
         // ML API: 사용자 취향 기반 영화 적합도 계산
@@ -231,7 +434,7 @@ export default function MovieDetailPage() {
     };
 
     fetchMovieData();
-  }, [movieId, personalReview?.id, personalReview?.movie_id]);
+  }, [movieId, personalReview?.id, personalReview?.movie_id, currentUserPk]);
 
   useEffect(() => {
     if (location.hash !== "#my-review") return;
@@ -257,6 +460,54 @@ export default function MovieDetailPage() {
     });
   }, [reviews]);
 
+  useEffect(() => {
+    const authorIds = new Set<string>();
+    reviews.forEach((review) => {
+      if (review.user_id) authorIds.add(review.user_id);
+    });
+    if (personalReview?.user_id) authorIds.add(personalReview.user_id);
+
+    const unresolvedIds = Array.from(authorIds).filter((authorId) => {
+      if (currentUserPk && authorId === currentUserPk) return false;
+      return !reviewAuthorNames[authorId];
+    });
+
+    if (unresolvedIds.length === 0) return;
+
+    let isCancelled = false;
+
+    const fetchAuthorNames = async () => {
+      const fetchedEntries = await Promise.all(
+        unresolvedIds.map(async (authorId) => {
+          try {
+            const user = await getUser(authorId);
+            const displayName =
+              user.nickname?.trim() ||
+              user.name?.trim() ||
+              user.user_id?.trim() ||
+              authorId;
+            return [authorId, displayName] as const;
+          } catch (err) {
+            console.error(`Failed to fetch user profile: ${authorId}`, err);
+            return [authorId, authorId] as const;
+          }
+        })
+      );
+
+      if (isCancelled) return;
+      setReviewAuthorNames((prev) => ({
+        ...prev,
+        ...Object.fromEntries(fetchedEntries),
+      }));
+    };
+
+    fetchAuthorNames();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [reviews, personalReview?.user_id, currentUserPk, reviewAuthorNames]);
+
   const incrementReaction = (reviewId: number, type: "likes" | "dislikes") => {
     setReactions((prev) => {
       const current = prev[reviewId] ?? { likes: 0, dislikes: 0 };
@@ -270,55 +521,7 @@ export default function MovieDetailPage() {
     });
   };
 
-  const handleMyReviewSave = () => {
-    if (!movie) return;
-    if (!isLoggedIn) {
-      setShowReviewLoginMessage(true);
-      setReviewLoginMessageTick((prev) => prev + 1);
-      return;
-    }
-    const content = myReviewContent.trim().slice(0, REVIEW_CONTENT_MAX_LENGTH);
-    const userId = localStorage.getItem("mw_profile_id") || "me";
-    const createdAt =
-      isEditingMyReview && personalReview?.created_at
-        ? personalReview.created_at
-        : new Date().toISOString();
-    const nextReview: Review = {
-      id: isEditingMyReview && personalReview ? personalReview.id : Date.now(),
-      user_id: userId,
-      movie_id: movie.id,
-      rating: myReviewRating,
-      content: content.length ? content : null,
-      created_at: createdAt,
-      likes_count: 0,
-      comments_count: 0,
-    };
-    try {
-      const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
-      const stored = raw ? (JSON.parse(raw) as StoredReviewItem[]) : [];
-      const nextEntry: StoredReviewItem = {
-        id: nextReview.id,
-        movieId: movie.id,
-        title: movie.title,
-        poster:
-          movie.poster_url ||
-          "https://via.placeholder.com/500x750?text=No+Image",
-        dateLabel: new Date(nextReview.created_at).toLocaleDateString("ko-KR"),
-        genre: movie.genres?.[0] ?? "장르",
-        rating: nextReview.rating,
-        content: nextReview.content ?? "",
-        createdAt: nextReview.created_at,
-        visibility: myReviewVisibility,
-      };
-      const normalizedStored = Array.isArray(stored) ? stored : [];
-      const nextStored = [
-        nextEntry,
-        ...normalizedStored.filter((item) => item.movieId !== movie.id),
-      ];
-      localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(nextStored));
-    } catch (err) {
-      console.error("Failed to save review to storage:", err);
-    }
+  const applySavedPersonalReview = (nextReview: Review) => {
     setLocalPersonalReview(nextReview);
     setPersonalReviewVisibility(myReviewVisibility);
     setIsPersonalReviewDeleted(false);
@@ -327,6 +530,89 @@ export default function MovieDetailPage() {
     setMyReviewOpen(false);
     setHoverReviewRating(null);
     setIsVisibilityOpen(false);
+    setMyReviewErrorMessage(null);
+  };
+
+  const handleMyReviewSave = async () => {
+    if (!movie || isSavingMyReview) return;
+    if (!isLoggedIn) {
+      setShowReviewLoginMessage(true);
+      setReviewLoginMessageTick((prev) => prev + 1);
+      return;
+    }
+
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      setMyReviewErrorMessage(
+        "세션 정보가 오래되었습니다. 로그아웃 후 다시 로그인해주세요."
+      );
+      return;
+    }
+
+    const content = myReviewContent.trim().slice(0, REVIEW_CONTENT_MAX_LENGTH);
+    const reviewPayload = {
+      rating: normalizeReviewRating(myReviewRating),
+      content: content.length ? content : null,
+    };
+
+    setIsSavingMyReview(true);
+    setMyReviewErrorMessage(null);
+
+    try {
+      let nextReview: Review;
+      if (personalReview?.id) {
+        nextReview = await updateReview(personalReview.id, reviewPayload);
+      } else {
+        nextReview = await createReview(userId, {
+          movie_id: movie.id,
+          ...reviewPayload,
+        });
+      }
+
+      saveReviewVisibility({
+        movieId: movie.id,
+        ownerUserId: userId,
+        reviewId: nextReview.id,
+        visibility: myReviewVisibility,
+      });
+      applySavedPersonalReview(nextReview);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "리뷰 저장에 실패했습니다.";
+
+      if (
+        !personalReview?.id &&
+        typeof message === "string" &&
+        message.toLowerCase().includes("already reviewed")
+      ) {
+        try {
+          const myReviews = await getCurrentUserReviews(userId, {
+            page: 1,
+            page_size: 100,
+          });
+          const existingReview = myReviews.reviews.find(
+            (item) => item.movie_id === movie.id
+          );
+          if (existingReview) {
+            const updatedReview = await updateReview(existingReview.id, reviewPayload);
+            saveReviewVisibility({
+              movieId: movie.id,
+              ownerUserId: userId,
+              reviewId: updatedReview.id,
+              visibility: myReviewVisibility,
+            });
+            applySavedPersonalReview(updatedReview);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error("Failed to recover already-reviewed state:", fallbackErr);
+        }
+      }
+
+      console.error("Failed to save review:", err);
+      setMyReviewErrorMessage(message);
+    } finally {
+      setIsSavingMyReview(false);
+    }
   };
 
   const handleMyReviewEditOpen = () => {
@@ -338,24 +624,33 @@ export default function MovieDetailPage() {
     setMyReviewVisibility(personalReviewVisibility);
     setIsEditingMyReview(true);
     setShowReviewLoginMessage(false);
+    setMyReviewErrorMessage(null);
     setMyReviewOpen(true);
     setHoverReviewRating(null);
     setIsVisibilityOpen(false);
   };
 
-  const handleMyReviewDeleteConfirm = () => {
-    if (!movie) return;
+  const handleMyReviewDeleteConfirm = async () => {
+    if (!movie || !personalReview || isDeletingMyReview) return;
+    setIsDeletingMyReview(true);
+    setMyReviewErrorMessage(null);
+
     try {
-      const raw = localStorage.getItem(REVIEW_STORAGE_KEY);
-      const stored = raw ? (JSON.parse(raw) as StoredReviewItem[]) : [];
-      const normalizedStored = Array.isArray(stored) ? stored : [];
-      const nextStored = normalizedStored.filter(
-        (item) => String(item.movieId) !== String(movie.id)
-      );
-      localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(nextStored));
+      await deleteReview(personalReview.id);
+      removeSavedReviewVisibility({
+        movieId: movie.id,
+        ownerUserId: personalReview.user_id,
+        reviewId: personalReview.id,
+      });
+      removeLegacyStoredVisibility(movie.id);
     } catch (err) {
-      console.error("Failed to delete review from storage:", err);
+      const message = err instanceof Error ? err.message : "리뷰 삭제에 실패했습니다.";
+      console.error("Failed to delete review:", err);
+      setMyReviewErrorMessage(message);
+      setIsDeletingMyReview(false);
+      return;
     }
+
     setLocalPersonalReview(null);
     setIsPersonalReviewDeleted(true);
     setIsEditingMyReview(false);
@@ -366,27 +661,20 @@ export default function MovieDetailPage() {
     setPersonalReviewVisibility("public");
     setIsVisibilityOpen(false);
     setReviewDeleteConfirmOpen(false);
+    setIsDeletingMyReview(false);
   };
 
-  const handleMarkWatched = () => {
+  const handleMarkWatched = async () => {
     if (!movie) return;
+    if (!isLoggedIn) {
+      setShowReviewLoginMessage(true);
+      setReviewLoginMessageTick((prev) => prev + 1);
+      return;
+    }
+    if (!currentUserPk) return;
+
     try {
-      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
-      const stored = raw ? (JSON.parse(raw) as StoredWatchedItem[]) : [];
-      const normalizedStored = Array.isArray(stored) ? stored : [];
-      const nextItem: StoredWatchedItem = {
-        movieId: movie.id,
-        title: movie.title,
-        poster:
-          movie.poster_url ||
-          "https://via.placeholder.com/500x750?text=No+Image",
-        addedAt: new Date().toISOString(),
-      };
-      const nextStored = [
-        nextItem,
-        ...normalizedStored.filter((item) => item.movieId !== movie.id),
-      ];
-      localStorage.setItem(WATCHED_STORAGE_KEY, JSON.stringify(nextStored));
+      await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
       setIsMovieWatched(true);
     } catch (err) {
       console.error("Failed to save watched movie:", err);
@@ -661,10 +949,10 @@ export default function MovieDetailPage() {
               <div className="review-header">
                 <div className="review-user">
                   <div className="review-avatar">
-                    {personalReview.user_id.substring(0, 2).toUpperCase()}
+                    {getDisplayAuthorName(personalReview.user_id).substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <p className="review-name">{personalReview.user_id}</p>
+                    <p className="review-name">{getDisplayAuthorName(personalReview.user_id)}</p>
                     <p className="muted review-meta-line">
                       <span>
                         {personalReviewDate} · 평점{" "}
@@ -725,6 +1013,11 @@ export default function MovieDetailPage() {
                     {!isLoggedIn && showReviewLoginMessage && (
                       <p className="error" key={`review-login-warning-${reviewLoginMessageTick}`}>
                         로그인 후 이용해주세요.
+                      </p>
+                    )}
+                    {myReviewErrorMessage && (
+                      <p className="error" role="alert">
+                        {myReviewErrorMessage}
                       </p>
                     )}
                   </div>
@@ -836,9 +1129,16 @@ export default function MovieDetailPage() {
                       <button
                         className="primary-btn review-reply-submit"
                         type="button"
+                        disabled={isSavingMyReview}
                         onClick={handleMyReviewSave}
                       >
-                        {isEditingMyReview ? "수정하기" : "저장하기"}
+                        {isSavingMyReview
+                          ? isEditingMyReview
+                            ? "수정 중..."
+                            : "저장 중..."
+                          : isEditingMyReview
+                          ? "수정하기"
+                          : "저장하기"}
                       </button>
                     </div>
                   </div>
@@ -854,6 +1154,7 @@ export default function MovieDetailPage() {
                       setMyReviewRating(normalizeReviewRating(5));
                       setMyReviewContent("");
                       setMyReviewVisibility("public");
+                      setMyReviewErrorMessage(null);
                       setMyReviewOpen(true);
                       setHoverReviewRating(null);
                       setIsVisibilityOpen(false);
@@ -879,15 +1180,17 @@ export default function MovieDetailPage() {
             </article>
           ) : (
             <div className="review-list">
-              {reviews.map((review) => (
+              {reviews.map((review) => {
+                const authorName = getDisplayAuthorName(review.user_id);
+                return (
                   <article className="card review-card" key={review.id}>
                     <div className="review-header">
                       <div className="review-user">
                         <div className="review-avatar">
-                          {review.user_id.substring(0, 2).toUpperCase()}
+                          {authorName.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="review-name">{review.user_id}</p>
+                          <p className="review-name">{authorName}</p>
                           <p className="muted">
                             {new Date(review.created_at).toLocaleDateString("ko-KR")} · 평점 {review.rating}
                           </p>
@@ -952,7 +1255,8 @@ export default function MovieDetailPage() {
                       </div>
                     )}
                   </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -984,9 +1288,10 @@ export default function MovieDetailPage() {
                 <button
                   className="primary-btn"
                   type="button"
+                  disabled={isDeletingMyReview}
                   onClick={handleMyReviewDeleteConfirm}
                 >
-                  예
+                  {isDeletingMyReview ? "삭제 중..." : "예"}
                 </button>
               </div>
             </div>

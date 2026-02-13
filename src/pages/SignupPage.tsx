@@ -193,6 +193,7 @@ export default function SignupPage() {
         realname: createdUser.name || payload.name,
         nickname: createdUser.nickname || payload.nickname,
         id: createdUser.user_id || payload.user_id,
+        userPk: createdUser.id,
         email: createdUser.email || payload.email,
         age: "선택 안함",
         gender: "선택 안함",
@@ -207,6 +208,7 @@ export default function SignupPage() {
       localStorage.setItem("mw_profile_birthdate", formattedBirthDate);
       localStorage.setItem("mw_profile_nickname", profileSnapshot.nickname);
       localStorage.setItem("mw_profile_id", profileSnapshot.id);
+      localStorage.setItem("mw_user_pk", profileSnapshot.userPk);
       localStorage.setItem("mw_user_id", profileSnapshot.id);
       localStorage.setItem("mw_profile_email", profileSnapshot.email);
       localStorage.setItem("mw_profile_age", profileSnapshot.age);

@@ -25,7 +25,13 @@ export interface Comment {
 
 export interface UpdateReviewRequest {
   rating?: number;
-  content?: string;
+  content?: string | null;
+}
+
+export interface CreateReviewRequest {
+  movie_id: number;
+  rating: number;
+  content?: string | null;
 }
 
 export interface CreateCommentRequest {
@@ -37,6 +43,17 @@ export interface MessageResponse {
 }
 
 // API Functions
+
+/**
+ * Create a review
+ * MW-API-004
+ */
+export function createReview(
+  userId: string,
+  data: CreateReviewRequest
+): Promise<Review> {
+  return post<Review>('/api/reviews', data, { user_id: userId });
+}
 
 /**
  * Get review detail by ID

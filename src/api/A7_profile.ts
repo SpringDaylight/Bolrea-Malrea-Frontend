@@ -7,6 +7,11 @@ import { get, post, put } from './http';
 export interface User {
   id: string;
   name: string;
+  user_id?: string | null;
+  nickname?: string | null;
+  email?: string | null;
+  birth_date?: string | null;
+  gender?: string | null;
   avatar_text: string | null;
   created_at: string;
 }

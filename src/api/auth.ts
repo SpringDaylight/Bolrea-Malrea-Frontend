@@ -8,8 +8,11 @@ export interface KakaoLoginResponse {
 }
 
 export interface KakaoCallbackResponse {
-  user_id: string;
+  id?: string;
+  user_id?: string | null;
   name: string;
+  nickname?: string | null;
+  email?: string | null;
   avatar_text: string;
   access_token: string;
 }

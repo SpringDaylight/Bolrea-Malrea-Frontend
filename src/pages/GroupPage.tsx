@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import {
   simulateGroup,
@@ -7,9 +7,14 @@ import {
   type UserProfile,
 } from "../api/ml";
 import { searchMovies, type Movie } from "../api/A2_movies";
+import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 
 const groupTypeOptions = ["친구", "가족", "연인", "모임", "기타"];
-const userRequiredMessage = "사용자를 회원수만큼 선택해주세요.";
+const userRequiredMessage = "회원 사용자를 선택해주세요.";
+
+const getUserId = (user: GroupUserSearchItem) => user.user_id ?? user.id;
+const getUserDisplayName = (user: GroupUserSearchItem) =>
+  user.nickname?.trim() || user.name?.trim() || user.user_id || user.id;
 
 export default function GroupPage() {
   const [groupType, setGroupType] = useState("");
@@ -21,6 +26,9 @@ export default function GroupPage() {
   const [userQuery, setUserQuery] = useState("");
   const [movieQuery, setMovieQuery] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [selectedMemberProfiles, setSelectedMemberProfiles] = useState<
+    Record<string, { nickname: string; name: string }>
+  >({});
   const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
   const [isGroupTypeOpen, setIsGroupTypeOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
@@ -29,6 +37,10 @@ export default function GroupPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
+  const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState<string | null>(null);
+  const currentUserPk = localStorage.getItem("mw_user_pk");
 
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const groupTypeRef = useRef<HTMLDivElement | null>(null);
@@ -41,48 +53,49 @@ export default function GroupPage() {
   const userRequiredError = error === userRequiredMessage ? error : null;
   const movieRequiredError = error === "영화를 선택해주세요." ? error : null;
   const formError =
-    error &&
-    error !== "영화를 선택해주세요." &&
-    error !== userRequiredMessage
+    error && error !== "영화를 선택해주세요." && error !== userRequiredMessage
       ? error
       : null;
 
-  // TODO: 실제 API 사용자 검색으로 교체
-  const allUsers = [
-    { id: "mirae_01", name: "미래", nickname: "미래" },
-    { id: "noir_02", name: "노을", nickname: "노을빛" },
-    { id: "summer_03", name: "여름", nickname: "summer" },
-  ];
+  const memberSlots = Math.max(totalMembers - guestMembers, 0);
 
-  const userResults = allUsers.filter((user) => {
-    const query = userQuery.trim().toLowerCase();
-    return (
-      !selectedMembers.includes(user.id) &&
-      (!query ||
-        user.name.toLowerCase().includes(query) ||
-        user.nickname.toLowerCase().includes(query) ||
-        user.id.toLowerCase().includes(query))
-    );
-  });
+  const userResults = userSearchResults.filter(
+    (user) => !selectedMembers.includes(getUserId(user))
+  );
 
   const selectedMemberItems = selectedMembers.map((memberId) => {
-    const matched = allUsers.find((user) => user.id === memberId);
+    const cached = selectedMemberProfiles[memberId];
+    const latest = userSearchResults.find((user) => getUserId(user) === memberId);
+    const nickname =
+      cached?.nickname || (latest ? getUserDisplayName(latest) : memberId);
     return {
       id: memberId,
-      nickname: matched ? matched.nickname : memberId,
+      nickname,
     };
   });
 
-  const memberSlots = Math.max(totalMembers - guestMembers, 0);
+  const handleMemberToggle = (userId: string, profile?: { nickname: string; name: string }) => {
+    const alreadySelected = selectedMembers.includes(userId);
+    if (alreadySelected) {
+      setSelectedMembers((prev) => prev.filter((id) => id !== userId));
+      setSelectedMemberProfiles((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      return;
+    }
 
-  const handleMemberToggle = (userId: string) => {
-    setSelectedMembers((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : prev.length >= memberSlots
-          ? prev
-          : [...prev, userId]
-    );
+    if (selectedMembers.length >= memberSlots) return;
+
+    setSelectedMembers((prev) => [...prev, userId]);
+    if (profile) {
+      setSelectedMemberProfiles((prev) => ({
+        ...prev,
+        [userId]: profile,
+      }));
+    }
+
     if (userRequiredError) {
       setError(null);
     }
@@ -105,6 +118,51 @@ export default function GroupPage() {
       document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, []);
+
+  useEffect(() => {
+    if (!memberConfigApplied || !isUserSearchOpen) {
+      setUserSearchResults([]);
+      setUserSearchError(null);
+      setUserSearchLoading(false);
+      return;
+    }
+    if (!currentUserPk) {
+      setUserSearchResults([]);
+      setUserSearchError("로그인이 필요합니다.");
+      setUserSearchLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = setTimeout(() => {
+      setUserSearchLoading(true);
+      searchGroupUsers(userQuery, 20, currentUserPk)
+        .then((results) => {
+          if (isCancelled) return;
+          setUserSearchResults(results);
+          setUserSearchError(null);
+        })
+        .catch((err) => {
+          if (isCancelled) return;
+          console.error("Failed to search users:", err);
+          const message =
+            err instanceof Error && err.message
+              ? err.message
+              : "사용자 조회에 실패했습니다.";
+          setUserSearchResults([]);
+          setUserSearchError(message);
+        })
+        .finally(() => {
+          if (isCancelled) return;
+          setUserSearchLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [memberConfigApplied, isUserSearchOpen, userQuery]);
 
   const handleApplyMemberConfig = () => {
     if (!groupType) {
@@ -138,6 +196,12 @@ export default function GroupPage() {
     setTotalMembers(totalValue);
     setGuestMembers(guestValue);
     setSelectedMembers((prev) => prev.slice(0, nextSlots));
+    setSelectedMemberProfiles((prev) => {
+      const allowed = new Set(selectedMembers.slice(0, nextSlots));
+      return Object.fromEntries(
+        Object.entries(prev).filter(([id]) => allowed.has(id))
+      );
+    });
     setUserQuery("");
     setMovieQuery("");
     setSelectedMovie(null);
@@ -186,7 +250,9 @@ export default function GroupPage() {
     try {
       const currentUserProfile = localStorage.getItem("mw_user_profile");
       if (!currentUserProfile) {
-        showError("취향 분석 데이터가 없습니다. 먼저 취향 설문을 완료해주세요.");
+        showError(
+          "취향 분석 데이터가 없습니다. 먼저 취향 설문을 완료해주세요."
+        );
         setAnalyzing(false);
         return;
       }
@@ -226,8 +292,8 @@ export default function GroupPage() {
     <MainLayout>
       <main className="container group-page">
         <section className="page-title">
-          <h1>모두가 만족할 영화 찾기</h1>
-          <p>모임 구성원들의 취향을 합쳐 한 번에 정리해드려요.</p>
+          <h1>모두가 만족하는 영화 찾기</h1>
+          <p>모임 구성원들의 취향을 한 번에 정리해드려요.</p>
         </section>
 
         <section className="section card">
@@ -249,7 +315,7 @@ export default function GroupPage() {
                   >
                     <span>{groupType || "그룹을 선택해주세요"}</span>
                     <span className="option-select-arrow" aria-hidden="true">
-                      ▾
+                      ▼
                     </span>
                   </button>
                   {isGroupTypeOpen && (
@@ -344,23 +410,38 @@ export default function GroupPage() {
                   />
                   {isUserSearchOpen && (
                     <div className="search-results group-user-results">
-                      {userResults.length === 0 && (
+                      {userSearchLoading && (
+                        <div className="search-empty">사용자를 조회하는 중입니다.</div>
+                      )}
+                      {!userSearchLoading && userSearchError && (
+                        <div className="search-empty">{userSearchError}</div>
+                      )}
+                      {!userSearchLoading && !userSearchError && userResults.length === 0 && (
                         <div className="search-empty">검색 결과가 없습니다.</div>
                       )}
-                      {userResults.map((user) => (
-                        <button
-                          className={`search-item ${
-                            selectedMembers.includes(user.id) ? "active" : ""
-                          }`}
-                          type="button"
-                          key={user.id}
-                          onClick={() => handleMemberToggle(user.id)}
-                        >
-                          <strong>{user.nickname}</strong>
-                          <span>{user.name}</span>
-                          {selectedMembers.includes(user.id) && <span> ✓</span>}
-                        </button>
-                      ))}
+                      {userResults.map((user) => {
+                        const userId = getUserId(user);
+                        const nickname = getUserDisplayName(user);
+                        return (
+                          <button
+                            className={`search-item ${
+                              selectedMembers.includes(userId) ? "active" : ""
+                            }`}
+                            type="button"
+                            key={userId}
+                            onClick={() =>
+                              handleMemberToggle(userId, {
+                                nickname,
+                                name: user.name || nickname,
+                              })
+                            }
+                          >
+                            <strong>{nickname}</strong>
+                            <span>{user.name}</span>
+                            {selectedMembers.includes(userId) && <span>✓</span>}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -421,7 +502,7 @@ export default function GroupPage() {
                         >
                           <strong>{movie.title}</strong>
                           <span className="muted">
-                            {movie.release ? new Date(movie.release).getFullYear() : ""} ·
+                            {movie.release ? new Date(movie.release).getFullYear() : ""} ·{" "}
                             {movie.genres.slice(0, 2).join("/")}
                           </span>
                         </button>
@@ -450,7 +531,10 @@ export default function GroupPage() {
               <div className="movie-tile">
                 <img
                   className="poster"
-                  src={selectedMovie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
+                  src={
+                    selectedMovie.poster_url ||
+                    "https://via.placeholder.com/500x750?text=No+Image"
+                  }
                   alt={`${selectedMovie.title} 포스터`}
                 />
                 <div className="movie-info">
@@ -493,4 +577,3 @@ export default function GroupPage() {
     </MainLayout>
   );
 }
-

@@ -93,7 +93,14 @@ export function createMovieReview(
   userId: string,
   data: CreateReviewRequest
 ): Promise<Review> {
-  return post<Review>(`/api/movies/${movieId}/reviews`, data, { user_id: userId });
+  return post<Review>(
+    '/api/reviews',
+    {
+      movie_id: movieId,
+      ...data,
+    },
+    { user_id: userId }
+  );
 }
 
 /**

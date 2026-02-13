@@ -1,17 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { getMovies, type Movie } from "../api/A2_movies";
+import {
+  getCurrentUserWatchedMovies,
+  saveCurrentUserWatchedMovie,
+} from "../api/A8_watched";
 
-const WATCHED_STORAGE_KEY = "mw_watched_movies";
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
-
-type StoredWatchedItem = {
-  movieId: number;
-  title: string;
-  poster?: string | null;
-  addedAt?: string;
-};
 
 type MoviesPageSnapshot = {
   searchQuery: string;
@@ -23,23 +19,6 @@ type MoviesPageSnapshot = {
   currentPage: number;
   scrollY: number;
   restoreOnReturn: boolean;
-};
-
-const normalizeStoredWatchedItems = (value: unknown): StoredWatchedItem[] => {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .filter((item): item is StoredWatchedItem => {
-      if (!item || typeof item !== "object") return false;
-      const movieId = Number((item as { movieId?: unknown }).movieId);
-      return Number.isFinite(movieId);
-    })
-    .map((item) => ({
-      movieId: Number(item.movieId),
-      title: item.title || "영화",
-      poster: item.poster,
-      addedAt: item.addedAt,
-    }));
 };
 
 const sortFilters = [
@@ -93,6 +72,8 @@ export default function MoviesPage() {
   const navigate = useNavigate();
   const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const currentUserPk = localStorage.getItem("mw_user_pk");
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,21 +94,40 @@ export default function MoviesPage() {
   const shouldSkipSearchParamInitRef = useRef(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
-      const stored = raw ? (JSON.parse(raw) as unknown) : [];
-      const normalizedStored = normalizeStoredWatchedItems(stored);
-      const nextWatchedIds = new Set(
-        normalizedStored
-          .map((item) => Number(item.movieId))
-          .filter((movieId) => Number.isFinite(movieId))
-      );
-      setWatchedMovieIds(nextWatchedIds);
-    } catch (err) {
-      console.error("Failed to parse watched movies:", err);
+    if (!isLoggedIn || !currentUserPk) {
       setWatchedMovieIds(new Set());
+      return;
     }
-  }, []);
+
+    let isCancelled = false;
+
+    const fetchWatchedMovies = async () => {
+      try {
+        const response = await getCurrentUserWatchedMovies(currentUserPk, {
+          page: 1,
+          page_size: 500,
+        });
+        if (isCancelled) return;
+
+        setWatchedMovieIds(
+          new Set(
+            response.watched_movies
+              .map((item) => Number(item.movie_id))
+              .filter((id) => Number.isFinite(id))
+          )
+        );
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch watched movies:", err);
+        setWatchedMovieIds(new Set());
+      }
+    };
+
+    fetchWatchedMovies();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoggedIn, currentUserPk]);
 
   useEffect(() => {
     try {
@@ -239,7 +239,7 @@ export default function MoviesPage() {
         setTotalPages(nextTotalPages);
       } catch (err) {
         if (isCancelled) return;
-        setError("영화 목록을 불러오는데 실패했습니다.");
+        setError("?곹솕 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.");
         console.error("Failed to fetch movies:", err);
       } finally {
         if (isCancelled) return;
@@ -278,26 +278,15 @@ export default function MoviesPage() {
     setCurrentPage(1);
   };
 
-  const handleMarkWatched = (movie: Movie) => {
+  const handleMarkWatched = async (movie: Movie) => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+    if (!currentUserPk) return;
+
     try {
-      const raw = localStorage.getItem(WATCHED_STORAGE_KEY);
-      const stored = raw ? (JSON.parse(raw) as unknown) : [];
-      const normalizedStored = normalizeStoredWatchedItems(stored);
-      const nextItem: StoredWatchedItem = {
-        movieId: movie.id,
-        title: movie.title,
-        poster:
-          movie.poster_url ||
-          "https://via.placeholder.com/500x750?text=No+Image",
-        addedAt: new Date().toISOString(),
-      };
-      const nextStored = [
-        nextItem,
-        ...normalizedStored.filter(
-          (item) => Number(item.movieId) !== Number(movie.id)
-        ),
-      ];
-      localStorage.setItem(WATCHED_STORAGE_KEY, JSON.stringify(nextStored));
+      await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
       setWatchedMovieIds((prev) => {
         const next = new Set(prev);
         next.add(movie.id);
@@ -348,19 +337,19 @@ export default function MoviesPage() {
     <MainLayout>
       <main className="container movies-page">
         <section className="page-title">
-          <h1>영화 목록</h1>
+          <h1>?곹솕 紐⑸줉</h1>
         </section>
 
         <section className="section card">
           <div className="section-header">
-            <p>장르와 분위기에 따라 원하는 기준으로 골라보세요.</p>
+            <p>?λⅤ? 遺꾩쐞湲곗뿉 ?곕씪 ?먰븯??湲곗??쇰줈 怨⑤씪蹂댁꽭??</p>
           </div>
           <div className="section-search">
             <div className="hero-actions">
               <input
                 className="search-input"
                 type="text"
-                placeholder="영화 제목을 검색하세요"
+                placeholder="?곹솕 ?쒕ぉ??寃?됲븯?몄슂"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && handleApplyFilters()}
@@ -370,14 +359,14 @@ export default function MoviesPage() {
                 type="button"
                 onClick={handleApplyFilters}
               >
-                검색
+                寃??
               </button>
             </div>
           </div>
 
           <div className="filter-group">
             <div>
-              <p className="filter-title">정렬</p>
+              <p className="filter-title">?뺣젹</p>
               <div className="tag-list">
                 {sortFilters.map((filter) => (
                   <button
@@ -394,7 +383,7 @@ export default function MoviesPage() {
               </div>
             </div>
             <div>
-              <p className="filter-title">장르</p>
+              <p className="filter-title">?λⅤ</p>
               <div className="tag-list">
                 {genreFilters.map((filter) => (
                   <button
@@ -415,15 +404,15 @@ export default function MoviesPage() {
 
         <section className="section">
           <div className="section-header">
-            <h2>검색 결과</h2>
-            <p>선택한 기준으로 추천된 영화가 표시됩니다.</p>
+            <h2>寃??寃곌낵</h2>
+            <p>?좏깮??湲곗??쇰줈 異붿쿇???곹솕媛 ?쒖떆?⑸땲??</p>
           </div>
 
-          {loading && <p>로딩 중...</p>}
+          {loading && <p>濡쒕뵫 以?..</p>}
           {error && <p className="error">{error}</p>}
 
           {!loading && !error && movies.length === 0 && (
-            <p>검색 결과가 없습니다.</p>
+            <p>寃??寃곌낵媛 ?놁뒿?덈떎.</p>
           )}
 
           {!loading && !error && movies.length > 0 && (
@@ -453,16 +442,16 @@ export default function MoviesPage() {
                   <div className="movie-info">
                     <h3>{movie.title}</h3>
                     <p className="movie-rating">
-                      평점{" "}
+                      ?됱젏{" "}
                       {typeof movie.avg_rating === "number"
                         ? movie.avg_rating.toFixed(1)
-                        : "정보 없음"}
+                        : "?뺣낫 ?놁쓬"}
                     </p>
                     <p className="muted">
                       {movie.synopsis
                         ? movie.synopsis.substring(0, 60) +
                           (movie.synopsis.length > 60 ? "..." : "")
-                        : "줄거리 정보가 없습니다."}
+                        : "以꾧굅由??뺣낫媛 ?놁뒿?덈떎."}
                     </p>
                     <div className="meta-list">
                       {movie.genres.slice(0, 3).map((genre) => (
@@ -482,7 +471,7 @@ export default function MoviesPage() {
                         handleMarkWatched(movie);
                       }}
                     >
-                      시청함
+                      ?쒖껌??
                     </button>
                   </div>
                 </article>

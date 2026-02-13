@@ -19,7 +19,12 @@ import MoviemongPage from "./pages/MoviemongPage";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         {/* React 기준 정상 라우트 */}
         <Route path="/" element={<HomePage />} />

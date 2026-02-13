@@ -26,6 +26,7 @@ export type {
 
 // Reviews API
 export {
+  createReview,
   getReview,
   updateReview,
   deleteReview,
@@ -38,6 +39,7 @@ export {
 export type {
   Review as ReviewDetail,
   Comment,
+  CreateReviewRequest as CreateReviewPayload,
   UpdateReviewRequest,
   CreateCommentRequest,
   MessageResponse,
@@ -60,6 +62,18 @@ export type {
   CreateUserRequest,
   UpdateUserRequest,
 } from './A7_profile';
+
+// Watched Movies API
+export {
+  getCurrentUserWatchedMovies,
+  saveCurrentUserWatchedMovie,
+  deleteCurrentUserWatchedMovie,
+} from './A8_watched';
+export type {
+  WatchedMovie,
+  WatchedMovieListResponse,
+  SaveWatchedMovieRequest,
+} from './A8_watched';
 
 // Auth API
 export * from './auth';
@@ -95,6 +109,7 @@ export type {
 import * as moviesApi from './A2_movies';
 import * as reviewsApi from './A6_reviews';
 import * as profileApi from './A7_profile';
+import * as watchedApi from './A8_watched';
 import * as authApi from './auth';
 import * as mlApi from './ml';
 
@@ -102,6 +117,7 @@ export const api = {
   movies: moviesApi,
   reviews: reviewsApi,
   profile: profileApi,
+  watched: watchedApi,
   auth: authApi,
   ml: mlApi,
 };

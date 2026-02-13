@@ -27,6 +27,7 @@ export default function LoginPage() {
     const existingRealname = localStorage.getItem("mw_profile_realname") || "";
     const existingNickname = localStorage.getItem("mw_profile_nickname") || "";
     const existingProfileId = localStorage.getItem("mw_profile_id") || "";
+    const existingUserPk = localStorage.getItem("mw_user_pk") || "";
     const existingEmail = localStorage.getItem("mw_profile_email") || "";
     const existingAge = localStorage.getItem("mw_profile_age") || "";
     const existingGender = localStorage.getItem("mw_profile_gender") || "";
@@ -35,6 +36,7 @@ export default function LoginPage() {
       realname?: string;
       nickname?: string;
       id?: string;
+      userPk?: string;
       email?: string;
       age?: string;
       gender?: string;
@@ -63,6 +65,7 @@ export default function LoginPage() {
           loggedInUser.name ||
           userIdValue,
         id: loggedInUser.user_id || snapshot.id || existingProfileId || userIdValue,
+        userPk: loggedInUser.id || snapshot.userPk || existingUserPk,
         email: loggedInUser.email || snapshot.email || existingEmail,
         age: snapshot.age || existingAge || "선택 안함",
         gender: snapshot.gender || existingGender || "선택 안함",
@@ -81,6 +84,7 @@ export default function LoginPage() {
         profileSnapshot.nickname
       );
       localStorage.setItem("mw_profile_id", profileSnapshot.id);
+      localStorage.setItem("mw_user_pk", profileSnapshot.userPk);
       localStorage.setItem("mw_profile_email", profileSnapshot.email);
       localStorage.setItem("mw_profile_age", profileSnapshot.age);
       localStorage.setItem(

@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { Link, NavLink } from "react-router-dom";
+import logoToggle from "../../assets/logo-toggle-ver1.png";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? "active" : undefined;
+  const handleHeaderLinkClick =
+    (to: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+      if (window.location.pathname === to) {
+        event.preventDefault();
+        window.location.reload();
+        return;
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
   const [profileHref, setProfileHref] = useState("/login");
   const [profileLabel, setProfileLabel] = useState("로그인");
 
@@ -35,8 +45,8 @@ export default function Header() {
   return (
     <header className="top-bar">
       <div className="top-bar-inner">
-        <Link className="brand" to="/">
-          <div className="brand-mark">W</div>
+        <Link className="brand" to="/" onClick={handleHeaderLinkClick("/")}>
+          <img className="brand-logo" src={logoToggle} alt="서비스 로고" />
           <div>
             <p className="brand-title">볼래! 말래?</p>
             <p className="brand-sub">취향 기반 영화 탐색</p>
@@ -44,29 +54,41 @@ export default function Header() {
         </Link>
 
         <nav className="top-nav">
-          <NavLink to="/" className={navClass} end>
+          <NavLink to="/" className={navClass} end onClick={handleHeaderLinkClick("/")}>
             홈
           </NavLink>
-          <NavLink to="/movies" className={navClass}>
+          <NavLink
+            to="/movies"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/movies")}
+          >
             영화
           </NavLink>
-          <NavLink to="/group" className={navClass}>
+          <NavLink
+            to="/group"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/group")}
+          >
             다함께
           </NavLink>
-          <NavLink to="/moviemong" className={navClass}>
+          <NavLink
+            to="/moviemong"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/moviemong")}
+          >
             무비몽
           </NavLink>
-          <NavLink to="/mypage" className={navClass}>
+          <NavLink
+            to="/mypage"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/mypage")}
+          >
             마이 홈
           </NavLink>
         </nav>
 
         <div className="top-actions">
-          <Link
-            className="profile-chip"
-            to={profileHref}
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          >
+          <Link className="profile-chip" to={profileHref} onClick={handleHeaderLinkClick(profileHref)}>
             {profileLabel}
           </Link>
         </div>

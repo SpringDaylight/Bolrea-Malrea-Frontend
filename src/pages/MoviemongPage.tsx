@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import "../components/roulette/roulette.css";
 import moviemong1 from "../assets/reviewmong_1.png";
@@ -11,6 +11,8 @@ type QuestionItem = {
   createdAt: string;
   answer: string;
 };
+
+type TabType = "question" | "feed" | "theme" | "recipe" | "bag";
 
 const QUESTION_PAGE_SIZE = 10;
 const questionItems: QuestionItem[] = Array.from({ length: 32 }, (_, index) => {
@@ -35,9 +37,8 @@ export default function MoviemongPage() {
     return 2000;
   };
 
-  const [activeTab, setActiveTab] = useState<
-    "question" | "feed" | "theme" | "recipe" | "bag"
-  >("question");
+  const [activeTab, setActiveTab] = useState<TabType | null>(null);
+  const [panelVersion, setPanelVersion] = useState(0);
   const [level, setLevel] = useState(1);
   const [popcornCount, setPopcornCount] = useState(0);
   const [expValue, setExpValue] = useState(0);
@@ -88,6 +89,24 @@ export default function MoviemongPage() {
     });
   };
 
+  const refreshTabSection = (tab: TabType) => {
+    if (tab === "question") {
+      setQuestionPage(1);
+      setExpandedQuestionId(null);
+      setQuestionQuery("");
+    }
+  };
+
+  const handleTabClick = (tab: TabType) => {
+    if (activeTab === tab) {
+      refreshTabSection(tab);
+      setPanelVersion((prev) => prev + 1);
+      return;
+    }
+    setActiveTab(tab);
+    setPanelVersion((prev) => prev + 1);
+  };
+
   return (
     <MainLayout>
       <main className="container reviewmong-page">
@@ -128,21 +147,21 @@ export default function MoviemongPage() {
                 activeTab === "question" ? "is-active" : ""
               }`}
               type="button"
-              onClick={() => setActiveTab("question")}
+              onClick={() => handleTabClick("question")}
             >
               질문
             </button>
             <button
               className={`secondary-btn ${activeTab === "feed" ? "is-active" : ""}`}
               type="button"
-              onClick={() => setActiveTab("feed")}
+              onClick={() => handleTabClick("feed")}
             >
               밥주기
             </button>
             <button
               className={`secondary-btn ${activeTab === "theme" ? "is-active" : ""}`}
               type="button"
-              onClick={() => setActiveTab("theme")}
+              onClick={() => handleTabClick("theme")}
             >
               테마
             </button>
@@ -151,19 +170,22 @@ export default function MoviemongPage() {
                 activeTab === "recipe" ? "is-active" : ""
               }`}
               type="button"
-              onClick={() => setActiveTab("recipe")}
+              onClick={() => handleTabClick("recipe")}
             >
               취향 레시피
             </button>
             <button
               className={`secondary-btn ${activeTab === "bag" ? "is-active" : ""}`}
               type="button"
-              onClick={() => setActiveTab("bag")}
+              onClick={() => handleTabClick("bag")}
             >
               내 가방
             </button>
           </div>
-          <div className="reviewmong-panel">
+          <div
+            key={`reviewmong-panel-${activeTab}-${panelVersion}`}
+            className={`reviewmong-panel ${activeTab === null ? "is-hidden" : ""}`}
+          >
             {!isLoggedIn ? (
               <div className="reviewmong-login-placeholder">
                 <p className="muted login-required-text">로그인 후 이용해주세요.</p>
@@ -286,7 +308,7 @@ export default function MoviemongPage() {
                 {activeTab === "feed" && (
                   <Roulette items={rouletteItems} onResult={handleRouletteResult} />
                 )}
-                {activeTab === "theme" &&(
+                {activeTab === "theme" && (
                   <div className="reviewmong-question">
                     <p className="question-title">테마</p>
                     <p className="question-text">준비 중이에요.</p>

@@ -8,7 +8,7 @@
 import MainLayout from "../components/layout/MainLayout";
 import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
-import { createReview, deleteReview, updateReview } from "../api/A6_reviews";
+import { createReview, deleteReview, updateReview, toggleReviewLike } from "../api/A6_reviews";
 import { getCurrentUserReviews, getUser } from "../api/A7_profile";
 import {
   getCurrentUserWatchedMovies,
@@ -25,6 +25,7 @@ import {
 
 const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
 const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
+const REVIEW_REACTION_STORAGE_KEY = "mw_review_reactions";
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 
 const formatRatingLabel = (rating: number) =>
@@ -37,6 +38,41 @@ const normalizeReviewRating = (value: number) => {
 
 type ReviewVisibility = "public" | "private";
 type ReviewVisibilityMap = Record<string, ReviewVisibility>;
+type ReviewReaction = "like" | "dislike";
+type ReviewReactionMap = Record<string, ReviewReaction>;
+
+const getStoredReviewReactions = (userId: string | null): ReviewReactionMap => {
+  if (!userId) return {};
+  try {
+    const raw = localStorage.getItem(`${REVIEW_REACTION_STORAGE_KEY}:${userId}`);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return Object.entries(parsed).reduce<ReviewReactionMap>((acc, [key, value]) => {
+      if (value === "like" || value === "dislike") {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("Failed to parse review reactions storage:", err);
+    return {};
+  }
+};
+
+const setStoredReviewReactions = (userId: string | null, next: ReviewReactionMap) => {
+  if (!userId) return;
+  try {
+    localStorage.setItem(
+      `${REVIEW_REACTION_STORAGE_KEY}:${userId}`,
+      JSON.stringify(next)
+    );
+  } catch (err) {
+    console.error("Failed to save review reactions storage:", err);
+  }
+};
 
 const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
   value === "private" ? "private" : "public";
@@ -208,6 +244,9 @@ export default function MovieDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reactions, setReactions] = useState<
     Record<number, { likes: number; dislikes: number }>
+  >({});
+  const [myReviewReactions, setMyReviewReactions] = useState<
+    Record<number, ReviewReaction | null>
   >({});
   const [myReviewOpen, setMyReviewOpen] = useState(false);
   const [isEditingMyReview, setIsEditingMyReview] = useState(false);
@@ -453,12 +492,28 @@ export default function MovieDetailPage() {
         const existing = prev[review.id];
         next[review.id] = {
           likes: existing?.likes ?? review.likes_count ?? 0,
-          dislikes: existing?.dislikes ?? 0,
+          dislikes: existing?.dislikes ?? review.dislikes_count ?? 0,
         };
       });
       return next;
     });
   }, [reviews]);
+
+  useEffect(() => {
+    if (!currentUserPk) {
+      setMyReviewReactions({});
+      return;
+    }
+    const stored = getStoredReviewReactions(currentUserPk);
+    setMyReviewReactions(() => {
+      const next: Record<number, ReviewReaction | null> = {};
+      reviews.forEach((review) => {
+        const reaction = stored[String(review.id)];
+        next[review.id] = reaction ?? null;
+      });
+      return next;
+    });
+  }, [reviews, currentUserPk]);
 
   useEffect(() => {
     const authorIds = new Set<string>();
@@ -508,17 +563,44 @@ export default function MovieDetailPage() {
     };
   }, [reviews, personalReview?.user_id, currentUserPk, reviewAuthorNames]);
 
-  const incrementReaction = (reviewId: number, type: "likes" | "dislikes") => {
-    setReactions((prev) => {
-      const current = prev[reviewId] ?? { likes: 0, dislikes: 0 };
-      return {
+  const handleToggleReaction = async (reviewId: number, type: ReviewReaction) => {
+    if (!isLoggedIn) {
+      setShowReviewLoginMessage(true);
+      setReviewLoginMessageTick((prev) => prev + 1);
+      return;
+    }
+    if (!currentUserPk) return;
+
+    const currentReaction = myReviewReactions[reviewId] ?? null;
+    if (currentReaction && currentReaction !== type) {
+      return;
+    }
+
+    try {
+      const response = await toggleReviewLike(reviewId, currentUserPk, type === "like");
+      const nextReaction = currentReaction === type ? null : type;
+      setReactions((prev) => ({
         ...prev,
         [reviewId]: {
-          ...current,
-          [type]: current[type] + 1,
+          likes: response.likes_count,
+          dislikes: response.dislikes_count,
         },
-      };
-    });
+      }));
+      setMyReviewReactions((prev) => ({
+        ...prev,
+        [reviewId]: nextReaction,
+      }));
+
+      const stored = getStoredReviewReactions(currentUserPk);
+      if (nextReaction) {
+        stored[String(reviewId)] = nextReaction;
+      } else {
+        delete stored[String(reviewId)];
+      }
+      setStoredReviewReactions(currentUserPk, stored);
+    } catch (err) {
+      console.error("Failed to toggle review reaction:", err);
+    }
   };
 
   const applySavedPersonalReview = (nextReview: Review) => {
@@ -1197,21 +1279,35 @@ export default function MovieDetailPage() {
                         </div>
                       </div>
                       <div className="review-actions">
-                        <button
-                          className="ghost-btn"
-                          type="button"
-                          onClick={() => incrementReaction(review.id, "likes")}
-                        >
-                          좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
-                        </button>
-                        {/* <span className="muted">|</span> */}
-                        <button
-                          className="ghost-btn"
-                          type="button"
-                          onClick={() => incrementReaction(review.id, "dislikes")}
-                        >
-                          싫어요 {reactions[review.id]?.dislikes ?? 0}
-                        </button>
+                        {(() => {
+                          const reaction = myReviewReactions[review.id] ?? null;
+                          const likeActive = reaction === "like";
+                          const dislikeActive = reaction === "dislike";
+                          return (
+                            <>
+                              <button
+                                className={`ghost-btn ${likeActive ? "is-active" : ""}`}
+                                type="button"
+                                aria-pressed={likeActive}
+                                disabled={dislikeActive}
+                                onClick={() => handleToggleReaction(review.id, "like")}
+                              >
+                                좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
+                              </button>
+                              {/* <span className="muted">|</span> */}
+                              <button
+                                className={`ghost-btn ${dislikeActive ? "is-active" : ""}`}
+                                type="button"
+                                aria-pressed={dislikeActive}
+                                disabled={likeActive}
+                                onClick={() => handleToggleReaction(review.id, "dislike")}
+                              >
+                                싫어요{" "}
+                                {reactions[review.id]?.dislikes ?? review.dislikes_count ?? 0}
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     {review.content && (

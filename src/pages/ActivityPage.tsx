@@ -1003,6 +1003,8 @@ export default function ActivityPage() {
                   id="profile-name-input"
                   type="text"
                   value={editDraft.realname}
+                  readOnly
+                  aria-readonly="true"
                   onChange={(event) =>
                     setEditDraft((prev) => ({
                       ...prev,
@@ -1010,24 +1012,14 @@ export default function ActivityPage() {
                     }))
                   }
                 />
-                <label htmlFor="profile-age-input">나이대</label>
-                <select
+                <label htmlFor="profile-age-input">나이</label>
+                <input
                   id="profile-age-input"
+                  type="text"
                   value={editDraft.age}
-                  onChange={(event) =>
-                    setEditDraft((prev) => ({
-                      ...prev,
-                      age: event.target.value,
-                    }))
-                  }
-                >
-                  <option>선택 안함</option>
-                  <option>10대</option>
-                  <option>20대</option>
-                  <option>30대</option>
-                  <option>40대</option>
-                  <option>50대+</option>
-                </select>
+                  readOnly
+                  aria-readonly="true"
+                />
                 <label htmlFor="profile-gender-input">성별</label>
                 <select
                   id="profile-gender-input"
@@ -1048,6 +1040,8 @@ export default function ActivityPage() {
                   id="profile-id-input"
                   type="text"
                   value={editDraft.id}
+                  readOnly
+                  aria-readonly="true"
                   onChange={(event) =>
                     setEditDraft((prev) => ({
                       ...prev,

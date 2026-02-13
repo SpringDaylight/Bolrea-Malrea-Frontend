@@ -14,7 +14,9 @@ const userRequiredMessage = "회원 사용자를 선택해주세요.";
 
 const getUserId = (user: GroupUserSearchItem) => user.user_id ?? user.id;
 const getUserDisplayName = (user: GroupUserSearchItem) =>
-  user.nickname?.trim() || user.name?.trim() || user.user_id || user.id;
+  user.nickname?.trim() || user.user_id?.trim() || user.id;
+const getUserSecondaryLabel = (user: GroupUserSearchItem) =>
+  user.user_id?.trim() || user.id;
 
 export default function GroupPage() {
   const [groupType, setGroupType] = useState("");
@@ -40,7 +42,6 @@ export default function GroupPage() {
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
-  const currentUserPk = localStorage.getItem("mw_user_pk");
 
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const groupTypeRef = useRef<HTMLDivElement | null>(null);
@@ -126,9 +127,9 @@ export default function GroupPage() {
       setUserSearchLoading(false);
       return;
     }
-    if (!currentUserPk) {
+    if (!userQuery.trim()) {
       setUserSearchResults([]);
-      setUserSearchError("로그인이 필요합니다.");
+      setUserSearchError(null);
       setUserSearchLoading(false);
       return;
     }
@@ -136,7 +137,7 @@ export default function GroupPage() {
     let isCancelled = false;
     const timer = setTimeout(() => {
       setUserSearchLoading(true);
-      searchGroupUsers(userQuery, 20, currentUserPk)
+      searchGroupUsers(userQuery, 20)
         .then((results) => {
           if (isCancelled) return;
           setUserSearchResults(results);
@@ -422,6 +423,7 @@ export default function GroupPage() {
                       {userResults.map((user) => {
                         const userId = getUserId(user);
                         const nickname = getUserDisplayName(user);
+                        const secondary = getUserSecondaryLabel(user);
                         return (
                           <button
                             className={`search-item ${
@@ -432,12 +434,12 @@ export default function GroupPage() {
                             onClick={() =>
                               handleMemberToggle(userId, {
                                 nickname,
-                                name: user.name || nickname,
+                                name: secondary || nickname,
                               })
                             }
                           >
                             <strong>{nickname}</strong>
-                            <span>{user.name}</span>
+                            <span>{secondary}</span>
                             {selectedMembers.includes(userId) && <span>✓</span>}
                           </button>
                         );

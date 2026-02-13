@@ -443,23 +443,14 @@ export default function MovieDetailPage() {
         setMovie(movieData);
         
         const reviewsData = await getMovieReviews(Number(movieId), { page_size: 10 });
-        const visibleReviews = reviewsData.reviews.filter((review) => {
-          const visibility = getSavedReviewVisibility({
-            movieId: movieData.id,
-            ownerUserId: review.user_id,
-            currentUserId: currentUserPk,
-            reviewId: review.id,
-          });
-          if (visibility !== "private") return true;
-          return Boolean(currentUserPk && review.user_id === currentUserPk);
-        });
+        const fetchedReviews = reviewsData.reviews;
 
         if (personalReview && personalReview.movie_id === movieData.id) {
           setReviews(
-            visibleReviews.filter((review) => review.id !== personalReview.id)
+            fetchedReviews.filter((review) => review.id !== personalReview.id)
           );
         } else {
-          setReviews(visibleReviews);
+          setReviews(fetchedReviews);
         }
 
         // ML API: 사용자 취향 기반 영화 적합도 계산
@@ -1264,6 +1255,19 @@ export default function MovieDetailPage() {
             <div className="review-list">
               {reviews.map((review) => {
                 const authorName = getDisplayAuthorName(review.user_id);
+                const reviewVisibility = getSavedReviewVisibility({
+                  movieId: review.movie_id,
+                  ownerUserId: review.user_id,
+                  currentUserId: currentUserPk,
+                  reviewId: review.id,
+                });
+                const visibilityMeta = getReviewVisibilityMeta(reviewVisibility);
+                const isPrivateForViewer =
+                  reviewVisibility === "private" &&
+                  !(currentUserPk && review.user_id === currentUserPk);
+                const reviewContent = isPrivateForViewer
+                  ? "이 리뷰는 비공개 리뷰입니다."
+                  : review.content ?? "리뷰 코멘트가 없습니다.";
                 return (
                   <article className="card review-card" key={review.id}>
                     <div className="review-header">
@@ -1273,8 +1277,19 @@ export default function MovieDetailPage() {
                         </div>
                         <div>
                           <p className="review-name">{authorName}</p>
-                          <p className="muted">
-                            {new Date(review.created_at).toLocaleDateString("ko-KR")} · 평점 {review.rating}
+                          <p className="muted review-meta-line">
+                            <span>
+                              {new Date(review.created_at).toLocaleDateString("ko-KR")} · 평점{" "}
+                              {formatRatingLabel(review.rating)}
+                            </span>
+                            {reviewVisibility === "private" && (
+                              <span
+                                className={`review-visibility-indicator ${visibilityMeta.className}`}
+                                role="img"
+                                aria-label={visibilityMeta.label}
+                                title={visibilityMeta.label}
+                              />
+                            )}
                           </p>
                         </div>
                       </div>
@@ -1310,13 +1325,13 @@ export default function MovieDetailPage() {
                         })()}
                       </div>
                     </div>
-                    {review.content && (
-                      <p className="review-text">
-                        {review.content.length > 100 
-                          ? review.content.substring(0, 100) + '...' 
-                          : review.content}
-                      </p>
-                    )}
+                    <p className="review-text">
+                      {isPrivateForViewer
+                        ? reviewContent
+                        : reviewContent.length > 100
+                          ? reviewContent.substring(0, 100) + "..."
+                          : reviewContent}
+                    </p>
                     <div className="review-link-row">
                       <button
                         className="ghost-btn review-link-btn"

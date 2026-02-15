@@ -1140,6 +1140,10 @@ textarea {
   padding: 55px 22px;
 }
 
+.taste-analysis-page .section.card {
+  padding: 55px 22px;
+}
+
 .activity-page .activity-top-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1969,7 +1973,7 @@ textarea {
   width: 18%;
   height: auto;
   object-fit: contain;
-  transform: translateY(300px);
+  transform: translateY(340px);
   filter: drop-shadow(0 14px 18px rgba(17, 17, 17, 0.18));
 }
 
@@ -2901,6 +2905,117 @@ textarea {
   display: flex;
   gap: 8px;
  }
+
+.word-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.word-cloud-item {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+.word-cloud-item.size-xl {
+  font-size: 1.1rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(95, 135, 170, 0.35);
+}
+
+.word-cloud-item.size-lg {
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.word-cloud-item.size-md {
+  font-size: 0.95rem;
+}
+
+.word-cloud-item.size-sm {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.taste-preview-body .genre-card-grid {
+  display: flex;
+  gap: 50px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  justify-content: center;
+}
+
+.genre-card {
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  flex: 0 0 calc((100% - 60px) / 6);
+  min-width: 96px;
+}
+
+.genre-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.genre-card-meter {
+  position: relative;
+  --icon-size: 4.8rem;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  font-size: var(--icon-size);
+  line-height: 1;
+}
+
+.genre-card-meter .popcorn-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.genre-card-meter .popcorn-icon::before,
+.genre-card-meter .popcorn-icon::after {
+  content: "🍿";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+.genre-card-meter .popcorn-icon::before {
+  opacity: 0.18;
+  filter: grayscale(0.75) brightness(1.3);
+}
+
+.genre-card-meter .popcorn-icon::after {
+  clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0);
+  -webkit-clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0);
+}
+
+.genre-card-percent {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+.genre-card.is-empty {
+  opacity: 0.55;
+}
+
 
 .taste-hero {
   display: grid;

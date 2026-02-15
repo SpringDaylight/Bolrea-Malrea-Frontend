@@ -23,7 +23,7 @@ type MoviesPageSnapshot = {
 
 const sortFilters = [
   { value: "latest", label: "최신 개봉순" },
-  { value: "popular", label: "인기순" },
+  { value: "popular", label: "리뷰 많은순" },
   { value: "rating", label: "평점 높은순" },
 ];
 

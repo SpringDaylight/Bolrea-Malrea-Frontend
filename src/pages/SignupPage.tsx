@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 import kakaoIcon from "../assets/kakao_sq_login.png";
-import { signup as signupApi } from "../api/auth";
+import { signup as signupApi, completeKakaoSignup } from "../api/auth";
 
 const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -27,6 +27,8 @@ type SignupFieldErrors = Partial<Record<SignupField, string>>;
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [isKakaoMode, setIsKakaoMode] = useState(false);
+  const [kakaoData, setKakaoData] = useState<any>(null);
   const [name, setName] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
@@ -62,6 +64,19 @@ export default function SignupPage() {
     { length: daysInSelectedMonth },
     (_, index) => String(index + 1)
   );
+
+  // Check if this is Kakao signup mode
+  useEffect(() => {
+    const tempData = sessionStorage.getItem("kakao_signup_temp");
+    if (tempData) {
+      const data = JSON.parse(tempData);
+      setIsKakaoMode(true);
+      setKakaoData(data);
+      setName(data.name || "");
+      setNickname(data.nickname || "");
+      setEmail(data.email || "");
+    }
+  }, []);
 
   useEffect(() => {
     if (birthDay && Number(birthDay) > daysInSelectedMonth) {
@@ -160,12 +175,16 @@ export default function SignupPage() {
       nextErrors.birthDate = "내용을 입력해주세요.";
     }
     if (!nickname.trim()) nextErrors.nickname = "내용을 입력해주세요.";
-    if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
-    if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
-    if (!password.trim()) nextErrors.password = "내용을 입력해주세요.";
-    if (!confirm.trim()) nextErrors.confirm = "내용을 입력해주세요.";
-    if (password && confirm && password !== confirm) {
-      nextErrors.confirm = "비밀번호가 일치하지 않습니다.";
+    
+    // Skip userId, email, and password validation for Kakao mode
+    if (!isKakaoMode) {
+      if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
+      if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
+      if (!password.trim()) nextErrors.password = "내용을 입력해주세요.";
+      if (!confirm.trim()) nextErrors.confirm = "내용을 입력해주세요.";
+      if (password && confirm && password !== confirm) {
+        nextErrors.confirm = "비밀번호가 일치하지 않습니다.";
+      }
     }
 
     setFieldErrors(nextErrors);
@@ -177,48 +196,66 @@ export default function SignupPage() {
     if (isSubmitting) return;
     if (!validateSignupFields()) return;
 
-    const payload = {
-      user_id: userId.trim(),
-      name: name.trim(),
-      nickname: nickname.trim(),
-      email: email.trim(),
-      password,
-      password_confirm: confirm,
-    };
-
     try {
       setIsSubmitting(true);
-      const createdUser = await signupApi(payload);
-      const profileSnapshot = {
-        realname: createdUser.name || payload.name,
-        nickname: createdUser.nickname || payload.nickname,
-        id: createdUser.user_id || payload.user_id,
-        userPk: createdUser.id,
-        email: createdUser.email || payload.email,
-        age: "선택 안함",
-        gender: "선택 안함",
-      };
 
-      localStorage.setItem("mw_profile_name", profileSnapshot.nickname);
-      localStorage.setItem("mw_profile_realname", profileSnapshot.realname);
-      const formattedBirthDate = `${birthYear.padStart(4, "0")}-${birthMonth.padStart(
-        2,
-        "0"
-      )}-${birthDay.padStart(2, "0")}`;
-      localStorage.setItem("mw_profile_birthdate", formattedBirthDate);
-      localStorage.setItem("mw_profile_nickname", profileSnapshot.nickname);
-      localStorage.setItem("mw_profile_id", profileSnapshot.id);
-      localStorage.setItem("mw_user_pk", profileSnapshot.userPk);
-      localStorage.setItem("mw_user_id", profileSnapshot.id);
-      localStorage.setItem("mw_profile_email", profileSnapshot.email);
-      localStorage.setItem("mw_profile_age", profileSnapshot.age);
-      localStorage.setItem("mw_profile_gender", profileSnapshot.gender);
-      localStorage.setItem("mw_profile_bio", defaultProfileBio);
-      localStorage.setItem("mw_signup_profile", JSON.stringify(profileSnapshot));
-      localStorage.setItem("mw_logged_in", "true");
-      window.dispatchEvent(new Event("mw_auth_change"));
+      if (isKakaoMode && kakaoData) {
+        // Kakao signup mode - update session data and proceed to survey
+        const formattedBirthDate = birthYear && birthMonth && birthDay
+          ? `${birthYear.padStart(4, "0")}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
+          : undefined;
 
-      setSignupStep(0);
+        const updatedKakaoData = {
+          ...kakaoData,
+          nickname: nickname.trim(),
+          birth_date: formattedBirthDate,
+        };
+
+        sessionStorage.setItem("kakao_signup_temp", JSON.stringify(updatedKakaoData));
+        setSignupStep(0); // Move to survey
+      } else {
+        // Normal signup mode
+        const payload = {
+          user_id: userId.trim(),
+          name: name.trim(),
+          nickname: nickname.trim(),
+          email: email.trim(),
+          password,
+          password_confirm: confirm,
+        };
+
+        const createdUser = await signupApi(payload);
+        const profileSnapshot = {
+          realname: createdUser.name || payload.name,
+          nickname: createdUser.nickname || payload.nickname,
+          id: createdUser.user_id || payload.user_id,
+          userPk: createdUser.id,
+          email: createdUser.email || payload.email,
+          age: "선택 안함",
+          gender: "선택 안함",
+        };
+
+        localStorage.setItem("mw_profile_name", profileSnapshot.nickname);
+        localStorage.setItem("mw_profile_realname", profileSnapshot.realname);
+        const formattedBirthDate = `${birthYear.padStart(4, "0")}-${birthMonth.padStart(
+          2,
+          "0"
+        )}-${birthDay.padStart(2, "0")}`;
+        localStorage.setItem("mw_profile_birthdate", formattedBirthDate);
+        localStorage.setItem("mw_profile_nickname", profileSnapshot.nickname);
+        localStorage.setItem("mw_profile_id", profileSnapshot.id);
+        localStorage.setItem("mw_user_pk", profileSnapshot.userPk);
+        localStorage.setItem("mw_user_id", profileSnapshot.id);
+        localStorage.setItem("mw_profile_email", profileSnapshot.email);
+        localStorage.setItem("mw_profile_age", profileSnapshot.age);
+        localStorage.setItem("mw_profile_gender", profileSnapshot.gender);
+        localStorage.setItem("mw_profile_bio", defaultProfileBio);
+        localStorage.setItem("mw_signup_profile", JSON.stringify(profileSnapshot));
+        localStorage.setItem("mw_logged_in", "true");
+        window.dispatchEvent(new Event("mw_auth_change"));
+
+        setSignupStep(0);
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "회원가입에 실패했습니다.";
@@ -228,7 +265,8 @@ export default function SignupPage() {
     }
   };
 
-  const handleCompleteSurvey = () => {
+  const handleCompleteSurvey = async () => {
+    // Save taste survey data
     localStorage.setItem("mw_taste_genres", JSON.stringify(genres));
     localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(avoidGenres));
     localStorage.setItem("mw_taste_context", context);
@@ -236,11 +274,50 @@ export default function SignupPage() {
     localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
     localStorage.setItem("mw_tast_keyword", JSON.stringify(keywords));
     localStorage.setItem("mw_taste_origin", origin);
+
+    // If Kakao mode, complete signup now
+    if (isKakaoMode && kakaoData) {
+      try {
+        const formattedBirthDate = birthYear && birthMonth && birthDay
+          ? `${birthYear.padStart(4, "0")}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
+          : undefined;
+
+        const user = await completeKakaoSignup({
+          kakao_id: kakaoData.kakao_id,
+          provider: kakaoData.provider,
+          nickname: nickname.trim(),
+          email: kakaoData.email,
+          birth_date: formattedBirthDate,
+        });
+
+        // Save user info to localStorage
+        localStorage.setItem("mw_logged_in", "true");
+        localStorage.setItem("mw_user_pk", user.id);
+        if (user.user_id) {
+          localStorage.setItem("mw_user_id", user.user_id);
+          localStorage.setItem("mw_profile_id", user.user_id);
+        }
+        localStorage.setItem("mw_profile_name", user.name);
+        localStorage.setItem("mw_profile_nickname", user.nickname);
+        localStorage.setItem("mw_profile_email", user.email || "");
+        localStorage.setItem("mw_profile_bio", user.avatar_text || "");
+        localStorage.setItem("mw_access_token", kakaoData.access_token);
+
+        // Clear temp data
+        sessionStorage.removeItem("kakao_signup_temp");
+      } catch (error) {
+        console.error('Failed to complete Kakao signup:', error);
+        alert('회원가입 완료 중 오류가 발생했습니다.');
+        navigate('/login');
+        return;
+      }
+    }
+
     setSignupStep(null);
   };
 
-  const handleStart = () => {
-    handleCompleteSurvey();
+  const handleStart = async () => {
+    await handleCompleteSurvey();
     navigate("/mypage");
   };
 
@@ -419,86 +496,95 @@ export default function SignupPage() {
                 )}
               </div>
               {fieldErrors.nickname && <p className="field-error-text">{fieldErrors.nickname}</p>}
-              <label htmlFor="signup-userid">아이디</label>
-              <div className="input-with-clear">
-                <input
-                  id="signup-userid"
-                  type="text"
-                  placeholder="아이디"
-                  value={userId}
-                  onChange={(event) => {
-                    setuserId(event.target.value);
-                    clearFieldError("userId");
-                    setSignupError("");
-                  }}
-                />
-                {userId && (
-                  <button
-                    type="button"
-                    className="input-clear-btn"
-                    aria-label="아이디 입력 지우기"
-                    onClick={() => clearInputValue("userId", setuserId)}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-              {fieldErrors.userId && <p className="field-error-text">{fieldErrors.userId}</p>}
-              <label htmlFor="signup-password">비밀번호</label>
-              <div className="input-with-clear">
-                <input
-                  id="signup-password"
-                  type="password"
-                  placeholder="********"
-                  value={password}
-                  onChange={(event) => {
-                    setPassword(event.target.value);
-                    clearFieldError("password");
-                    clearFieldError("confirm");
-                    setSignupError("");
-                  }}
-                />
-                {password && (
-                  <button
-                    type="button"
-                    className="input-clear-btn"
-                    aria-label="비밀번호 입력 지우기"
-                    onClick={() =>
-                      clearInputValue("password", setPassword, {
-                        alsoClearErrors: ["confirm"],
-                      })
-                    }
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-              {fieldErrors.password && <p className="field-error-text">{fieldErrors.password}</p>}
-              <label htmlFor="signup-confirm">비밀번호 확인</label>
-              <div className="input-with-clear">
-                <input
-                  id="signup-confirm"
-                  type="password"
-                  placeholder="********"
-                  value={confirm}
-                  onChange={(event) => {
-                    setConfirm(event.target.value);
-                    clearFieldError("confirm");
-                    setSignupError("");
-                  }}
-                />
-                {confirm && (
-                  <button
-                    type="button"
-                    className="input-clear-btn"
-                    aria-label="비밀번호 확인 입력 지우기"
-                    onClick={() => clearInputValue("confirm", setConfirm)}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-              {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
+              {!isKakaoMode && (
+                <>
+                  <label htmlFor="signup-userid">아이디</label>
+                  <div className="input-with-clear">
+                    <input
+                      id="signup-userid"
+                      type="text"
+                      placeholder="아이디"
+                      value={userId}
+                      onChange={(event) => {
+                        setuserId(event.target.value);
+                        clearFieldError("userId");
+                        setSignupError("");
+                      }}
+                    />
+                    {userId && (
+                      <button
+                        type="button"
+                        className="input-clear-btn"
+                        aria-label="아이디 입력 지우기"
+                        onClick={() => clearInputValue("userId", setuserId)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {fieldErrors.userId && <p className="field-error-text">{fieldErrors.userId}</p>}
+                  <label htmlFor="signup-password">비밀번호</label>
+                  <div className="input-with-clear">
+                    <input
+                      id="signup-password"
+                      type="password"
+                      placeholder="********"
+                      value={password}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+                        clearFieldError("password");
+                        clearFieldError("confirm");
+                        setSignupError("");
+                      }}
+                    />
+                    {password && (
+                      <button
+                        type="button"
+                        className="input-clear-btn"
+                        aria-label="비밀번호 입력 지우기"
+                        onClick={() =>
+                          clearInputValue("password", setPassword, {
+                            alsoClearErrors: ["confirm"],
+                          })
+                        }
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {fieldErrors.password && <p className="field-error-text">{fieldErrors.password}</p>}
+                  <label htmlFor="signup-confirm">비밀번호 확인</label>
+                  <div className="input-with-clear">
+                    <input
+                      id="signup-confirm"
+                      type="password"
+                      placeholder="********"
+                      value={confirm}
+                      onChange={(event) => {
+                        setConfirm(event.target.value);
+                        clearFieldError("confirm");
+                        setSignupError("");
+                      }}
+                    />
+                    {confirm && (
+                      <button
+                        type="button"
+                        className="input-clear-btn"
+                        aria-label="비밀번호 확인 입력 지우기"
+                        onClick={() => clearInputValue("confirm", setConfirm)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
+                </>
+              )}
+              {isKakaoMode && (
+                <div className="info-box" style={{ marginBottom: "16px" }}>
+                  <p>ℹ️ 카카오 계정으로 로그인하므로 별도의 아이디와 비밀번호는 필요하지 않습니다.</p>
+                </div>
+              )}
               <label htmlFor="signup-email">이메일</label>
               <div className="input-with-clear">
                 <input
@@ -506,6 +592,7 @@ export default function SignupPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
+                  disabled={isKakaoMode}
                   onChange={(event) => {
                     setEmail(event.target.value);
                     clearFieldError("email");

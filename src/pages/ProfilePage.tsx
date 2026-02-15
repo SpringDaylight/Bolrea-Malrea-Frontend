@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import ticketIcon from "../assets/icon-ticket-ver2.png";
 
 type ProfileState = {
   nickname: string;
@@ -63,11 +64,6 @@ export default function ProfilePage() {
     setProfile(nextProfile);
     setEditDraft(nextProfile);
   }, []);
-
-  const avatarLabel = useMemo(
-    () => profile.nickname.slice(0, 2),
-    [profile.nickname]
-  );
 
   const handleOpenEdit = () => {
     setEditDraft(profile);
@@ -154,7 +150,13 @@ export default function ProfilePage() {
             <div className="profile-info">
               <div className="profile-top-row">
                 <div className="profile-header-row">
-                  <div className="profile-avatar">{avatarLabel}</div>
+                  <div className="profile-avatar is-image">
+                    <img
+                      className="profile-avatar-image"
+                      src={ticketIcon}
+                      alt={`${profile.nickname} 프로필`}
+                    />
+                  </div>
                   <div className="profile-title">
                     <h2>{profile.nickname}</h2>
                     <p className="muted profile-bio">{profile.bio}</p>

@@ -5,6 +5,8 @@ import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
+  getLocalWatchedMovies,
+  upsertLocalWatchedMovie,
 } from "../api/A8_watched";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
@@ -103,6 +105,7 @@ export default function MoviesPage() {
 
     const fetchWatchedMovies = async () => {
       try {
+        const localWatched = getLocalWatchedMovies(currentUserPk);
         const response = await getCurrentUserWatchedMovies(currentUserPk, {
           page: 1,
           page_size: 500,
@@ -111,18 +114,25 @@ export default function MoviesPage() {
         const scopedWatched = response.items.filter(
           (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
         );
+        const localIds = localWatched
+          .map((item) => Number(item.movie_id))
+          .filter((id) => Number.isFinite(id));
 
         setWatchedMovieIds(
           new Set(
-            scopedWatched
-              .map((item) => Number(item.movie_id))
-              .filter((id) => Number.isFinite(id))
+            [...scopedWatched.map((item) => Number(item.movie_id)), ...localIds].filter(
+              (id) => Number.isFinite(id)
+            )
           )
         );
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-        setWatchedMovieIds(new Set());
+        const localWatched = getLocalWatchedMovies(currentUserPk);
+        const localIds = localWatched
+          .map((item) => Number(item.movie_id))
+          .filter((id) => Number.isFinite(id));
+        setWatchedMovieIds(new Set(localIds));
       }
     };
 
@@ -290,13 +300,20 @@ export default function MoviesPage() {
 
     try {
       await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
+    } catch (err) {
+      console.error("Failed to save watched movie:", err);
+    } finally {
+      upsertLocalWatchedMovie(currentUserPk, {
+        movie_id: movie.id,
+        title: movie.title,
+        poster_url: movie.poster_url,
+        genres: movie.genres,
+      });
       setWatchedMovieIds((prev) => {
         const next = new Set(prev);
         next.add(movie.id);
         return next;
       });
-    } catch (err) {
-      console.error("Failed to save watched movie:", err);
     }
   };
 
@@ -367,39 +384,41 @@ export default function MoviesPage() {
             </div>
           </div>
 
-          <div className="filter-group">
-            <div>
-              <p className="filter-title">정렬</p>
-              <div className="tag-list">
-                {sortFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    className={`filter-chip ${
-                      selectedSorts.includes(filter.value) ? "active" : ""
-                    }`}
-                    type="button"
-                    onClick={() => handleSortSelect(filter.value)}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
+          <div className="filter-card">
+            <div className="filter-group">
+              <div>
+                <p className="filter-title">정렬</p>
+                <div className="tag-list">
+                  {sortFilters.map((filter) => (
+                    <button
+                      key={filter.value}
+                      className={`filter-chip ${
+                        selectedSorts.includes(filter.value) ? "active" : ""
+                      }`}
+                      type="button"
+                      onClick={() => handleSortSelect(filter.value)}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="filter-title">장르</p>
-              <div className="tag-list">
-                {genreFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    className={`filter-chip ${
-                      selectedGenres.includes(filter.value) ? "active" : ""
-                    }`}
-                    type="button"
-                    onClick={() => handleGenreToggle(filter.value)}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
+              <div>
+                <p className="filter-title">장르</p>
+                <div className="tag-list">
+                  {genreFilters.map((filter) => (
+                    <button
+                      key={filter.value}
+                      className={`filter-chip ${
+                        selectedGenres.includes(filter.value) ? "active" : ""
+                      }`}
+                      type="button"
+                      onClick={() => handleGenreToggle(filter.value)}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

@@ -1,11 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
-import {
-  simulateGroup,
-  vectorizeMovie,
-  type GroupSimulationResult,
-  type UserProfile,
-} from "../api/ml";
+import { type GroupSimulationResult } from "../api/ml";
 import { searchMovies, type Movie } from "../api/A2_movies";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 
@@ -32,6 +27,37 @@ const getUserDisplayName = (user: GroupUserSearchItem) =>
 const getUserSecondaryLabel = (user: GroupUserSearchItem) =>
   user.user_id?.trim() || user.id;
 
+const getLocalStorageItem = (key: string) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const parseArrayFromStorage = (key: string): string[] => {
+  try {
+    const raw = getLocalStorageItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+const resolveSatisfactionLevel = (score: number) => {
+  if (score >= 0.7) return "높음";
+  if (score >= 0.5) return "보통";
+  return "낮음";
+};
+
 export default function GroupPage() {
   const [groupType, setGroupType] = useState("");
   const [draftTotalMembers, setDraftTotalMembers] = useState("2");
@@ -56,6 +82,14 @@ export default function GroupPage() {
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
+  const currentUserId =
+    getLocalStorageItem("mw_user_id") ||
+    getLocalStorageItem("mw_user_pk") ||
+    "";
+  const currentUserNickname =
+    getLocalStorageItem("mw_profile_nickname") ||
+    getLocalStorageItem("mw_profile_name") ||
+    "나";
   const [guestGenreSelections, setGuestGenreSelections] = useState<string[]>(
     () => Array.from({ length: MAX_GUEST_MEMBERS }, () => "")
   );
@@ -96,6 +130,23 @@ export default function GroupPage() {
       nickname,
     };
   });
+
+  useEffect(() => {
+    if (!memberConfigApplied || memberSlots <= 0) return;
+    if (!currentUserId) return;
+
+    setSelectedMembers((prev) => {
+      const withMe = [currentUserId, ...prev.filter((id) => id !== currentUserId)];
+      return withMe.slice(0, memberSlots);
+    });
+    setSelectedMemberProfiles((prev) => ({
+      ...prev,
+      [currentUserId]: {
+        nickname: currentUserNickname,
+        name: currentUserNickname,
+      },
+    }));
+  }, [memberConfigApplied, memberSlots, currentUserId, currentUserNickname]);
 
   const handleMemberToggle = (userId: string, profile?: { nickname: string; name: string }) => {
     const alreadySelected = selectedMembers.includes(userId);
@@ -256,14 +307,15 @@ export default function GroupPage() {
     setMemberConfigApplied(true);
   };
 
-  const handleMovieSearch = async () => {
-    if (!movieQuery.trim()) {
+  const handleMovieSearch = async (queryOverride?: string) => {
+    const query = (queryOverride ?? movieQuery).trim();
+    if (!query) {
       setMovieSearchResults([]);
       return;
     }
 
     try {
-      const results = await searchMovies(movieQuery, 1);
+      const results = await searchMovies(query, 1);
       setMovieSearchResults(results.movies.slice(0, 5));
     } catch (err) {
       console.error("Failed to search movies:", err);
@@ -291,36 +343,107 @@ export default function GroupPage() {
     setError(null);
 
     try {
-      const currentUserProfile = localStorage.getItem("mw_user_profile");
-      if (!currentUserProfile) {
-        showError(
-          "취향 분석 데이터가 없습니다. 먼저 취향 설문을 완료해주세요."
-        );
-        setAnalyzing(false);
-        return;
-      }
+      const likedGenres = parseArrayFromStorage("mw_taste_genres");
+      const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
+      const keywords = parseArrayFromStorage("mw_taste_keywords");
 
-      const userProfile = JSON.parse(currentUserProfile) as UserProfile;
-      const movieProfile = await vectorizeMovie({
-        movie_id: selectedMovie.id,
-        title: selectedMovie.title,
-        overview: selectedMovie.synopsis || undefined,
-        genres: selectedMovie.genres,
-        keywords: selectedMovie.tags,
-      });
+      const movieGenres = (selectedMovie.genres || []).map((genre) => genre.trim());
+      const movieTags = (selectedMovie.tags || []).map((tag) => tag.trim());
+      const genreSet = new Set(movieGenres);
+      const tagSet = new Set(movieTags);
 
-      const result = await simulateGroup({
-        members: [
-          {
-            user_id: "me",
-            profile: userProfile,
-            dislikes: userProfile.dislike_tags,
-            likes: userProfile.boost_tags,
-          },
-        ],
-        movie_profile: movieProfile,
-        strategy: "least_misery",
-      });
+      const computeScoreFromTaste = () => {
+        let score = 0.5;
+
+        if (likedGenres.length > 0) {
+          const matchCount = likedGenres.filter((genre) => genreSet.has(genre)).length;
+          score += (matchCount / likedGenres.length) * 0.3;
+        }
+
+        if (avoidedGenres.length > 0) {
+          const avoidCount = avoidedGenres.filter((genre) => genreSet.has(genre)).length;
+          score -= (avoidCount / avoidedGenres.length) * 0.3;
+        }
+
+        if (keywords.length > 0) {
+          const keywordMatches = keywords.filter((keyword) => tagSet.has(keyword)).length;
+          score += (keywordMatches / keywords.length) * 0.15;
+        }
+
+        return clamp01(score);
+      };
+
+      const computeGuestScore = (genre: string) => {
+        if (!genre) return 0.5;
+        return genreSet.has(genre) ? 0.7 : 0.4;
+      };
+
+      const members = [
+        ...selectedMembers.map((memberId) => {
+          const isMe = currentUserId && memberId === currentUserId;
+          const label =
+            (isMe ? currentUserNickname : selectedMemberProfiles[memberId]?.nickname) ||
+            memberId;
+          const probability = isMe ? computeScoreFromTaste() : 0.5;
+          return {
+            user_id: label,
+            probability,
+            confidence: isMe ? 0.6 : 0.4,
+            level: resolveSatisfactionLevel(probability),
+          };
+        }),
+        ...Array.from({ length: guestToggleCount }, (_, index) => {
+          const genre = guestGenreSelections[index] || "";
+          const probability = computeGuestScore(genre);
+          return {
+            user_id: `게스트 ${index + 1}`,
+            probability,
+            confidence: genre ? 0.4 : 0.3,
+            level: resolveSatisfactionLevel(probability),
+          };
+        }),
+      ];
+
+      const probabilities = members.map((member) => member.probability);
+      const avg =
+        probabilities.length > 0
+          ? probabilities.reduce((sum, value) => sum + value, 0) / probabilities.length
+          : 0.5;
+      const min = probabilities.length > 0 ? Math.min(...probabilities) : avg;
+      const max = probabilities.length > 0 ? Math.max(...probabilities) : avg;
+      const variance =
+        probabilities.length > 0
+          ? probabilities.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) /
+            probabilities.length
+          : 0;
+
+      const scorePercent = Math.round(avg * 100);
+      const comment =
+        scorePercent >= 70
+          ? "대체로 만족도가 높을 것 같아요."
+          : scorePercent >= 50
+          ? "호불호가 갈릴 수 있어요."
+          : "만족도가 낮을 수 있어요.";
+      const recommendation =
+        scorePercent >= 70
+          ? "다 같이 보기 좋은 선택입니다."
+          : scorePercent >= 50
+          ? "함께 보기 전에 취향을 한번 더 확인해보세요."
+          : "다른 영화를 추천해요.";
+
+      const result: GroupSimulationResult = {
+        group_score: avg,
+        strategy: "local",
+        members,
+        comment,
+        recommendation,
+        statistics: {
+          min_satisfaction: min,
+          max_satisfaction: max,
+          avg_satisfaction: avg,
+          variance,
+        },
+      };
 
       setGroupResult(result);
     } catch (err) {
@@ -441,123 +564,66 @@ export default function GroupPage() {
 
             {memberConfigApplied && (
               <>
-                <label>사용자 검색</label>
-                <div ref={userSearchRef}>
-                  <input
-                    type="text"
-                    placeholder="사용자 이름/닉네임/아이디 검색"
-                    value={userQuery}
-                    onClick={() => setIsUserSearchOpen(true)}
-                    onFocus={() => setIsUserSearchOpen(true)}
-                    onChange={(event) => setUserQuery(event.target.value)}
-                  />
-                  {isUserSearchOpen && (
-                    <div className="search-results group-user-results">
-                      {userSearchLoading && (
-                        <div className="search-empty">사용자를 조회하는 중입니다.</div>
-                      )}
-                      {!userSearchLoading && userSearchError && (
-                        <div className="search-empty">{userSearchError}</div>
-                      )}
-                      {!userSearchLoading && !userSearchError && userResults.length === 0 && (
-                        <div className="search-empty">검색 결과가 없습니다.</div>
-                      )}
-                      {userResults.map((user) => {
-                        const userId = getUserId(user);
-                        const nickname = getUserDisplayName(user);
-                        const secondary = getUserSecondaryLabel(user);
-                        return (
-                          <button
-                            className={`search-item ${
-                              selectedMembers.includes(userId) ? "active" : ""
-                            }`}
-                            type="button"
-                            key={userId}
-                            onClick={() =>
-                              handleMemberToggle(userId, {
-                                nickname,
-                                name: secondary || nickname,
-                              })
-                            }
-                          >
-                            <strong>{nickname}</strong>
-                            <span>{secondary}</span>
-                            {selectedMembers.includes(userId) && <span>✓</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {guestToggleCount > 0 && (
-                  <div className="guest-genre-section">
-                    <p className="group-member-title">비회원 선호 장르 받기</p>
-                    <div className="guest-genre-option-row">
-                      {Array.from({ length: guestToggleCount }, (_, index) => (
-                        <div className="guest-genre-option-card" key={`guest-genre-${index}`}>
-                          <span className="guest-genre-label">비회원 {index + 1}</span>
-                          <div
-                            className="group-select-wrap option-select guest-genre-select-wrap"
-                            ref={(el) => {
-                              guestSelectRefs.current[index] = el;
-                            }}
-                          >
-                            <button
-                              type="button"
-                              className={`option-select-trigger ${
-                                guestGenreSelections[index] ? "" : "is-placeholder"
-                              }`}
-                              aria-haspopup="listbox"
-                              aria-expanded={openGuestSelectIndex === index}
-                              onClick={() =>
-                                setOpenGuestSelectIndex((prev) =>
-                                  prev === index ? null : index
-                                )
-                              }
-                            >
-                              <span>{guestGenreSelections[index] || "장르 선택"}</span>
-                              <span className="option-select-arrow" aria-hidden="true">
-                                ▼
-                              </span>
-                            </button>
-                            {openGuestSelectIndex === index && (
-                              <div className="search-results option-select-list" role="listbox">
-                                {guestGenreOptions.map((genre) => (
-                                  <button
-                                    key={genre}
-                                    type="button"
-                                    className="search-item option-select-item"
-                                    onClick={() => {
-                                      handleGuestGenreSelect(index, genre);
-                                      setOpenGuestSelectIndex(null);
-                                    }}
-                                  >
-                                    <strong>{genre}</strong>
-                                    {guestGenreSelections[index] === genre && <span>✓</span>}
-                                  </button>
-                                ))}
-                              </div>
+                <div className="group-search-column">
+                  <div className="group-search-field">
+                    <label>사용자 검색</label>
+                    <div className="group-search-input" ref={userSearchRef}>
+                      <input
+                        type="text"
+                        placeholder="사용자 이름/닉네임/아이디 검색"
+                        value={userQuery}
+                        onClick={() => setIsUserSearchOpen(true)}
+                        onFocus={() => setIsUserSearchOpen(true)}
+                        onChange={(event) => setUserQuery(event.target.value)}
+                      />
+                      {isUserSearchOpen && (
+                        <div className="search-results group-user-results">
+                          {userSearchLoading && (
+                            <div className="search-empty">사용자를 조회하는 중입니다.</div>
+                          )}
+                          {!userSearchLoading && userSearchError && (
+                            <div className="search-empty">{userSearchError}</div>
+                          )}
+                          {!userSearchLoading &&
+                            !userSearchError &&
+                            userResults.length === 0 && (
+                              <div className="search-empty">검색 결과가 없습니다.</div>
                             )}
-                          </div>
+                          {userResults.map((user) => {
+                            const userId = getUserId(user);
+                            const nickname = getUserDisplayName(user);
+                            const secondary = getUserSecondaryLabel(user);
+                            return (
+                              <button
+                                className={`search-item ${
+                                  selectedMembers.includes(userId) ? "active" : ""
+                                }`}
+                                type="button"
+                                key={userId}
+                                onClick={() =>
+                                  handleMemberToggle(userId, {
+                                    nickname,
+                                    name: secondary || nickname,
+                                  })
+                                }
+                              >
+                                <strong>{nickname}</strong>
+                                <span>{secondary}</span>
+                                {selectedMembers.includes(userId) && <span>✓</span>}
+                              </button>
+                            );
+                          })}
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
-                )}
 
-                {userRequiredError && (
-                  <p className="error" key={`user-error-${errorTick}`}>
-                    {userRequiredError}
-                  </p>
-                )}
-
-                {selectedMembers.length > 0 && (
-                  <div className="group-selected-members">
-                    <div className="tag-list">
-                      {selectedMemberItems.map((member) => (
-                        <span key={member.id} className="tag group-selected-tag">
-                          {member.nickname}
+                  {selectedMembers.length > 0 && (
+                    <div className="group-selected-members is-inline">
+                      <div className="tag-list">
+                        {selectedMemberItems.map((member) => (
+                          <span key={member.id} className="tag group-selected-tag">
+                            {member.nickname}
                           <button
                             className="group-selected-remove"
                             type="button"
@@ -566,13 +632,78 @@ export default function GroupPage() {
                           >
                             ×
                           </button>
-                        </span>
-                      ))}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="muted">
+                        선택된 회원 멤버: {selectedMembers.length}/{memberSlots}명
+                      </p>
                     </div>
-                    <p className="muted">
-                      선택된 회원 멤버: {selectedMembers.length}/{memberSlots}명
-                    </p>
-                  </div>
+                  )}
+
+                  {guestToggleCount > 0 && (
+                    <div className="guest-genre-inline">
+                      <div className="guest-genre-option-row is-inline">
+                        {Array.from({ length: guestToggleCount }, (_, index) => (
+                          <div
+                            className="guest-genre-option-card"
+                            key={`guest-genre-${index}`}
+                          >
+                            <span className="guest-genre-label">비회원 {index + 1}</span>
+                            <div
+                              className="group-select-wrap option-select guest-genre-select-wrap"
+                              ref={(el) => {
+                                guestSelectRefs.current[index] = el;
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className={`option-select-trigger ${
+                                  guestGenreSelections[index] ? "" : "is-placeholder"
+                                }`}
+                                aria-haspopup="listbox"
+                                aria-expanded={openGuestSelectIndex === index}
+                                onClick={() =>
+                                  setOpenGuestSelectIndex((prev) =>
+                                    prev === index ? null : index
+                                  )
+                                }
+                              >
+                                <span>{guestGenreSelections[index] || "장르 선택"}</span>
+                                <span className="option-select-arrow" aria-hidden="true">
+                                  ▼
+                                </span>
+                              </button>
+                              {openGuestSelectIndex === index && (
+                                <div className="search-results option-select-list" role="listbox">
+                                  {guestGenreOptions.map((genre) => (
+                                    <button
+                                      key={genre}
+                                      type="button"
+                                      className="search-item option-select-item"
+                                      onClick={() => {
+                                        handleGuestGenreSelect(index, genre);
+                                        setOpenGuestSelectIndex(null);
+                                      }}
+                                    >
+                                      <strong>{genre}</strong>
+                                      {guestGenreSelections[index] === genre && <span>✓</span>}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {userRequiredError && (
+                  <p className="error" key={`user-error-${errorTick}`}>
+                    {userRequiredError}
+                  </p>
                 )}
 
                 <label>영화 선택</label>
@@ -582,10 +713,11 @@ export default function GroupPage() {
                     placeholder="영화 제목 입력"
                     value={movieQuery}
                     onChange={(event) => {
-                      setMovieQuery(event.target.value);
+                      const nextValue = event.target.value;
+                      setMovieQuery(nextValue);
                       if (movieRequiredError) setError(null);
-                      if (event.target.value.length > 1) {
-                        handleMovieSearch();
+                      if (nextValue.length > 1) {
+                        handleMovieSearch(nextValue);
                       } else {
                         setMovieSearchResults([]);
                       }

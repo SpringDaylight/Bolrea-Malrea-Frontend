@@ -1,11 +1,15 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import ticketIcon from "../assets/icon-ticket-ver2.png";
 import { getMovie } from "../api/A2_movies";
 import { getCurrentUserReviews } from "../api/A7_profile";
 import {
   deleteCurrentUserWatchedMovie,
   getCurrentUserWatchedMovies,
+  getLocalWatchedMovies,
+  removeLocalWatchedMovie,
+  saveLocalWatchedMovies,
 } from "../api/A8_watched";
 
 type ViewMode = "posters" | "reviews";
@@ -47,6 +51,7 @@ type WatchedMovieItem = {
   title: string;
   poster?: string | null;
   addedAt?: string;
+  genres?: string[] | null;
 };
 
 const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
@@ -54,6 +59,18 @@ const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
 
 const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
   value === "private" ? "private" : "public";
+
+const formatDateTime = (value?: string | null) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "날짜 정보 없음";
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const getReviewVisibilityMeta = (visibility: unknown) =>
   normalizeReviewVisibility(visibility) === "private"
@@ -160,6 +177,8 @@ const defaultProfile: ProfileState = {
   // bio: "감정선 강한 드라마 · SF를 자주 봐요.",
 };
 
+const WATCHED_PAGE_SIZE = 30;
+
 const normalizeLegacyProfileAge = (value: string | null): string | null => {
   if (!value) return value;
 
@@ -214,9 +233,10 @@ export default function ActivityPage() {
   const [editVisible, setEditVisible] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showAllPosters, setShowAllPosters] = useState(false);
   const [savedReviews, setSavedReviews] = useState<ReviewItem[]>([]);
   const [savedWatchedMovies, setSavedWatchedMovies] = useState<WatchedMovieItem[]>([]);
+  const [topWatchedGenres, setTopWatchedGenres] = useState<string[]>([]);
+  const [watchedPage, setWatchedPage] = useState(1);
   const isLoggedIn = useMemo(
     () => localStorage.getItem("mw_logged_in") === "true",
     []
@@ -232,14 +252,25 @@ export default function ActivityPage() {
           item.poster ||
           "https://via.placeholder.com/500x750?text=No+Image",
         alt: `${item.title} 포스터`,
+        title: item.title,
       })),
     [savedWatchedMovies]
   );
+  const topGenreLabel =
+    topWatchedGenres.length > 0
+      ? topWatchedGenres.join(" · ")
+      : "시청한 영화를 저장해주세요";
 
-  const posterLimit = 18;
-  const visiblePosters = showAllPosters
-    ? posterItems
-    : posterItems.slice(0, posterLimit);
+  const watchedTotalPages = Math.max(
+    1,
+    Math.ceil(posterItems.length / WATCHED_PAGE_SIZE)
+  );
+  const safeWatchedPage = Math.min(watchedPage, watchedTotalPages);
+  const watchedSliceStart = (safeWatchedPage - 1) * WATCHED_PAGE_SIZE;
+  const visiblePosters = posterItems.slice(
+    watchedSliceStart,
+    watchedSliceStart + WATCHED_PAGE_SIZE
+  );
 
   useEffect(() => {
     const savedName = localStorage.getItem("mw_profile_name");
@@ -306,7 +337,7 @@ export default function ActivityPage() {
                 poster:
                   movie.poster_url ||
                   "https://via.placeholder.com/500x750?text=No+Image",
-                dateLabel: new Date(review.created_at).toLocaleDateString("ko-KR"),
+                dateLabel: formatDateTime(review.created_at),
                 genre: movie.genres?.[0] ?? "장르",
                 rating: Number(review.rating) || 0,
                 content: review.content ?? "",
@@ -331,7 +362,7 @@ export default function ActivityPage() {
                 movieId: review.movie_id,
                 title: `영화 #${review.movie_id}`,
                 poster: "https://via.placeholder.com/500x750?text=No+Image",
-                dateLabel: new Date(review.created_at).toLocaleDateString("ko-KR"),
+                dateLabel: formatDateTime(review.created_at),
                 genre: "장르",
                 rating: Number(review.rating) || 0,
                 content: review.content ?? "",
@@ -373,12 +404,16 @@ export default function ActivityPage() {
   useEffect(() => {
     if (!isLoggedIn) {
       setSavedWatchedMovies([]);
+      setTopWatchedGenres([]);
+      setWatchedPage(1);
       return;
     }
 
     const userId = localStorage.getItem("mw_user_pk");
     if (!userId) {
       setSavedWatchedMovies([]);
+      setTopWatchedGenres([]);
+      setWatchedPage(1);
       return;
     }
 
@@ -386,6 +421,7 @@ export default function ActivityPage() {
 
     const fetchWatchedMovies = async () => {
       try {
+        const localWatched = getLocalWatchedMovies(userId);
         const response = await getCurrentUserWatchedMovies(userId, {
           page: 1,
           page_size: 500,
@@ -395,19 +431,74 @@ export default function ActivityPage() {
         const scopedWatched = response.items.filter(
           (item) => !item.user_id || String(item.user_id) === String(userId)
         );
-        const normalized = scopedWatched.map((item) => ({
+        const normalizedApi = scopedWatched.map((item) => ({
           movieId: Number(item.movie_id),
           title: item.title || `영화 #${item.movie_id}`,
           poster:
             item.poster_url ||
             "https://via.placeholder.com/500x750?text=No+Image",
-          addedAt: item.watched_at,
+          addedAt: item.watched_at || new Date().toISOString(),
+          genres: null,
         }));
-        setSavedWatchedMovies(normalized);
+        const normalizedLocal = localWatched.map((item) => ({
+          movieId: Number(item.movie_id),
+          title: item.title || `영화 #${item.movie_id}`,
+          poster:
+            item.poster_url ||
+            "https://via.placeholder.com/500x750?text=No+Image",
+          addedAt: item.watched_at || new Date().toISOString(),
+          genres: Array.isArray(item.genres) ? item.genres : null,
+        }));
+
+        const mergedMap = new Map<number, WatchedMovieItem>();
+        [...normalizedLocal, ...normalizedApi].forEach((item) => {
+          const existing = mergedMap.get(item.movieId);
+          if (!existing) {
+            mergedMap.set(item.movieId, item);
+            return;
+          }
+          const existingTime = new Date(existing.addedAt || 0).getTime();
+          const nextTime = new Date(item.addedAt || 0).getTime();
+          const keep = nextTime >= existingTime ? item : existing;
+          mergedMap.set(item.movieId, {
+            ...keep,
+            title: keep.title || existing.title,
+            poster: keep.poster || existing.poster,
+            genres: keep.genres || existing.genres || null,
+          });
+        });
+        const merged = Array.from(mergedMap.values()).sort(
+          (a, b) =>
+            new Date(b.addedAt || 0).getTime() -
+            new Date(a.addedAt || 0).getTime()
+        );
+        setSavedWatchedMovies(merged);
+
+        const topGenres = await computeTopGenres(merged, userId, localWatched);
+        if (isCancelled) return;
+        setTopWatchedGenres(topGenres);
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-        setSavedWatchedMovies([]);
+        const fallback = getLocalWatchedMovies(userId)
+          .map((item) => ({
+            movieId: Number(item.movie_id),
+            title: item.title || `영화 #${item.movie_id}`,
+            poster:
+              item.poster_url ||
+              "https://via.placeholder.com/500x750?text=No+Image",
+            addedAt: item.watched_at || new Date().toISOString(),
+            genres: Array.isArray(item.genres) ? item.genres : null,
+          }))
+          .sort(
+            (a, b) =>
+              new Date(b.addedAt || 0).getTime() -
+              new Date(a.addedAt || 0).getTime()
+          );
+        setSavedWatchedMovies(fallback);
+        const topGenres = await computeTopGenres(fallback, userId, getLocalWatchedMovies(userId));
+        if (isCancelled) return;
+        setTopWatchedGenres(topGenres);
       }
     };
 
@@ -426,13 +517,11 @@ export default function ActivityPage() {
       return true;
     });
   }, [savedReviews]);
+  useEffect(() => {
+    setWatchedPage(1);
+  }, [savedWatchedMovies.length]);
   const watchedCount = posterItems.length;
   const reviewCount = mergedReviewItems.length;
-
-  const avatarLabel = useMemo(
-    () => profile.nickname.slice(0, 2),
-    [profile.nickname]
-  );
 
   const handleOpenEdit = () => {
     setEditDraft(profile);
@@ -443,6 +532,88 @@ export default function ActivityPage() {
   const handleOpenPassword = () => {
     setPasswordVisible(true);
     setEditVisible(false);
+  };
+
+  const computeTopGenres = async (
+    items: WatchedMovieItem[],
+    userId: string,
+    localRaw?: ReturnType<typeof getLocalWatchedMovies>
+  ) => {
+    const genreCounts = new Map<string, number>();
+    const localGenreMap = new Map<number, string[]>();
+    if (localRaw) {
+      localRaw.forEach((item) => {
+        const movieId = Number(item.movie_id);
+        if (!Number.isFinite(movieId)) return;
+        const genres = Array.isArray(item.genres) ? item.genres : [];
+        if (genres.length === 0) return;
+        localGenreMap.set(movieId, genres);
+      });
+    }
+
+    const missingIds = new Set<number>();
+    items.forEach((item) => {
+      const genres = Array.isArray(item.genres)
+        ? item.genres
+        : localGenreMap.get(item.movieId);
+      if (genres && genres.length > 0) {
+        genres.forEach((genre) => {
+          if (typeof genre !== "string") return;
+          const trimmed = genre.trim();
+          if (!trimmed) return;
+          genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
+        });
+        return;
+      }
+      missingIds.add(item.movieId);
+    });
+
+    if (missingIds.size > 0) {
+      await Promise.all(
+        Array.from(missingIds).map(async (movieId) => {
+          try {
+            const movie = await getMovie(movieId);
+            if (!movie?.genres || movie.genres.length === 0) return;
+            localGenreMap.set(movieId, movie.genres);
+            movie.genres.forEach((genre) => {
+              if (typeof genre !== "string") return;
+              const trimmed = genre.trim();
+              if (!trimmed) return;
+              genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
+            });
+          } catch (err) {
+            console.error(
+              `Failed to fetch movie genres for movie_id=${movieId}:`,
+              err
+            );
+          }
+        })
+      );
+    }
+
+    if (localRaw && localGenreMap.size > 0) {
+      const updated = localRaw.map((item) => {
+        const movieId = Number(item.movie_id);
+        if (!Number.isFinite(movieId)) return item;
+        const genres =
+          localGenreMap.get(movieId) ??
+          (Array.isArray(item.genres) ? item.genres : null);
+        return {
+          ...item,
+          genres,
+        };
+      });
+      saveLocalWatchedMovies(userId, updated);
+    }
+
+    if (genreCounts.size === 0) return [];
+
+    const maxCount = Math.max(...Array.from(genreCounts.values()));
+    return Array.from(genreCounts.entries())
+      .filter(([, count]) => count === maxCount)
+      .map(([genre]) => genre)
+      .sort((a, b) => a.localeCompare(b, "ko-KR"))
+      .slice(0, 3);
   };
 
   const handleSaveProfile = () => {
@@ -500,11 +671,49 @@ export default function ActivityPage() {
 
     try {
       await deleteCurrentUserWatchedMovie(userId, movieId);
-      setSavedWatchedMovies((prev) =>
-        prev.filter((item) => item.movieId !== movieId)
-      );
     } catch (err) {
       console.error("Failed to delete watched movie:", err);
+    } finally {
+      removeLocalWatchedMovie(userId, movieId);
+      setSavedWatchedMovies((prev) => {
+        const next = prev.filter((item) => item.movieId !== movieId);
+        void (async () => {
+          const genreCounts = new Map<string, number>();
+          await Promise.all(
+            next.map(async (item) => {
+              try {
+                const movie = await getMovie(item.movieId);
+                if (!movie?.genres) return;
+                movie.genres.forEach((genre) => {
+                  if (typeof genre !== "string") return;
+                  const trimmed = genre.trim();
+                  if (!trimmed) return;
+                  genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
+                });
+              } catch (err) {
+                console.error(
+                  `Failed to fetch movie genres for movie_id=${item.movieId}:`,
+                  err
+                );
+              }
+            })
+          );
+
+          if (genreCounts.size === 0) {
+            setTopWatchedGenres([]);
+            return;
+          }
+
+          const maxCount = Math.max(...Array.from(genreCounts.values()));
+          const topGenres = Array.from(genreCounts.entries())
+            .filter(([, count]) => count === maxCount)
+            .map(([genre]) => genre)
+            .sort((a, b) => a.localeCompare(b, "ko-KR"))
+            .slice(0, 3);
+          setTopWatchedGenres(topGenres);
+        })();
+        return next;
+      });
     }
   };
 
@@ -587,7 +796,13 @@ export default function ActivityPage() {
                 <div className="profile-summary">
                 <div className="profile-header-row">
                   <div className="profile-avatar-block">
-                    <div className="profile-avatar">{avatarLabel}</div>
+                    <div className="profile-avatar is-image">
+                      <img
+                        className="profile-avatar-image"
+                        src={ticketIcon}
+                        alt={`${profile.nickname} 프로필`}
+                      />
+                    </div>
                     <h2 className="profile-nickname">{profile.nickname}</h2>
                   </div>
                   <button
@@ -660,7 +875,7 @@ export default function ActivityPage() {
               </div>
               <div className="taste-preview-side">
                 <p className="muted">가장 높은 장르</p>
-                <p className="probability">드라마 · SF</p>
+                <p className="probability">{topGenreLabel}</p>
               </div>
             </div>
             {/* <button
@@ -773,6 +988,7 @@ export default function ActivityPage() {
                     <Link to={poster.to}>
                       <img src={poster.src} alt={poster.alt} />
                     </Link>
+                    <p className="poster-title">{poster.title}</p>
                     <button
                       className="poster-remove-btn"
                       type="button"
@@ -788,14 +1004,34 @@ export default function ActivityPage() {
                   </div>
                 ))}
               </div>
-              {posterItems.length > posterLimit && (
-                <div className="poster-toggle-row">
+              {posterItems.length > WATCHED_PAGE_SIZE && (
+                <div className="poster-pagination">
                   <button
-                    className="poster-toggle-bar"
+                    className="icon-btn page-arrow-btn"
                     type="button"
-                    onClick={() => setShowAllPosters((prev) => !prev)}
+                    aria-label="이전 페이지"
+                    onClick={() =>
+                      setWatchedPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={safeWatchedPage === 1}
                   >
-                    {showAllPosters ? "접기" : "펼쳐보기"}
+                    {"◀"}
+                  </button>
+                  <span className="page-number-text" aria-live="polite">
+                    {safeWatchedPage}/{watchedTotalPages}
+                  </span>
+                  <button
+                    className="icon-btn page-arrow-btn"
+                    type="button"
+                    aria-label="다음 페이지"
+                    onClick={() =>
+                      setWatchedPage((prev) =>
+                        Math.min(watchedTotalPages, prev + 1)
+                      )
+                    }
+                    disabled={safeWatchedPage >= watchedTotalPages}
+                  >
+                    {"▶"}
                   </button>
                 </div>
               )}

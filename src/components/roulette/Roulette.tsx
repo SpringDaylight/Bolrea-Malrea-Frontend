@@ -22,7 +22,7 @@ export default function Roulette({ items, onResult }: Props) {
   const segmentAngle = items.length ? 360 / items.length : 0;
   const startOffset = -segmentAngle / 2;
   const gradientOffset = ((startOffset % 360) + 360) % 360;
-  const colors = ["#ffe4ef", "#fff6d6", "#e7f6ff", "#e9f7e9", "#f3e9ff"];
+  const colors = ["#ffffff"];
   const easeOutCubic = (value: number) => 1 - Math.pow(1 - value, 3);
 
   const segments = useMemo(() => {

@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { getMovie } from "../api/A2_movies";
 import { getCurrentUserReviews } from "../api/A7_profile";
+import {
+  getCurrentUserWatchedMovies,
+  getLocalWatchedMovies,
+  saveLocalWatchedMovies,
+} from "../api/A8_watched";
 import { getTasteMap, type UserProfile } from "../api/ml";
 
 type WordCloudItem = {
@@ -80,14 +85,6 @@ const getWordCloudItems = (words: string[]): WordCloudItem[] => {
   });
 };
 
-const getPreferencePercent = (index: number, total: number) => {
-  if (total <= 1) return 88;
-  const start = 92;
-  const end = 60;
-  const step = (start - end) / Math.max(1, total - 1);
-  return Math.round(start - step * index);
-};
-
 const getFillStyle = (percent: number): CSSProperties =>
   ({ ["--fill" as string]: `${percent}%` } as CSSProperties);
 
@@ -96,6 +93,9 @@ export default function TasteAnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [recentHighRated, setRecentHighRated] = useState<RecentMovie[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [watchedGenreStats, setWatchedGenreStats] = useState<
+    Array<{ genre: string; percent: number }>
+  >([]);
   const isLoggedIn = useMemo(
     () => getLocalStorageItem("mw_logged_in") === "true",
     []
@@ -207,17 +207,164 @@ export default function TasteAnalysisPage() {
     };
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setWatchedGenreStats([]);
+      return;
+    }
+
+    const userId = getLocalStorageItem("mw_user_pk");
+    if (!userId) {
+      setWatchedGenreStats([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchWatchedGenreStats = async () => {
+      const localWatched = getLocalWatchedMovies(userId);
+      const localNeedingGenres = localWatched.filter(
+        (item) => !Array.isArray(item.genres) || item.genres.length === 0
+      );
+      let apiItems: typeof localWatched = [];
+      try {
+        const response = await getCurrentUserWatchedMovies(userId, {
+          page: 1,
+          page_size: 500,
+        });
+        if (isCancelled) return;
+        apiItems = response.items.filter(
+          (item) => !item.user_id || String(item.user_id) === String(userId)
+        );
+      } catch (err) {
+        console.error("Failed to fetch watched movies from API:", err);
+      }
+
+      if (isCancelled) return;
+
+      const movieIds = Array.from(
+        new Set([
+          ...localWatched.map((item) => Number(item.movie_id)),
+          ...apiItems.map((item) => Number(item.movie_id)),
+        ])
+      ).filter((id) => Number.isFinite(id));
+
+      if (movieIds.length === 0) {
+        setWatchedGenreStats([]);
+        return;
+      }
+
+      const genreCounts = new Map<string, number>();
+      const needsFetch = new Set<number>(movieIds);
+
+      const localGenreMap = new Map<number, string[]>();
+      localWatched.forEach((item) => {
+        const movieId = Number(item.movie_id);
+        if (!Number.isFinite(movieId)) return;
+        const genres = Array.isArray(item.genres) ? item.genres : [];
+        if (genres.length === 0) return;
+        needsFetch.delete(movieId);
+        localGenreMap.set(movieId, genres);
+        genres.forEach((genre) => {
+          if (typeof genre !== "string") return;
+          const trimmed = genre.trim();
+          if (!trimmed) return;
+          genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
+        });
+      });
+
+      if (localNeedingGenres.length > 0) {
+        await Promise.all(
+          localNeedingGenres.map(async (item) => {
+            const movieId = Number(item.movie_id);
+            if (!Number.isFinite(movieId)) return;
+            try {
+              const movie = await getMovie(movieId);
+              if (!movie?.genres || movie.genres.length === 0) return;
+              localGenreMap.set(movieId, movie.genres);
+              needsFetch.delete(movieId);
+              movie.genres.forEach((genre) => {
+                if (typeof genre !== "string") return;
+                const trimmed = genre.trim();
+                if (!trimmed) return;
+                genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
+              });
+            } catch (err) {
+              console.error(
+                `Failed to backfill genres for movie_id=${movieId}:`,
+                err
+              );
+            }
+          })
+        );
+
+        const backfilled = localWatched.map((item) => ({
+          ...item,
+          genres:
+            localGenreMap.get(Number(item.movie_id)) ?? item.genres ?? null,
+        }));
+        saveLocalWatchedMovies(userId, backfilled);
+      }
+
+      await Promise.all(
+        Array.from(needsFetch).map(async (movieId) => {
+          try {
+            const movie = await getMovie(movieId);
+            if (!movie?.genres) return;
+            movie.genres.forEach((genre) => {
+              if (typeof genre !== "string") return;
+              const trimmed = genre.trim();
+              if (!trimmed) return;
+              genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
+            });
+          } catch (err) {
+            console.error(
+              `Failed to fetch movie genres for movie_id=${movieId}:`,
+              err
+            );
+          }
+        })
+      );
+
+      if (isCancelled) return;
+
+      if (genreCounts.size === 0) {
+        setWatchedGenreStats([]);
+        return;
+      }
+
+      const totalMovies = movieIds.length;
+      const topGenres = Array.from(genreCounts.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko-KR"))
+        .slice(0, 5)
+        .map(([genre, count]) => ({
+          genre,
+          percent: Math.round((count / totalMovies) * 100),
+        }));
+
+      setWatchedGenreStats(topGenres);
+    };
+
+    fetchWatchedGenreStats();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoggedIn]);
+
   const savedKeywords = parseArrayFromStorage("mw_taste_keywords");
   const savedVibe = (getLocalStorageItem("mw_taste_vibe") || "").trim();
   const wordCloudItems = getWordCloudItems([savedVibe, ...savedKeywords]);
   const selectedGenres = parseArrayFromStorage("mw_taste_genres");
-  const preferenceGenres = selectedGenres.slice(0, 5);
+  const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
+  const tasteContext = (getLocalStorageItem("mw_taste_context") || "").trim();
+  const tasteOrigin = (getLocalStorageItem("mw_taste_origin") || "").trim();
   const preferenceSlots = Array.from({ length: 5 }, (_, index) => {
-    const genre = preferenceGenres[index] ?? "미설정";
-    const percent = preferenceGenres[index]
-      ? getPreferencePercent(index, preferenceGenres.length)
-      : 0;
-    return { genre, percent };
+    const slot = watchedGenreStats[index];
+    if (!slot) {
+      return { genre: "미설정", percent: 0 };
+    }
+    return { genre: slot.genre, percent: slot.percent };
   });
   const topEmotions = getTopEmotions(userProfile?.emotion_scores ?? null, 6);
 
@@ -248,20 +395,83 @@ export default function TasteAnalysisPage() {
           <article className="taste-preview">
             <div className="taste-preview-header">
               <h2>나의 영화 취향 설문 결과</h2>
-              <p>선택한 장르 요약</p>
+              <p>설문 답변 요약</p>
             </div>
             <div className="taste-preview-body">
-              {selectedGenres.length > 0 ? (
-                <div className="tag-list">
-                  {selectedGenres.map((genre) => (
-                    <span key={genre} className="tag">
-                      {genre}
-                    </span>
-                  ))}
+              <div className="survey-summary-grid">
+                <div className="survey-summary-card">
+                  <h3 className="survey-summary-title">좋아하는 장르</h3>
+                  {selectedGenres.length > 0 ? (
+                    <div className="tag-list">
+                      {selectedGenres.map((genre) => (
+                        <span key={genre} className="tag">
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="survey-summary-value is-empty">미설정</p>
+                  )}
                 </div>
-              ) : (
-                <p className="muted">설문 결과가 없습니다.</p>
-              )}
+                <div className="survey-summary-card">
+                  <h3 className="survey-summary-title">싫어하는 장르</h3>
+                  {avoidedGenres.length > 0 ? (
+                    <div className="tag-list">
+                      {avoidedGenres.map((genre) => (
+                        <span key={genre} className="tag">
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="survey-summary-value is-empty">미설정</p>
+                  )}
+                </div>
+                <div className="survey-summary-card">
+                  <h3 className="survey-summary-title">주로 영화를 볼 때에는?</h3>
+                  <p
+                    className={`survey-summary-value ${
+                      tasteContext ? "" : "is-empty"
+                    }`}
+                  >
+                    {tasteContext || "미설정"}
+                  </p>
+                </div>
+                <div className="survey-summary-card">
+                  <h3 className="survey-summary-title">좋아하는 분위기</h3>
+                  <p
+                    className={`survey-summary-value ${
+                      savedVibe ? "" : "is-empty"
+                    }`}
+                  >
+                    {savedVibe || "미설정"}
+                  </p>
+                </div>
+                <div className="survey-summary-card">
+                  <h3 className="survey-summary-title">좋아하는 소재</h3>
+                  {savedKeywords.length > 0 ? (
+                    <div className="tag-list">
+                      {savedKeywords.map((keyword) => (
+                        <span key={keyword} className="tag">
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="survey-summary-value is-empty">미설정</p>
+                  )}
+                </div>
+                <div className="survey-summary-card">
+                  <h3 className="survey-summary-title">좋아하는 영화 나라</h3>
+                  <p
+                    className={`survey-summary-value ${
+                      tasteOrigin ? "" : "is-empty"
+                    }`}
+                  >
+                    {tasteOrigin || "미설정"}
+                  </p>
+                </div>
+              </div>
             </div>
           </article>
         </section>

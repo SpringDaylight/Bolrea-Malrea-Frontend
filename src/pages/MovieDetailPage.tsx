@@ -8,11 +8,21 @@
 import MainLayout from "../components/layout/MainLayout";
 import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
-import { createReview, deleteReview, updateReview, toggleReviewLike } from "../api/A6_reviews";
+import {
+  createReview,
+  createReviewComment,
+  deleteReview,
+  getReviewComments,
+  updateReview,
+  toggleReviewLike,
+  type Comment as ReviewComment,
+} from "../api/A6_reviews";
 import { getCurrentUserReviews, getUser } from "../api/A7_profile";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
+  getLocalWatchedMovies,
+  upsertLocalWatchedMovie,
 } from "../api/A8_watched";
 import { 
   analyzePreference, 
@@ -26,10 +36,23 @@ import {
 const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
 const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
 const REVIEW_REACTION_STORAGE_KEY = "mw_review_reactions";
+const REVIEW_COMMENT_STORAGE_KEY = "mw_review_comments";
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 
 const formatRatingLabel = (rating: number) =>
   Number.isInteger(rating) ? `${rating}` : rating.toFixed(1);
+
+const formatDateTime = (value?: string | null) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "날짜 정보 없음";
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const normalizeReviewRating = (value: number) => {
   if (!Number.isFinite(value)) return 5;
@@ -237,6 +260,80 @@ const removeLegacyStoredVisibility = (movieId: string | number) => {
   }
 };
 
+const buildReviewCommentStorageKey = (reviewId: number | string) =>
+  `${REVIEW_COMMENT_STORAGE_KEY}:${String(reviewId)}`;
+
+const parseStoredComments = (
+  raw: string | null,
+  reviewId: number
+): ReviewComment[] => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        id: Number((item as { id?: unknown }).id ?? Date.now()),
+        review_id: reviewId,
+        user_id: String((item as { user_id?: unknown }).user_id ?? "guest"),
+        content: String((item as { content?: unknown }).content ?? "").trim(),
+        created_at: String(
+          (item as { created_at?: unknown }).created_at ?? new Date().toISOString()
+        ),
+      }))
+      .filter((item) => item.content.length > 0);
+  } catch (err) {
+    console.error("Failed to parse review comments storage:", err);
+    return [];
+  }
+};
+
+const getLocalReviewComments = (reviewId: number): ReviewComment[] => {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(buildReviewCommentStorageKey(reviewId));
+  return parseStoredComments(raw, reviewId);
+};
+
+const saveLocalReviewComments = (reviewId: number, items: ReviewComment[]) => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      buildReviewCommentStorageKey(reviewId),
+      JSON.stringify(items)
+    );
+  } catch (err) {
+    console.error("Failed to save review comments storage:", err);
+  }
+};
+
+const createLocalReviewComment = (
+  reviewId: number,
+  userId: string,
+  content: string
+): ReviewComment => ({
+  id: Date.now() + Math.floor(Math.random() * 1000),
+  review_id: reviewId,
+  user_id: userId,
+  content,
+  created_at: new Date().toISOString(),
+});
+
+const mergeReviewComments = (
+  primary: ReviewComment[],
+  secondary: ReviewComment[]
+) => {
+  const map = new Map<number, ReviewComment>();
+  [...secondary, ...primary].forEach((comment) => {
+    if (!comment || !Number.isFinite(comment.id)) return;
+    map.set(comment.id, comment);
+  });
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+};
+
 export default function MovieDetailPage() {
   const { movieId } = useParams<{ movieId: string }>();
   const location = useLocation();
@@ -273,6 +370,16 @@ export default function MovieDetailPage() {
   );
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replyOpen, setReplyOpen] = useState<Record<number, boolean>>({});
+  const [commentOpen, setCommentOpen] = useState<Record<number, boolean>>({});
+  const [reviewComments, setReviewComments] = useState<
+    Record<number, ReviewComment[]>
+  >({});
+  const [commentLoading, setCommentLoading] = useState<Record<number, boolean>>(
+    {}
+  );
+  const [commentErrors, setCommentErrors] = useState<Record<number, string | null>>(
+    {}
+  );
   const [reviewAuthorNames, setReviewAuthorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,8 +393,8 @@ export default function MovieDetailPage() {
     ? null
     : localPersonalReview;
   const personalReviewDate = personalReview?.created_at
-    ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
-    : "오늘";
+    ? formatDateTime(personalReview.created_at)
+    : formatDateTime();
   const previewReviewRating = hoverReviewRating ?? myReviewRating;
   const currentUserNickname =
     localStorage.getItem("mw_profile_nickname") ||
@@ -411,6 +518,7 @@ export default function MovieDetailPage() {
 
     const fetchWatchedState = async () => {
       try {
+        const localWatched = getLocalWatchedMovies(currentUserPk);
         const watched = await getCurrentUserWatchedMovies(currentUserPk, {
           page: 1,
           page_size: 500,
@@ -421,14 +529,17 @@ export default function MovieDetailPage() {
         );
         const movieIdNumber = Number(movieId);
         setIsMovieWatched(
-          scopedWatched.some(
-            (item) => Number(item.movie_id) === movieIdNumber
-          )
+          scopedWatched.some((item) => Number(item.movie_id) === movieIdNumber) ||
+            localWatched.some((item) => Number(item.movie_id) === movieIdNumber)
         );
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-        setIsMovieWatched(false);
+        const localWatched = getLocalWatchedMovies(currentUserPk);
+        const movieIdNumber = Number(movieId);
+        setIsMovieWatched(
+          localWatched.some((item) => Number(item.movie_id) === movieIdNumber)
+        );
       }
     };
 
@@ -757,9 +868,16 @@ export default function MovieDetailPage() {
 
     try {
       await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
-      setIsMovieWatched(true);
     } catch (err) {
       console.error("Failed to save watched movie:", err);
+    } finally {
+      upsertLocalWatchedMovie(currentUserPk, {
+        movie_id: movie.id,
+        title: movie.title,
+        poster_url: movie.poster_url,
+        genres: movie.genres,
+      });
+      setIsMovieWatched(true);
     }
   };
 
@@ -827,6 +945,42 @@ export default function MovieDetailPage() {
     }));
   };
 
+  const loadReviewComments = async (reviewId: number) => {
+    setCommentLoading((prev) => ({ ...prev, [reviewId]: true }));
+    setCommentErrors((prev) => ({ ...prev, [reviewId]: null }));
+    const localComments = getLocalReviewComments(reviewId);
+    try {
+      const apiComments = await getReviewComments(reviewId);
+      const merged = mergeReviewComments(apiComments, localComments);
+      setReviewComments((prev) => ({ ...prev, [reviewId]: merged }));
+      if (localComments.length > 0) {
+        saveLocalReviewComments(reviewId, localComments);
+      }
+    } catch (err) {
+      console.error("Failed to fetch review comments:", err);
+      setReviewComments((prev) => ({
+        ...prev,
+        [reviewId]: mergeReviewComments(localComments, prev[reviewId] || []),
+      }));
+      setCommentErrors((prev) => ({
+        ...prev,
+        [reviewId]: "댓글을 불러오지 못했습니다.",
+      }));
+    } finally {
+      setCommentLoading((prev) => ({ ...prev, [reviewId]: false }));
+    }
+  };
+
+  const toggleCommentOpen = (reviewId: number) => {
+    setCommentOpen((prev) => {
+      const nextOpen = !prev[reviewId];
+      if (nextOpen) {
+        void loadReviewComments(reviewId);
+      }
+      return { ...prev, [reviewId]: nextOpen };
+    });
+  };
+
   const handleReplyChange = (reviewId: number, value: string) => {
     setReplyDrafts((prev) => ({
       ...prev,
@@ -834,11 +988,45 @@ export default function MovieDetailPage() {
     }));
   };
 
-  const handleReplySubmit = (reviewId: number) => {
+  const handleReplySubmit = async (reviewId: number) => {
     const nextValue = (replyDrafts[reviewId] || "").trim();
     if (!nextValue) return;
     setReplyDrafts((prev) => ({ ...prev, [reviewId]: "" }));
     setReplyOpen((prev) => ({ ...prev, [reviewId]: false }));
+
+    let createdComment: ReviewComment | null = null;
+    if (currentUserPk) {
+      try {
+        createdComment = await createReviewComment(reviewId, currentUserPk, {
+          content: nextValue,
+        });
+      } catch (err) {
+        console.error("Failed to save comment to API:", err);
+      }
+    }
+
+    if (!createdComment) {
+      const fallbackUserId = currentUserPk || "guest";
+      createdComment = createLocalReviewComment(
+        reviewId,
+        fallbackUserId,
+        nextValue
+      );
+      const localComments = getLocalReviewComments(reviewId);
+      const nextLocal = mergeReviewComments([createdComment], localComments);
+      saveLocalReviewComments(reviewId, nextLocal);
+    }
+
+    if (!createdComment) return;
+
+    setReviewComments((prev) => ({
+      ...prev,
+      [reviewId]: mergeReviewComments(
+        [createdComment],
+        prev[reviewId] || getLocalReviewComments(reviewId)
+      ),
+    }));
+    setCommentOpen((prev) => ({ ...prev, [reviewId]: true }));
   };
 
   const personalReviewVisibilityMeta = getReviewVisibilityMeta(
@@ -1288,7 +1476,7 @@ export default function MovieDetailPage() {
                           <p className="review-name">{authorName}</p>
                           <p className="muted review-meta-line">
                             <span>
-                              {new Date(review.created_at).toLocaleDateString("ko-KR")} · 평점{" "}
+                              {formatDateTime(review.created_at)} · 평점{" "}
                               {formatRatingLabel(review.rating)}
                             </span>
                             {reviewVisibility === "private" && (
@@ -1310,22 +1498,34 @@ export default function MovieDetailPage() {
                           return (
                             <>
                               <button
-                                className={`ghost-btn ${likeActive ? "is-active" : ""}`}
+                                className={`ghost-btn review-reaction-btn ${
+                                  likeActive ? "is-active" : ""
+                                }`}
                                 type="button"
                                 aria-pressed={likeActive}
                                 disabled={dislikeActive}
                                 onClick={() => handleToggleReaction(review.id, "like")}
                               >
+                                <span
+                                  className="review-reaction-icon"
+                                  aria-hidden="true"
+                                />
                                 좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
                               </button>
                               {/* <span className="muted">|</span> */}
                               <button
-                                className={`ghost-btn ${dislikeActive ? "is-active" : ""}`}
+                                className={`ghost-btn review-reaction-btn ${
+                                  dislikeActive ? "is-active" : ""
+                                }`}
                                 type="button"
                                 aria-pressed={dislikeActive}
                                 disabled={likeActive}
                                 onClick={() => handleToggleReaction(review.id, "dislike")}
                               >
+                                <span
+                                  className="review-reaction-icon is-dislike"
+                                  aria-hidden="true"
+                                />
                                 싫어요{" "}
                                 {reactions[review.id]?.dislikes ?? review.dislikes_count ?? 0}
                               </button>
@@ -1349,7 +1549,11 @@ export default function MovieDetailPage() {
                       >
                         댓글 달기
                       </button>
-                      <button className="ghost-btn review-link-btn" type="button">
+                      <button
+                        className="ghost-btn review-link-btn"
+                        type="button"
+                        onClick={() => toggleCommentOpen(review.id)}
+                      >
                         댓글 보기
                       </button>
                     </div>
@@ -1372,6 +1576,32 @@ export default function MovieDetailPage() {
                             저장하기
                           </button>
                         </div>
+                      </div>
+                    )}
+                    {commentOpen[review.id] && (
+                      <div className="comment-list">
+                        {commentLoading[review.id] ? (
+                          <p className="muted">댓글을 불러오는 중...</p>
+                        ) : (reviewComments[review.id] || []).length > 0 ? (
+                          (reviewComments[review.id] || []).map((comment) => (
+                            <div className="comment-card" key={comment.id}>
+                              <div className="comment-meta">
+                                <span className="review-name">
+                                  {getDisplayAuthorName(comment.user_id)}
+                                </span>
+                                <span className="muted">
+                                  {formatDateTime(comment.created_at)}
+                                </span>
+                              </div>
+                              <p className="review-text">{comment.content}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="muted">아직 댓글이 없습니다.</p>
+                        )}
+                        {commentErrors[review.id] && (
+                          <p className="muted">{commentErrors[review.id]}</p>
+                        )}
                       </div>
                     )}
                   </article>

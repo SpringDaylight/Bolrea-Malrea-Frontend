@@ -328,7 +328,7 @@ export default function TasteAnalysisPage() {
                       aria-label={`선호도 ${item.percent}%`}
                       style={getFillStyle(item.percent)}
                     >
-                      <span className="popcorn-icon" aria-hidden="true" />
+                      <span className="genre-card-icon" aria-hidden="true" />
                     </div>
                     <span className="genre-card-percent">{item.percent}%</span>
                   </div>

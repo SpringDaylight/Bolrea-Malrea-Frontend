@@ -3027,33 +3027,33 @@ textarea {
   height: var(--icon-size);
   font-size: var(--icon-size);
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
 }
 
-.genre-card-meter .popcorn-icon {
+.genre-card-meter .genre-card-icon {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  line-height: 1;
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  width: 100%;
+  height: 100%;
 }
 
-.genre-card-meter .popcorn-icon::before,
-.genre-card-meter .popcorn-icon::after {
-  content: "🍿";
+.genre-card-meter .genre-card-icon::before,
+.genre-card-meter .genre-card-icon::after {
+  content: "";
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  line-height: 1;
+  background: url("/images/slate-icon.svg") center/contain no-repeat;
 }
 
-.genre-card-meter .popcorn-icon::before {
-  opacity: 0.18;
-  filter: grayscale(0.75) brightness(1.3);
+.genre-card-meter .genre-card-icon::before {
+  opacity: 0.25;
+  filter: grayscale(1) brightness(1.2);
 }
 
-.genre-card-meter .popcorn-icon::after {
+.genre-card-meter .genre-card-icon::after {
   clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0);
   -webkit-clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0);
 }

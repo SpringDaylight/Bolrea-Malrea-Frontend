@@ -285,6 +285,30 @@ textarea {
   color: var(--text-subtle);
 }
 
+.home-recommend-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.page-number-text {
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 44px;
+  text-align: center;
+}
+
+.home-recommend-controls .page-arrow-btn {
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .movie-detail-card-actions {
   display: flex;
   justify-content: flex-end;
@@ -1020,6 +1044,34 @@ textarea {
 .group-user-results {
   max-height: 260px;
   overflow-y: auto;
+}
+
+.guest-genre-section {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.guest-genre-option-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.guest-genre-option-card {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 8px;
+}
+
+.guest-genre-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .search-results {

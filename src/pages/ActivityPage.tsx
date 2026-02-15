@@ -291,9 +291,12 @@ export default function ActivityPage() {
         });
         const legacyVisibilityMap = getLegacyReviewVisibilityMap();
         const latestVisibilityMap = getStoredReviewVisibilityMap();
+        const scopedReviews = reviewResponse.reviews.filter(
+          (review) => String(review.user_id) === String(userId)
+        );
 
         const normalizedReviews = await Promise.all(
-          reviewResponse.reviews.map(async (review): Promise<ReviewItem> => {
+          scopedReviews.map(async (review): Promise<ReviewItem> => {
             try {
               const movie = await getMovie(review.movie_id);
               return {
@@ -389,13 +392,16 @@ export default function ActivityPage() {
         });
         if (isCancelled) return;
 
-        const normalized = response.watched_movies.map((item) => ({
+        const scopedWatched = response.items.filter(
+          (item) => !item.user_id || String(item.user_id) === String(userId)
+        );
+        const normalized = scopedWatched.map((item) => ({
           movieId: Number(item.movie_id),
-          title: item.movie_title || `영화 #${item.movie_id}`,
+          title: item.title || `영화 #${item.movie_id}`,
           poster:
             item.poster_url ||
             "https://via.placeholder.com/500x750?text=No+Image",
-          addedAt: item.created_at,
+          addedAt: item.watched_at,
         }));
         setSavedWatchedMovies(normalized);
       } catch (err) {

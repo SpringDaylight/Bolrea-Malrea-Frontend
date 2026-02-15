@@ -148,7 +148,9 @@ export default function TasteAnalysisPage() {
         if (isCancelled) return;
 
         const reviews = Array.isArray(reviewResponse?.reviews)
-          ? reviewResponse.reviews
+          ? reviewResponse.reviews.filter(
+              (review) => String(review.user_id) === String(userId)
+            )
           : [];
         const sorted = [...reviews].sort(
           (a, b) =>

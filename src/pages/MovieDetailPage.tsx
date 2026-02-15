@@ -369,7 +369,10 @@ export default function MovieDetailPage() {
         });
         if (isCancelled) return;
 
-        const match = myReviews.reviews.find(
+        const scopedReviews = myReviews.reviews.filter(
+          (item) => String(item.user_id) === String(userId)
+        );
+        const match = scopedReviews.find(
           (item) => String(item.movie_id) === String(movieId)
         );
         setLocalPersonalReview(match ?? null);
@@ -413,9 +416,12 @@ export default function MovieDetailPage() {
           page_size: 500,
         });
         if (isCancelled) return;
+        const scopedWatched = watched.items.filter(
+          (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
+        );
         const movieIdNumber = Number(movieId);
         setIsMovieWatched(
-          watched.watched_movies.some(
+          scopedWatched.some(
             (item) => Number(item.movie_id) === movieIdNumber
           )
         );
@@ -652,7 +658,7 @@ export default function MovieDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "리뷰 저장에 실패했습니다.";
 
-      if (
+        if (
         !personalReview?.id &&
         typeof message === "string" &&
         message.toLowerCase().includes("already reviewed")
@@ -662,7 +668,10 @@ export default function MovieDetailPage() {
             page: 1,
             page_size: 100,
           });
-          const existingReview = myReviews.reviews.find(
+          const scopedReviews = myReviews.reviews.filter(
+            (item) => String(item.user_id) === String(userId)
+          );
+          const existingReview = scopedReviews.find(
             (item) => item.movie_id === movie.id
           );
           if (existingReview) {

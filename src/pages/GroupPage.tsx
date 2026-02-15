@@ -11,6 +11,20 @@ import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 
 const groupTypeOptions = ["친구", "가족", "연인", "모임", "기타"];
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
+const MAX_GUEST_MEMBERS = 4;
+const guestGenreOptions = [
+  "로맨스/로코",
+  "드라마/휴먼",
+  "스릴러/미스터리",
+  "공포/호러",
+  "액션",
+  "범죄/느와르",
+  "SF",
+  "판타지",
+  "코미디",
+  "애니메이션",
+  "역사/다큐",
+];
 
 const getUserId = (user: GroupUserSearchItem) => user.user_id ?? user.id;
 const getUserDisplayName = (user: GroupUserSearchItem) =>
@@ -42,9 +56,16 @@ export default function GroupPage() {
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
+  const [guestGenreSelections, setGuestGenreSelections] = useState<string[]>(
+    () => Array.from({ length: MAX_GUEST_MEMBERS }, () => "")
+  );
+  const [openGuestSelectIndex, setOpenGuestSelectIndex] = useState<number | null>(
+    null
+  );
 
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const groupTypeRef = useRef<HTMLDivElement | null>(null);
+  const guestSelectRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const showError = (message: string) => {
     setError(message);
@@ -63,6 +84,7 @@ export default function GroupPage() {
   const userResults = userSearchResults.filter(
     (user) => !selectedMembers.includes(getUserId(user))
   );
+  const guestToggleCount = Math.min(guestMembers, MAX_GUEST_MEMBERS);
 
   const selectedMemberItems = selectedMembers.map((memberId) => {
     const cached = selectedMemberProfiles[memberId];
@@ -102,6 +124,14 @@ export default function GroupPage() {
     }
   };
 
+  const handleGuestGenreSelect = (index: number, value: string) => {
+    setGuestGenreSelections((prev) =>
+      prev.map((current, currentIndex) =>
+        currentIndex === index ? value : current
+      )
+    );
+  };
+
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (!(event.target instanceof Node)) return;
@@ -112,13 +142,19 @@ export default function GroupPage() {
       if (groupTypeRef.current && !groupTypeRef.current.contains(event.target)) {
         setIsGroupTypeOpen(false);
       }
+      if (openGuestSelectIndex !== null) {
+        const current = guestSelectRefs.current[openGuestSelectIndex];
+        if (current && !current.contains(event.target)) {
+          setOpenGuestSelectIndex(null);
+        }
+      }
     };
 
     document.addEventListener("mousedown", handleOutsideClick);
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
     };
-  }, []);
+  }, [openGuestSelectIndex]);
 
   useEffect(() => {
     if (!memberConfigApplied || !isUserSearchOpen) {
@@ -183,6 +219,12 @@ export default function GroupPage() {
 
     if (Number.isNaN(guestValue) || guestValue < 0) {
       showError("비회원 인원은 0명 이상 입력해주세요.");
+      setMemberConfigApplied(false);
+      return;
+    }
+
+    if (guestValue > MAX_GUEST_MEMBERS) {
+      showError("비회원은 최대 4명까지 가능합니다.");
       setMemberConfigApplied(false);
       return;
     }
@@ -447,6 +489,62 @@ export default function GroupPage() {
                     </div>
                   )}
                 </div>
+
+                {guestToggleCount > 0 && (
+                  <div className="guest-genre-section">
+                    <p className="group-member-title">비회원 선호 장르 받기</p>
+                    <div className="guest-genre-option-row">
+                      {Array.from({ length: guestToggleCount }, (_, index) => (
+                        <div className="guest-genre-option-card" key={`guest-genre-${index}`}>
+                          <span className="guest-genre-label">비회원 {index + 1}</span>
+                          <div
+                            className="group-select-wrap option-select guest-genre-select-wrap"
+                            ref={(el) => {
+                              guestSelectRefs.current[index] = el;
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className={`option-select-trigger ${
+                                guestGenreSelections[index] ? "" : "is-placeholder"
+                              }`}
+                              aria-haspopup="listbox"
+                              aria-expanded={openGuestSelectIndex === index}
+                              onClick={() =>
+                                setOpenGuestSelectIndex((prev) =>
+                                  prev === index ? null : index
+                                )
+                              }
+                            >
+                              <span>{guestGenreSelections[index] || "장르 선택"}</span>
+                              <span className="option-select-arrow" aria-hidden="true">
+                                ▼
+                              </span>
+                            </button>
+                            {openGuestSelectIndex === index && (
+                              <div className="search-results option-select-list" role="listbox">
+                                {guestGenreOptions.map((genre) => (
+                                  <button
+                                    key={genre}
+                                    type="button"
+                                    className="search-item option-select-item"
+                                    onClick={() => {
+                                      handleGuestGenreSelect(index, genre);
+                                      setOpenGuestSelectIndex(null);
+                                    }}
+                                  >
+                                    <strong>{genre}</strong>
+                                    {guestGenreSelections[index] === genre && <span>✓</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {userRequiredError && (
                   <p className="error" key={`user-error-${errorTick}`}>

@@ -108,10 +108,13 @@ export default function MoviesPage() {
           page_size: 500,
         });
         if (isCancelled) return;
+        const scopedWatched = response.items.filter(
+          (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
+        );
 
         setWatchedMovieIds(
           new Set(
-            response.watched_movies
+            scopedWatched
               .map((item) => Number(item.movie_id))
               .filter((id) => Number.isFinite(id))
           )

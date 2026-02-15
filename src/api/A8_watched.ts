@@ -4,16 +4,15 @@
 import { del, get, post } from "./http";
 
 export interface WatchedMovie {
-  id: number;
-  user_id: string;
   movie_id: number;
-  movie_title?: string | null;
+  title?: string | null;
   poster_url?: string | null;
-  created_at: string;
+  watched_at?: string;
+  user_id?: string | null;
 }
 
 export interface WatchedMovieListResponse {
-  watched_movies: WatchedMovie[];
+  items: WatchedMovie[];
   total: number;
 }
 
@@ -58,4 +57,3 @@ export function deleteCurrentUserWatchedMovie(
     `/api/users/me/watched/${movieId}?user_id=${encodeURIComponent(userId)}`
   );
 }
-

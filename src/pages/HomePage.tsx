@@ -208,9 +208,6 @@ export default function HomePage() {
     }
   };
 
-  const handleRefresh = async () => {
-    await fetchRecommendations({ sort: "rating" });
-  };
 
   const recommendedTotalPages = Math.max(
     1,

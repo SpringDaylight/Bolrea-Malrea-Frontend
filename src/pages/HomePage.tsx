@@ -2,7 +2,8 @@
 import MainLayout from "../components/layout/MainLayout";
 import { Link } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
-import { analyzePreference, predictSatisfaction, vectorizeMovie } from "../api/ml";
+import { emotionalSearch } from "../api/A5_emotional_search";
+import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
 
 export default function HomePage() {
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
@@ -16,68 +17,17 @@ export default function HomePage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchLabel, setActiveSearchLabel] = useState("");
+  const [isEmotionalSearch, setIsEmotionalSearch] = useState(false);
+  const [emotionTags, setEmotionTags] = useState<string[]>([]);
   const [recommendedPage, setRecommendedPage] = useState(1);
+  
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
 
   const RECOMMENDED_PAGE_SIZE = 4;
   const RECOMMENDED_TOTAL = 12;
 
-  const parseArrayFromStorage = (key: string) => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
   const computeMovieMatchRates = async (movies: Movie[]) => {
-    if (movies.length === 0) {
-      return {};
-    }
-
-    try {
-      const userTasteText = localStorage.getItem("mw_taste_vibe") || "";
-      const userKeywords = parseArrayFromStorage("mw_taste_keywords") as string[];
-      const userAvoidGenres = parseArrayFromStorage("mw_taste_avoid_genres") as string[];
-
-      if (!userTasteText.trim()) {
-        return {};
-      }
-
-      const userProfile = await analyzePreference({
-        text: `${userTasteText} ${userKeywords.join(", ")}`.trim(),
-        dislikes: userAvoidGenres.length ? userAvoidGenres.join(", ") : undefined,
-      });
-
-      const pairs = await Promise.all(
-        movies.map(async (movie) => {
-          try {
-            const movieProfile = await vectorizeMovie({
-              movie_id: movie.id,
-              title: movie.title,
-              overview: movie.synopsis || undefined,
-              genres: movie.genres,
-              keywords: movie.tags,
-            });
-            const prediction = await predictSatisfaction({
-              user_profile: userProfile,
-              movie_profile: movieProfile,
-              dislike_tags: userProfile.dislike_tags,
-              boost_tags: userProfile.boost_tags,
-            });
-            return [movie.id, Math.round(prediction.match_rate)] as const;
-          } catch (error) {
-            console.error(`Failed to calculate match rate for movie ${movie.id}:`, error);
-            return [movie.id, 83] as const;
-          }
-        })
-      );
-
-      return Object.fromEntries(pairs);
-    } catch (error) {
-      console.error("Failed to calculate home match rates:", error);
-      return {};
-    }
+    return calculateMoviesMatchRates(movies);
   };
 
   const fetchRecommendations = async (
@@ -129,9 +79,103 @@ export default function HomePage() {
       setSearchError(null);
       setActiveSearchLabel("");
       setSearchMatchRates({});
+      setIsEmotionalSearch(false);
+      setEmotionTags([]);
       await fetchRecommendations({ sort: "popular" });
       return;
     }
+    
+    // 자연어 검색 감지 (한글 문장 형태)
+    const isNaturalLanguage = /[가-힣]{2,}/.test(trimmedQuery) && 
+                              (trimmedQuery.includes("영화") || 
+                               trimmedQuery.includes("추천") ||
+                               trimmedQuery.includes("보고싶") ||
+                               trimmedQuery.includes("찾") ||
+                               /감동|슬픈|무서운|웃긴|로맨틱|힐링|우울|밝은|어두운|따뜻|잔잔|설레|통쾌/.test(trimmedQuery));
+    
+    setSearchLoading(true);
+    setSearchError(null);
+    
+    // 자연어 검색 시도
+    if (isNaturalLanguage && trimmedQuery.length > 3) {
+      try {
+        // A-5 감성 검색 호출
+        const emotionResult = await emotionalSearch({
+          text: trimmedQuery,
+        });
+        
+        // 상위 감정 태그 추출
+        const emotionScores = emotionResult.expanded_query.emotion_scores;
+        const topTags = Object.entries(emotionScores)
+          .filter(([_, score]) => score > 0.5)
+          .sort(([_, a], [__, b]) => b - a)
+          .slice(0, 3)
+          .map(([tag, _]) => tag);
+        
+        if (topTags.length > 0) {
+          setIsEmotionalSearch(true);
+          setEmotionTags(topTags);
+          setActiveSearchLabel(`${trimmedQuery} (감성 검색)`);
+          
+          // 감정 태그를 장르로 매핑
+          const emotionToGenreMap: { [key: string]: string[] } = {
+            "감동적이에요": ["드라마"],
+            "따뜻해요": ["드라마", "가족"],
+            "슬퍼요": ["드라마"],
+            "무서워요": ["공포", "스릴러"],
+            "긴장돼요": ["스릴러", "액션"],
+            "웃겨요": ["코미디"],
+            "로맨틱해요": ["로맨스"],
+            "설레요": ["로맨스"],
+            "통쾌해요": ["액션"],
+            "잔잔해요": ["드라마"],
+            "힐링돼요": ["드라마", "가족"],
+            "밝은 분위기예요": ["코미디", "가족"],
+            "어두운 분위기예요": ["스릴러", "범죄"],
+          };
+          
+          // 감정 태그에서 장르 추출
+          const suggestedGenres = new Set<string>();
+          topTags.forEach(tag => {
+            const genres = emotionToGenreMap[tag];
+            if (genres) {
+              genres.forEach(g => suggestedGenres.add(g));
+            }
+          });
+          
+          // 장르가 있으면 장르로 검색, 없으면 인기순으로 검색
+          let response;
+          if (suggestedGenres.size > 0) {
+            const genreList = Array.from(suggestedGenres);
+            response = await getMovies({ 
+              genres: genreList.join(","),
+              page_size: 8,
+              sort: "popular"
+            });
+          } else {
+            // 장르 매핑이 없으면 인기 영화 반환
+            response = await getMovies({ 
+              page_size: 8,
+              sort: "popular"
+            });
+          }
+          
+          const rateMap = await computeMovieMatchRates(response.movies);
+          setSearchResults(response.movies);
+          setSearchMatchRates(rateMap);
+          setSearchLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("감성 검색 실패, 일반 검색으로 진행:", err);
+        setIsEmotionalSearch(false);
+        setEmotionTags([]);
+      }
+    }
+    
+    // 일반 검색 (장르 또는 제목)
+    setIsEmotionalSearch(false);
+    setEmotionTags([]);
     
     // Check if query matches any genre (case-insensitive, Korean or English)
     const genreMap: { [key: string]: string } = {
@@ -177,8 +221,6 @@ export default function HomePage() {
     const lowerQuery = trimmedQuery.toLowerCase();
     const matchedGenre = genreMap[lowerQuery];
     
-    setSearchLoading(true);
-    setSearchError(null);
     setActiveSearchLabel(matchedGenre ?? trimmedQuery);
 
     try {
@@ -208,9 +250,6 @@ export default function HomePage() {
     }
   };
 
-  const handleRefresh = async () => {
-    await fetchRecommendations({ sort: "rating" });
-  };
 
   const recommendedTotalPages = Math.max(
     1,
@@ -236,7 +275,7 @@ export default function HomePage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="장르, 분위기, 제목으로 검색"
+                placeholder="'감동적인 영화 추천해줘' 같은 자연어로 검색해보세요"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -252,6 +291,13 @@ export default function HomePage() {
               <h2>검색 결과</h2>
               {activeSearchLabel && (
                 <p className="muted">"{activeSearchLabel}"</p>
+              )}
+              {isEmotionalSearch && emotionTags.length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <p style={{ fontSize: "0.9rem", color: "#666" }}>
+                    🎭 감성 태그: {emotionTags.join(", ")}
+                  </p>
+                </div>
               )}
             </div>
 
@@ -305,61 +351,86 @@ export default function HomePage() {
         <section className="section">
           <div className="section-header">
             <h2>나를 위한 추천</h2>
-            <div className="home-recommend-controls">
-              <button
-                className="icon-btn page-arrow-btn"
-                type="button"
-                aria-label="이전 페이지"
-                onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
-                disabled={safeRecommendedPage === 1}
-              >
-                {"◀"}
-              </button>
-              <span className="page-number-text" aria-live="polite">
-                {safeRecommendedPage}/{recommendedTotalPages}
-              </span>
-              <button
-                className="icon-btn page-arrow-btn"
-                type="button"
-                aria-label="다음 페이지"
-                onClick={() =>
-                  setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))
-                }
-                disabled={safeRecommendedPage >= recommendedTotalPages}
-              >
-                {"▶"}
-              </button>
-            </div>
+            {isLoggedIn && (
+              <div className="home-recommend-controls">
+                <button
+                  className="icon-btn page-arrow-btn"
+                  type="button"
+                  aria-label="이전 페이지"
+                  onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
+                  disabled={safeRecommendedPage === 1}
+                >
+                  {"◀"}
+                </button>
+                <span className="page-number-text" aria-live="polite">
+                  {safeRecommendedPage}/{recommendedTotalPages}
+                </span>
+                <button
+                  className="icon-btn page-arrow-btn"
+                  type="button"
+                  aria-label="다음 페이지"
+                  onClick={() =>
+                    setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))
+                  }
+                  disabled={safeRecommendedPage >= recommendedTotalPages}
+                >
+                  {"▶"}
+                </button>
+              </div>
+            )}
           </div>
           
-          {loading && <p>로딩 중...</p>}
-          
-          {!loading && recommendedMovies.length > 0 && (
-            <div className="movie-grid">
-              {visibleRecommended.map((movie) => (
-                <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                  <article className="card movie-tile">
-                    <img
-                      className="poster"
-                      src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
-                      alt={`${movie.title} 포스터`}
-                    />
-                    <div className="movie-info">
-                      <h3>{movie.title}</h3>
-                      <p className="probability home-match-probability">
-                        적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
-                      </p>
-                      <p className="muted">
-                        {movie.synopsis 
-                          ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
-                          : '줄거리 정보가 없습니다.'}
-                      </p>
-                      <span className="ghost-btn movie-detail-btn">자세히 보기</span>
-                    </div>
-                  </article>
-                </Link>
-              ))}
+          {!isLoggedIn ? (
+            <div style={{ 
+              textAlign: "center", 
+              padding: "3rem 1rem",
+              backgroundColor: "#f8f9fa",
+              borderRadius: "8px",
+              margin: "1rem 0"
+            }}>
+              <p style={{ 
+                fontSize: "1.2rem", 
+                marginBottom: "1.5rem",
+                color: "#495057"
+              }}>
+                로그인하고 나만을 위한 맞춤 추천을 받아보세요!
+              </p>
+              <Link to="/login">
+                <button className="primary-btn">로그인하기</button>
+              </Link>
             </div>
+          ) : (
+            <>
+              {loading && <p>로딩 중...</p>}
+              
+              {!loading && recommendedMovies.length > 0 && (
+                <div className="movie-grid">
+                  {visibleRecommended.map((movie) => (
+                    <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                      <article className="card movie-tile">
+                        <img
+                          className="poster"
+                          src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
+                          alt={`${movie.title} 포스터`}
+                        />
+                        <div className="movie-info">
+                          <h3>{movie.title}</h3>
+                          <p className="probability home-match-probability">
+                            적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
+                          </p>
+                          <p className="muted">
+                            {movie.synopsis 
+                              ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
+                              : '줄거리 정보가 없습니다.'}
+                          </p>
+                          <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                        </div>
+                      </article>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
       </main>

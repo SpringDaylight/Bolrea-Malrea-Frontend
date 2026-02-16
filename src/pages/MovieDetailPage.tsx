@@ -25,13 +25,12 @@ import {
   upsertLocalWatchedMovie,
 } from "../api/A8_watched";
 import { 
-  analyzePreference, 
-  vectorizeMovie, 
-  predictSatisfaction, 
   explainPrediction,
   type SatisfactionPrediction,
   type PredictionExplanation 
 } from "../api/ml";
+import { calculateMovieMatchRate } from "../utils/matchRateCalculator";
+import { syncAfterReview } from "../utils/preferenceSync";
 
 const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
 const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
@@ -711,7 +710,7 @@ export default function MovieDetailPage() {
     }
   };
 
-  const applySavedPersonalReview = (nextReview: Review) => {
+  const applySavedPersonalReview = async (nextReview: Review) => {
     setLocalPersonalReview(nextReview);
     setPersonalReviewVisibility(myReviewVisibility);
     setIsPersonalReviewDeleted(false);
@@ -721,6 +720,20 @@ export default function MovieDetailPage() {
     setHoverReviewRating(null);
     setIsVisibilityOpen(false);
     setMyReviewErrorMessage(null);
+    
+    // 리뷰 저장 후 사용자 선호도 동기화
+    if (currentUserPk) {
+      try {
+        await syncAfterReview(currentUserPk);
+        // 선호도가 업데이트되었으므로 적합도 재계산
+        if (movie) {
+          setMlLoading(true);
+          await fetchMovieRecommendation(movie);
+        }
+      } catch (err) {
+        console.error("Failed to sync preference after review:", err);
+      }
+    }
   };
 
   const handleMyReviewSave = async () => {
@@ -765,7 +778,7 @@ export default function MovieDetailPage() {
         reviewId: nextReview.id,
         visibility: myReviewVisibility,
       });
-      applySavedPersonalReview(nextReview);
+      await applySavedPersonalReview(nextReview);
     } catch (err) {
       const message = err instanceof Error ? err.message : "리뷰 저장에 실패했습니다.";
 
@@ -793,7 +806,7 @@ export default function MovieDetailPage() {
               reviewId: updatedReview.id,
               visibility: myReviewVisibility,
             });
-            applySavedPersonalReview(updatedReview);
+            await applySavedPersonalReview(updatedReview);
             return;
           }
         } catch (fallbackErr) {
@@ -1036,51 +1049,24 @@ export default function MovieDetailPage() {
   const fetchMovieRecommendation = async (movieData: Movie) => {
     setMlLoading(true);
     try {
-      // localStorage에서 사용자 취향 정보 가져오기
-      const userTasteText = localStorage.getItem('mw_taste_vibe') || '';
-      const userKeywords = JSON.parse(localStorage.getItem('mw_taste_keywords') || '[]');
-      const userAvoidGenres = JSON.parse(localStorage.getItem('mw_taste_avoid_genres') || '[]');
+      // 공통 유틸리티 함수 사용
+      const result = await calculateMovieMatchRate(movieData);
       
-      if (!userTasteText) {
+      if (!result) {
         // 취향 정보가 없으면 ML API 호출 안 함
         return;
       }
 
-      const userText = `${userTasteText} ${userKeywords.join(', ')}`;
-      const userDislikes = userAvoidGenres.join(', ');
+      setPrediction(result);
 
-      // 1. 사용자 취향 분석
-      const userProfile = await analyzePreference({
-        text: userText,
-        dislikes: userDislikes || undefined,
-      });
-
-      // 2. 영화 벡터화
-      const movieProfile = await vectorizeMovie({
-        movie_id: movieData.id,
-        title: movieData.title,
-        overview: movieData.synopsis || undefined,
-        genres: movieData.genres,
-        keywords: movieData.tags,
-      });
-
-      // 3. 만족 확률 계산
-      const predictionResult = await predictSatisfaction({
-        user_profile: userProfile,
-        movie_profile: movieProfile,
-        dislike_tags: userProfile.dislike_tags,
-        boost_tags: userProfile.boost_tags,
-      });
-      setPrediction(predictionResult);
-
-      // 4. 설명 생성
+      // 설명 생성
       const explanationResult = await explainPrediction({
         movie_title: movieData.title,
-        match_rate: predictionResult.match_rate,
-        probability: predictionResult.probability,
-        breakdown: predictionResult.breakdown,
-        user_liked_tags: userProfile.boost_tags,
-        user_disliked_tags: userProfile.dislike_tags,
+        match_rate: result.match_rate,
+        probability: result.probability,
+        breakdown: result.breakdown,
+        user_liked_tags: [], // calculateMovieMatchRate에서 이미 계산됨
+        user_disliked_tags: [],
       });
       setExplanation(explanationResult);
     } catch (err) {

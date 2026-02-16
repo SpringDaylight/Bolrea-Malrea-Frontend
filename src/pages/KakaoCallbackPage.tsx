@@ -33,23 +33,6 @@ export default function KakaoCallbackPage() {
       try {
         const response = await handleKakaoCallback(code);
         
-<<<<<<< HEAD
-        // Save user info to localStorage
-        localStorage.setItem("mw_logged_in", "true");
-        if (response.id) {
-          localStorage.setItem("mw_user_pk", response.id);
-        }
-        if (response.user_id) {
-          localStorage.setItem("mw_user_id", response.user_id);
-          localStorage.setItem("mw_profile_id", response.user_id);
-        }
-        localStorage.setItem("mw_profile_name", response.name);
-        localStorage.setItem("mw_profile_bio", response.avatar_text);
-        localStorage.setItem("mw_access_token", response.access_token);
-
-        // Redirect to home or profile page
-        navigate('/');
-=======
         if (response.is_new_user) {
           // New user - save temporary info and redirect to signup form
           sessionStorage.setItem("kakao_signup_temp", JSON.stringify({
@@ -76,7 +59,6 @@ export default function KakaoCallbackPage() {
           localStorage.setItem("mw_access_token", response.access_token);
           navigate('/');
         }
->>>>>>> origin/develop
       } catch (err) {
         console.error('Kakao callback error:', err);
         setError('카카오 로그인 처리 중 오류가 발생했습니다.');

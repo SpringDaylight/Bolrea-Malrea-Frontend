@@ -5,11 +5,8 @@ import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
-<<<<<<< HEAD
   getLocalWatchedMovies,
   upsertLocalWatchedMovie,
-=======
->>>>>>> origin/develop
 } from "../api/A8_watched";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
@@ -108,16 +105,12 @@ export default function MoviesPage() {
 
     const fetchWatchedMovies = async () => {
       try {
-<<<<<<< HEAD
         const localWatched = getLocalWatchedMovies(currentUserPk);
-=======
->>>>>>> origin/develop
         const response = await getCurrentUserWatchedMovies(currentUserPk, {
           page: 1,
           page_size: 500,
         });
         if (isCancelled) return;
-<<<<<<< HEAD
         const scopedWatched = response.items.filter(
           (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
         );
@@ -130,28 +123,16 @@ export default function MoviesPage() {
             [...scopedWatched.map((item) => Number(item.movie_id)), ...localIds].filter(
               (id) => Number.isFinite(id)
             )
-=======
-
-        setWatchedMovieIds(
-          new Set(
-            response.watched_movies
-              .map((item) => Number(item.movie_id))
-              .filter((id) => Number.isFinite(id))
->>>>>>> origin/develop
           )
         );
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-<<<<<<< HEAD
         const localWatched = getLocalWatchedMovies(currentUserPk);
         const localIds = localWatched
           .map((item) => Number(item.movie_id))
           .filter((id) => Number.isFinite(id));
         setWatchedMovieIds(new Set(localIds));
-=======
-        setWatchedMovieIds(new Set());
->>>>>>> origin/develop
       }
     };
 
@@ -271,7 +252,7 @@ export default function MoviesPage() {
         setTotalPages(nextTotalPages);
       } catch (err) {
         if (isCancelled) return;
-        setError("?곹솕 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.");
+        setError("영화 목록을 불러오는데 실패했습니다.");
         console.error("Failed to fetch movies:", err);
       } finally {
         if (isCancelled) return;
@@ -319,7 +300,6 @@ export default function MoviesPage() {
 
     try {
       await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
-<<<<<<< HEAD
     } catch (err) {
       console.error("Failed to save watched movie:", err);
     } finally {
@@ -329,8 +309,6 @@ export default function MoviesPage() {
         poster_url: movie.poster_url,
         genres: movie.genres,
       });
-=======
->>>>>>> origin/develop
       setWatchedMovieIds((prev) => {
         const next = new Set(prev);
         next.add(movie.id);
@@ -379,23 +357,19 @@ export default function MoviesPage() {
     <MainLayout>
       <main className="container movies-page">
         <section className="page-title">
-          <h1>?곹솕 紐⑸줉</h1>
+          <h1>영화 목록</h1>
         </section>
 
         <section className="section card">
           <div className="section-header">
-            <p>?λⅤ? 遺꾩쐞湲곗뿉 ?곕씪 ?먰븯??湲곗??쇰줈 怨⑤씪蹂댁꽭??</p>
+            <p>장르와 분위기에 따라 원하는 기준으로 골라보세요</p>
           </div>
           <div className="section-search">
             <div className="hero-actions">
               <input
                 className="search-input"
                 type="text"
-<<<<<<< HEAD
                 placeholder="영화 제목을 검색해보세요"
-=======
-                placeholder="?곹솕 ?쒕ぉ??寃?됲븯?몄슂"
->>>>>>> origin/develop
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && handleApplyFilters()}
@@ -405,12 +379,11 @@ export default function MoviesPage() {
                 type="button"
                 onClick={handleApplyFilters}
               >
-                寃??
+                검색
               </button>
             </div>
           </div>
 
-<<<<<<< HEAD
           <div className="filter-card">
             <div className="filter-group">
               <div>
@@ -446,41 +419,6 @@ export default function MoviesPage() {
                     </button>
                   ))}
                 </div>
-=======
-          <div className="filter-group">
-            <div>
-              <p className="filter-title">?뺣젹</p>
-              <div className="tag-list">
-                {sortFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    className={`filter-chip ${
-                      selectedSorts.includes(filter.value) ? "active" : ""
-                    }`}
-                    type="button"
-                    onClick={() => handleSortSelect(filter.value)}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="filter-title">?λⅤ</p>
-              <div className="tag-list">
-                {genreFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    className={`filter-chip ${
-                      selectedGenres.includes(filter.value) ? "active" : ""
-                    }`}
-                    type="button"
-                    onClick={() => handleGenreToggle(filter.value)}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
->>>>>>> origin/develop
               </div>
             </div>
           </div>
@@ -488,15 +426,15 @@ export default function MoviesPage() {
 
         <section className="section">
           <div className="section-header">
-            <h2>寃??寃곌낵</h2>
-            <p>?좏깮??湲곗??쇰줈 異붿쿇???곹솕媛 ?쒖떆?⑸땲??</p>
+            <h2>검색결과</h2>
+            <p>선택한 기준으로 추천된 영화가 표시됩니다</p>
           </div>
 
-          {loading && <p>濡쒕뵫 以?..</p>}
+          {loading && <p>로딩 중...</p>}
           {error && <p className="error">{error}</p>}
 
           {!loading && !error && movies.length === 0 && (
-            <p>寃??寃곌낵媛 ?놁뒿?덈떎.</p>
+            <p>검색결과가 없습니다.</p>
           )}
 
           {!loading && !error && movies.length > 0 && (
@@ -526,16 +464,16 @@ export default function MoviesPage() {
                   <div className="movie-info">
                     <h3>{movie.title}</h3>
                     <p className="movie-rating">
-                      ?됱젏{" "}
+                      평점{" "}
                       {typeof movie.avg_rating === "number"
                         ? movie.avg_rating.toFixed(1)
-                        : "?뺣낫 ?놁쓬"}
+                        : "정보 없음"}
                     </p>
                     <p className="muted">
                       {movie.synopsis
                         ? movie.synopsis.substring(0, 60) +
                           (movie.synopsis.length > 60 ? "..." : "")
-                        : "以꾧굅由??뺣낫媛 ?놁뒿?덈떎."}
+                        : "줄거리 정보가 없습니다."}
                     </p>
                     <div className="meta-list">
                       {movie.genres.slice(0, 3).map((genre) => (
@@ -555,7 +493,7 @@ export default function MoviesPage() {
                         handleMarkWatched(movie);
                       }}
                     >
-                      ?쒖껌??
+                      시청함
                     </button>
                   </div>
                 </article>

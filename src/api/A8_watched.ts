@@ -4,29 +4,19 @@
 import { del, get, post } from "./http";
 
 export interface WatchedMovie {
-<<<<<<< HEAD
-  movie_id: number;
-  title?: string | null;
-  poster_url?: string | null;
-  watched_at?: string;
-  user_id?: string | null;
-  genres?: string[] | null;
-}
-
-export interface WatchedMovieListResponse {
-  items: WatchedMovie[];
-=======
   id: number;
   user_id: string;
   movie_id: number;
   movie_title?: string | null;
   poster_url?: string | null;
   created_at: string;
+  title?: string | null;
+  watched_at?: string;
+  genres?: string[] | null;
 }
 
 export interface WatchedMovieListResponse {
-  watched_movies: WatchedMovie[];
->>>>>>> origin/develop
+  items: WatchedMovie[];
   total: number;
 }
 
@@ -34,7 +24,6 @@ export interface SaveWatchedMovieRequest {
   movie_id: number;
 }
 
-<<<<<<< HEAD
 const LOCAL_WATCHED_KEY = "mw_local_watched";
 
 const buildLocalWatchedKey = (userId: string) => `${LOCAL_WATCHED_KEY}:${userId}`;
@@ -76,12 +65,15 @@ export function upsertLocalWatchedMovie(
   const current = getLocalWatchedMovies(userId);
   const next = [
     {
+      id: Date.now(),
+      user_id: userId,
       movie_id: movie.movie_id,
+      movie_title: movie.title ?? null,
       title: movie.title ?? null,
       poster_url: movie.poster_url ?? null,
       genres: movie.genres ?? null,
       watched_at: new Date().toISOString(),
-      user_id: userId,
+      created_at: new Date().toISOString(),
     },
     ...current.filter((item) => Number(item.movie_id) !== Number(movie.movie_id)),
   ];
@@ -97,8 +89,6 @@ export function removeLocalWatchedMovie(userId: string, movieId: number): Watche
   return next;
 }
 
-=======
->>>>>>> origin/develop
 /**
  * Get current user's watched movies
  */
@@ -136,7 +126,3 @@ export function deleteCurrentUserWatchedMovie(
     `/api/users/me/watched/${movieId}?user_id=${encodeURIComponent(userId)}`
   );
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/develop

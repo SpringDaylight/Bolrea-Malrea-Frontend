@@ -3,6 +3,7 @@ import MainLayout from "../components/layout/MainLayout";
 import { Link } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
 import { analyzePreference, predictSatisfaction, vectorizeMovie } from "../api/ml";
+import { emotionalSearch } from "../api/A5_emotional_search";
 
 export default function HomePage() {
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
@@ -16,6 +17,8 @@ export default function HomePage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchLabel, setActiveSearchLabel] = useState("");
+  const [isEmotionalSearch, setIsEmotionalSearch] = useState(false);
+  const [emotionTags, setEmotionTags] = useState<string[]>([]);
   const [recommendedPage, setRecommendedPage] = useState(1);
 
   const RECOMMENDED_PAGE_SIZE = 4;
@@ -129,9 +132,103 @@ export default function HomePage() {
       setSearchError(null);
       setActiveSearchLabel("");
       setSearchMatchRates({});
+      setIsEmotionalSearch(false);
+      setEmotionTags([]);
       await fetchRecommendations({ sort: "popular" });
       return;
     }
+    
+    // 자연어 검색 감지 (한글 문장 형태)
+    const isNaturalLanguage = /[가-힣]{2,}/.test(trimmedQuery) && 
+                              (trimmedQuery.includes("영화") || 
+                               trimmedQuery.includes("추천") ||
+                               trimmedQuery.includes("보고싶") ||
+                               trimmedQuery.includes("찾") ||
+                               /감동|슬픈|무서운|웃긴|로맨틱|힐링|우울|밝은|어두운|따뜻|잔잔|설레|통쾌/.test(trimmedQuery));
+    
+    setSearchLoading(true);
+    setSearchError(null);
+    
+    // 자연어 검색 시도
+    if (isNaturalLanguage && trimmedQuery.length > 3) {
+      try {
+        // A-5 감성 검색 호출
+        const emotionResult = await emotionalSearch({
+          text: trimmedQuery,
+        });
+        
+        // 상위 감정 태그 추출
+        const emotionScores = emotionResult.expanded_query.emotion_scores;
+        const topTags = Object.entries(emotionScores)
+          .filter(([_, score]) => score > 0.5)
+          .sort(([_, a], [__, b]) => b - a)
+          .slice(0, 3)
+          .map(([tag, _]) => tag);
+        
+        if (topTags.length > 0) {
+          setIsEmotionalSearch(true);
+          setEmotionTags(topTags);
+          setActiveSearchLabel(`${trimmedQuery} (감성 검색)`);
+          
+          // 감정 태그를 장르로 매핑
+          const emotionToGenreMap: { [key: string]: string[] } = {
+            "감동적이에요": ["드라마"],
+            "따뜻해요": ["드라마", "가족"],
+            "슬퍼요": ["드라마"],
+            "무서워요": ["공포", "스릴러"],
+            "긴장돼요": ["스릴러", "액션"],
+            "웃겨요": ["코미디"],
+            "로맨틱해요": ["로맨스"],
+            "설레요": ["로맨스"],
+            "통쾌해요": ["액션"],
+            "잔잔해요": ["드라마"],
+            "힐링돼요": ["드라마", "가족"],
+            "밝은 분위기예요": ["코미디", "가족"],
+            "어두운 분위기예요": ["스릴러", "범죄"],
+          };
+          
+          // 감정 태그에서 장르 추출
+          const suggestedGenres = new Set<string>();
+          topTags.forEach(tag => {
+            const genres = emotionToGenreMap[tag];
+            if (genres) {
+              genres.forEach(g => suggestedGenres.add(g));
+            }
+          });
+          
+          // 장르가 있으면 장르로 검색, 없으면 인기순으로 검색
+          let response;
+          if (suggestedGenres.size > 0) {
+            const genreList = Array.from(suggestedGenres);
+            response = await getMovies({ 
+              genres: genreList.join(","),
+              page_size: 8,
+              sort: "popular"
+            });
+          } else {
+            // 장르 매핑이 없으면 인기 영화 반환
+            response = await getMovies({ 
+              page_size: 8,
+              sort: "popular"
+            });
+          }
+          
+          const rateMap = await computeMovieMatchRates(response.movies);
+          setSearchResults(response.movies);
+          setSearchMatchRates(rateMap);
+          setSearchLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("감성 검색 실패, 일반 검색으로 진행:", err);
+        setIsEmotionalSearch(false);
+        setEmotionTags([]);
+      }
+    }
+    
+    // 일반 검색 (장르 또는 제목)
+    setIsEmotionalSearch(false);
+    setEmotionTags([]);
     
     // Check if query matches any genre (case-insensitive, Korean or English)
     const genreMap: { [key: string]: string } = {
@@ -177,8 +274,6 @@ export default function HomePage() {
     const lowerQuery = trimmedQuery.toLowerCase();
     const matchedGenre = genreMap[lowerQuery];
     
-    setSearchLoading(true);
-    setSearchError(null);
     setActiveSearchLabel(matchedGenre ?? trimmedQuery);
 
     try {
@@ -233,7 +328,7 @@ export default function HomePage() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="장르, 분위기, 제목으로 검색"
+                placeholder="'감동적인 영화 추천해줘' 같은 자연어로 검색해보세요"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -249,6 +344,13 @@ export default function HomePage() {
               <h2>검색 결과</h2>
               {activeSearchLabel && (
                 <p className="muted">"{activeSearchLabel}"</p>
+              )}
+              {isEmotionalSearch && emotionTags.length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <p style={{ fontSize: "0.9rem", color: "#666" }}>
+                    🎭 감성 태그: {emotionTags.join(", ")}
+                  </p>
+                </div>
               )}
             </div>
 

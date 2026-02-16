@@ -4,6 +4,7 @@
 import { del, get, post } from "./http";
 
 export interface WatchedMovie {
+<<<<<<< HEAD
   movie_id: number;
   title?: string | null;
   poster_url?: string | null;
@@ -14,6 +15,18 @@ export interface WatchedMovie {
 
 export interface WatchedMovieListResponse {
   items: WatchedMovie[];
+=======
+  id: number;
+  user_id: string;
+  movie_id: number;
+  movie_title?: string | null;
+  poster_url?: string | null;
+  created_at: string;
+}
+
+export interface WatchedMovieListResponse {
+  watched_movies: WatchedMovie[];
+>>>>>>> origin/develop
   total: number;
 }
 
@@ -21,6 +34,7 @@ export interface SaveWatchedMovieRequest {
   movie_id: number;
 }
 
+<<<<<<< HEAD
 const LOCAL_WATCHED_KEY = "mw_local_watched";
 
 const buildLocalWatchedKey = (userId: string) => `${LOCAL_WATCHED_KEY}:${userId}`;
@@ -83,6 +97,8 @@ export function removeLocalWatchedMovie(userId: string, movieId: number): Watche
   return next;
 }
 
+=======
+>>>>>>> origin/develop
 /**
  * Get current user's watched movies
  */
@@ -120,3 +136,7 @@ export function deleteCurrentUserWatchedMovie(
     `/api/users/me/watched/${movieId}?user_id=${encodeURIComponent(userId)}`
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/develop

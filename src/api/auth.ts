@@ -15,6 +15,18 @@ export interface KakaoCallbackResponse {
   email?: string | null;
   avatar_text: string;
   access_token: string;
+  is_new_user: boolean;
+  kakao_id?: string;
+  provider?: string;
+}
+
+export interface KakaoSignupCompleteRequest {
+  kakao_id: string;
+  provider: string;
+  nickname: string;
+  email?: string;
+  birth_date?: string;
+  gender?: string;
 }
 
 export interface SignupRequest {
@@ -53,6 +65,13 @@ export function getKakaoLoginUrl(): Promise<KakaoLoginResponse> {
  */
 export function handleKakaoCallback(code: string): Promise<KakaoCallbackResponse> {
   return get<KakaoCallbackResponse>('/api/auth/kakao/callback', { code });
+}
+
+/**
+ * Complete Kakao signup after tutorial
+ */
+export function completeKakaoSignup(data: KakaoSignupCompleteRequest): Promise<AuthUserResponse> {
+  return post<AuthUserResponse>('/api/auth/kakao/complete-signup', data);
 }
 
 /**

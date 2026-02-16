@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { handleKakaoCallback } from "../api/auth";
@@ -7,9 +7,14 @@ export default function KakaoCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
     const processCallback = async () => {
+      // Prevent duplicate calls in React Strict Mode
+      if (hasProcessed.current) return;
+      hasProcessed.current = true;
+
       const code = searchParams.get('code');
       const errorParam = searchParams.get('error');
 
@@ -28,6 +33,7 @@ export default function KakaoCallbackPage() {
       try {
         const response = await handleKakaoCallback(code);
         
+<<<<<<< HEAD
         // Save user info to localStorage
         localStorage.setItem("mw_logged_in", "true");
         if (response.id) {
@@ -43,6 +49,34 @@ export default function KakaoCallbackPage() {
 
         // Redirect to home or profile page
         navigate('/');
+=======
+        if (response.is_new_user) {
+          // New user - save temporary info and redirect to signup form
+          sessionStorage.setItem("kakao_signup_temp", JSON.stringify({
+            kakao_id: response.kakao_id,
+            provider: response.provider,
+            name: response.name,
+            nickname: response.nickname,
+            email: response.email,
+            access_token: response.access_token
+          }));
+          navigate('/signup');
+        } else {
+          // Existing user - save user info and redirect to home
+          localStorage.setItem("mw_logged_in", "true");
+          if (response.id) {
+            localStorage.setItem("mw_user_pk", response.id);
+          }
+          if (response.user_id) {
+            localStorage.setItem("mw_user_id", response.user_id);
+            localStorage.setItem("mw_profile_id", response.user_id);
+          }
+          localStorage.setItem("mw_profile_name", response.name);
+          localStorage.setItem("mw_profile_bio", response.avatar_text);
+          localStorage.setItem("mw_access_token", response.access_token);
+          navigate('/');
+        }
+>>>>>>> origin/develop
       } catch (err) {
         console.error('Kakao callback error:', err);
         setError('카카오 로그인 처리 중 오류가 발생했습니다.');

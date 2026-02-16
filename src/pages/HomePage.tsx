@@ -2,8 +2,8 @@
 import MainLayout from "../components/layout/MainLayout";
 import { Link } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
-import { analyzePreference, predictSatisfaction, vectorizeMovie } from "../api/ml";
 import { emotionalSearch } from "../api/A5_emotional_search";
+import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
 
 export default function HomePage() {
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
@@ -24,63 +24,8 @@ export default function HomePage() {
   const RECOMMENDED_PAGE_SIZE = 4;
   const RECOMMENDED_TOTAL = 12;
 
-  const parseArrayFromStorage = (key: string) => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
   const computeMovieMatchRates = async (movies: Movie[]) => {
-    if (movies.length === 0) {
-      return {};
-    }
-
-    try {
-      const userTasteText = localStorage.getItem("mw_taste_vibe") || "";
-      const userKeywords = parseArrayFromStorage("mw_taste_keywords") as string[];
-      const userAvoidGenres = parseArrayFromStorage("mw_taste_avoid_genres") as string[];
-
-      if (!userTasteText.trim()) {
-        return {};
-      }
-
-      const userProfile = await analyzePreference({
-        text: `${userTasteText} ${userKeywords.join(", ")}`.trim(),
-        dislikes: userAvoidGenres.length ? userAvoidGenres.join(", ") : undefined,
-      });
-
-      const pairs = await Promise.all(
-        movies.map(async (movie) => {
-          try {
-            const movieProfile = await vectorizeMovie({
-              movie_id: movie.id,
-              title: movie.title,
-              overview: movie.synopsis || undefined,
-              genres: movie.genres,
-              keywords: movie.tags,
-            });
-            const prediction = await predictSatisfaction({
-              user_profile: userProfile,
-              movie_profile: movieProfile,
-              dislike_tags: userProfile.dislike_tags,
-              boost_tags: userProfile.boost_tags,
-            });
-            return [movie.id, Math.round(prediction.match_rate)] as const;
-          } catch (error) {
-            console.error(`Failed to calculate match rate for movie ${movie.id}:`, error);
-            return [movie.id, 83] as const;
-          }
-        })
-      );
-
-      return Object.fromEntries(pairs);
-    } catch (error) {
-      console.error("Failed to calculate home match rates:", error);
-      return {};
-    }
+    return calculateMoviesMatchRates(movies);
   };
 
   const fetchRecommendations = async (

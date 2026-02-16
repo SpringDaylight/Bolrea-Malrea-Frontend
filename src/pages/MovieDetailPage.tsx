@@ -30,6 +30,7 @@ import {
   type PredictionExplanation 
 } from "../api/ml";
 import { calculateMovieMatchRate } from "../utils/matchRateCalculator";
+import { syncAfterReview } from "../utils/preferenceSync";
 
 const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
 const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
@@ -709,7 +710,7 @@ export default function MovieDetailPage() {
     }
   };
 
-  const applySavedPersonalReview = (nextReview: Review) => {
+  const applySavedPersonalReview = async (nextReview: Review) => {
     setLocalPersonalReview(nextReview);
     setPersonalReviewVisibility(myReviewVisibility);
     setIsPersonalReviewDeleted(false);
@@ -719,6 +720,20 @@ export default function MovieDetailPage() {
     setHoverReviewRating(null);
     setIsVisibilityOpen(false);
     setMyReviewErrorMessage(null);
+    
+    // 리뷰 저장 후 사용자 선호도 동기화
+    if (currentUserPk) {
+      try {
+        await syncAfterReview(currentUserPk);
+        // 선호도가 업데이트되었으므로 적합도 재계산
+        if (movie) {
+          setMlLoading(true);
+          await fetchMovieRecommendation(movie);
+        }
+      } catch (err) {
+        console.error("Failed to sync preference after review:", err);
+      }
+    }
   };
 
   const handleMyReviewSave = async () => {
@@ -763,7 +778,7 @@ export default function MovieDetailPage() {
         reviewId: nextReview.id,
         visibility: myReviewVisibility,
       });
-      applySavedPersonalReview(nextReview);
+      await applySavedPersonalReview(nextReview);
     } catch (err) {
       const message = err instanceof Error ? err.message : "리뷰 저장에 실패했습니다.";
 
@@ -791,7 +806,7 @@ export default function MovieDetailPage() {
               reviewId: updatedReview.id,
               visibility: myReviewVisibility,
             });
-            applySavedPersonalReview(updatedReview);
+            await applySavedPersonalReview(updatedReview);
             return;
           }
         } catch (fallbackErr) {

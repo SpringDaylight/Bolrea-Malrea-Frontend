@@ -69,7 +69,7 @@ export default function MoviemongPage() {
     null
   );
   const [questionQuery, setQuestionQuery] = useState("");
-  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>("theme-1");
   const [canThemeScrollLeft, setCanThemeScrollLeft] = useState(false);
   const [canThemeScrollRight, setCanThemeScrollRight] = useState(false);
   const [isThemeDragging, setIsThemeDragging] = useState(false);

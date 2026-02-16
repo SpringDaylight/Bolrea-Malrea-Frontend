@@ -42,6 +42,13 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface LikeToggleResponse {
+  message: string;
+  review_id: number;
+  likes_count: number;
+  dislikes_count: number;
+}
+
 // API Functions
 
 /**
@@ -89,8 +96,8 @@ export function toggleReviewLike(
   reviewId: number,
   userId: string,
   isLike = true
-): Promise<MessageResponse> {
-  return post<MessageResponse>(
+): Promise<LikeToggleResponse> {
+  return post<LikeToggleResponse>(
     `/api/reviews/${reviewId}/likes`,
     undefined,
     { user_id: userId, is_like: isLike }
@@ -130,13 +137,13 @@ export function createReviewComment(
 /**
  * Like a review (shorthand)
  */
-export function likeReview(reviewId: number, userId: string): Promise<MessageResponse> {
+export function likeReview(reviewId: number, userId: string): Promise<LikeToggleResponse> {
   return toggleReviewLike(reviewId, userId, true);
 }
 
 /**
  * Dislike a review (shorthand)
  */
-export function dislikeReview(reviewId: number, userId: string): Promise<MessageResponse> {
+export function dislikeReview(reviewId: number, userId: string): Promise<LikeToggleResponse> {
   return toggleReviewLike(reviewId, userId, false);
 }

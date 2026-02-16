@@ -32,6 +32,7 @@ export interface Review {
   content: string | null;
   created_at: string;
   likes_count: number;
+  dislikes_count?: number;
   comments_count: number;
 }
 

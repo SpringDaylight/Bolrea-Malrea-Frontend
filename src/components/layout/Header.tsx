@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { Link, NavLink } from "react-router-dom";
-import logoToggle from "../../assets/logo-toggle-ver1.png";
+import logoToggle from "../../assets/logo-ticket-ver2.png";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>

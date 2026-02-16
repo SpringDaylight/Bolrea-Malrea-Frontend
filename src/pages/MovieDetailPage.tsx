@@ -8,11 +8,21 @@
 import MainLayout from "../components/layout/MainLayout";
 import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
-import { createReview, deleteReview, updateReview } from "../api/A6_reviews";
+import {
+  createReview,
+  createReviewComment,
+  deleteReview,
+  getReviewComments,
+  updateReview,
+  toggleReviewLike,
+  type Comment as ReviewComment,
+} from "../api/A6_reviews";
 import { getCurrentUserReviews, getUser } from "../api/A7_profile";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
+  getLocalWatchedMovies,
+  upsertLocalWatchedMovie,
 } from "../api/A8_watched";
 import { 
   analyzePreference, 
@@ -25,10 +35,24 @@ import {
 
 const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
 const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
+const REVIEW_REACTION_STORAGE_KEY = "mw_review_reactions";
+const REVIEW_COMMENT_STORAGE_KEY = "mw_review_comments";
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 
 const formatRatingLabel = (rating: number) =>
   Number.isInteger(rating) ? `${rating}` : rating.toFixed(1);
+
+const formatDateTime = (value?: string | null) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "날짜 정보 없음";
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const normalizeReviewRating = (value: number) => {
   if (!Number.isFinite(value)) return 5;
@@ -37,6 +61,41 @@ const normalizeReviewRating = (value: number) => {
 
 type ReviewVisibility = "public" | "private";
 type ReviewVisibilityMap = Record<string, ReviewVisibility>;
+type ReviewReaction = "like" | "dislike";
+type ReviewReactionMap = Record<string, ReviewReaction>;
+
+const getStoredReviewReactions = (userId: string | null): ReviewReactionMap => {
+  if (!userId) return {};
+  try {
+    const raw = localStorage.getItem(`${REVIEW_REACTION_STORAGE_KEY}:${userId}`);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return Object.entries(parsed).reduce<ReviewReactionMap>((acc, [key, value]) => {
+      if (value === "like" || value === "dislike") {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("Failed to parse review reactions storage:", err);
+    return {};
+  }
+};
+
+const setStoredReviewReactions = (userId: string | null, next: ReviewReactionMap) => {
+  if (!userId) return;
+  try {
+    localStorage.setItem(
+      `${REVIEW_REACTION_STORAGE_KEY}:${userId}`,
+      JSON.stringify(next)
+    );
+  } catch (err) {
+    console.error("Failed to save review reactions storage:", err);
+  }
+};
 
 const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
   value === "private" ? "private" : "public";
@@ -201,6 +260,80 @@ const removeLegacyStoredVisibility = (movieId: string | number) => {
   }
 };
 
+const buildReviewCommentStorageKey = (reviewId: number | string) =>
+  `${REVIEW_COMMENT_STORAGE_KEY}:${String(reviewId)}`;
+
+const parseStoredComments = (
+  raw: string | null,
+  reviewId: number
+): ReviewComment[] => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        id: Number((item as { id?: unknown }).id ?? Date.now()),
+        review_id: reviewId,
+        user_id: String((item as { user_id?: unknown }).user_id ?? "guest"),
+        content: String((item as { content?: unknown }).content ?? "").trim(),
+        created_at: String(
+          (item as { created_at?: unknown }).created_at ?? new Date().toISOString()
+        ),
+      }))
+      .filter((item) => item.content.length > 0);
+  } catch (err) {
+    console.error("Failed to parse review comments storage:", err);
+    return [];
+  }
+};
+
+const getLocalReviewComments = (reviewId: number): ReviewComment[] => {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(buildReviewCommentStorageKey(reviewId));
+  return parseStoredComments(raw, reviewId);
+};
+
+const saveLocalReviewComments = (reviewId: number, items: ReviewComment[]) => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      buildReviewCommentStorageKey(reviewId),
+      JSON.stringify(items)
+    );
+  } catch (err) {
+    console.error("Failed to save review comments storage:", err);
+  }
+};
+
+const createLocalReviewComment = (
+  reviewId: number,
+  userId: string,
+  content: string
+): ReviewComment => ({
+  id: Date.now() + Math.floor(Math.random() * 1000),
+  review_id: reviewId,
+  user_id: userId,
+  content,
+  created_at: new Date().toISOString(),
+});
+
+const mergeReviewComments = (
+  primary: ReviewComment[],
+  secondary: ReviewComment[]
+) => {
+  const map = new Map<number, ReviewComment>();
+  [...secondary, ...primary].forEach((comment) => {
+    if (!comment || !Number.isFinite(comment.id)) return;
+    map.set(comment.id, comment);
+  });
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+};
+
 export default function MovieDetailPage() {
   const { movieId } = useParams<{ movieId: string }>();
   const location = useLocation();
@@ -208,6 +341,9 @@ export default function MovieDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reactions, setReactions] = useState<
     Record<number, { likes: number; dislikes: number }>
+  >({});
+  const [myReviewReactions, setMyReviewReactions] = useState<
+    Record<number, ReviewReaction | null>
   >({});
   const [myReviewOpen, setMyReviewOpen] = useState(false);
   const [isEditingMyReview, setIsEditingMyReview] = useState(false);
@@ -234,6 +370,16 @@ export default function MovieDetailPage() {
   );
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replyOpen, setReplyOpen] = useState<Record<number, boolean>>({});
+  const [commentOpen, setCommentOpen] = useState<Record<number, boolean>>({});
+  const [reviewComments, setReviewComments] = useState<
+    Record<number, ReviewComment[]>
+  >({});
+  const [commentLoading, setCommentLoading] = useState<Record<number, boolean>>(
+    {}
+  );
+  const [commentErrors, setCommentErrors] = useState<Record<number, string | null>>(
+    {}
+  );
   const [reviewAuthorNames, setReviewAuthorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -247,8 +393,8 @@ export default function MovieDetailPage() {
     ? null
     : localPersonalReview;
   const personalReviewDate = personalReview?.created_at
-    ? new Date(personalReview.created_at).toLocaleDateString("ko-KR")
-    : "오늘";
+    ? formatDateTime(personalReview.created_at)
+    : formatDateTime();
   const previewReviewRating = hoverReviewRating ?? myReviewRating;
   const currentUserNickname =
     localStorage.getItem("mw_profile_nickname") ||
@@ -330,7 +476,10 @@ export default function MovieDetailPage() {
         });
         if (isCancelled) return;
 
-        const match = myReviews.reviews.find(
+        const scopedReviews = myReviews.reviews.filter(
+          (item) => String(item.user_id) === String(userId)
+        );
+        const match = scopedReviews.find(
           (item) => String(item.movie_id) === String(movieId)
         );
         setLocalPersonalReview(match ?? null);
@@ -369,21 +518,28 @@ export default function MovieDetailPage() {
 
     const fetchWatchedState = async () => {
       try {
+        const localWatched = getLocalWatchedMovies(currentUserPk);
         const watched = await getCurrentUserWatchedMovies(currentUserPk, {
           page: 1,
           page_size: 500,
         });
         if (isCancelled) return;
+        const scopedWatched = watched.items.filter(
+          (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
+        );
         const movieIdNumber = Number(movieId);
         setIsMovieWatched(
-          watched.watched_movies.some(
-            (item) => Number(item.movie_id) === movieIdNumber
-          )
+          scopedWatched.some((item) => Number(item.movie_id) === movieIdNumber) ||
+            localWatched.some((item) => Number(item.movie_id) === movieIdNumber)
         );
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-        setIsMovieWatched(false);
+        const localWatched = getLocalWatchedMovies(currentUserPk);
+        const movieIdNumber = Number(movieId);
+        setIsMovieWatched(
+          localWatched.some((item) => Number(item.movie_id) === movieIdNumber)
+        );
       }
     };
 
@@ -404,23 +560,14 @@ export default function MovieDetailPage() {
         setMovie(movieData);
         
         const reviewsData = await getMovieReviews(Number(movieId), { page_size: 10 });
-        const visibleReviews = reviewsData.reviews.filter((review) => {
-          const visibility = getSavedReviewVisibility({
-            movieId: movieData.id,
-            ownerUserId: review.user_id,
-            currentUserId: currentUserPk,
-            reviewId: review.id,
-          });
-          if (visibility !== "private") return true;
-          return Boolean(currentUserPk && review.user_id === currentUserPk);
-        });
+        const fetchedReviews = reviewsData.reviews;
 
         if (personalReview && personalReview.movie_id === movieData.id) {
           setReviews(
-            visibleReviews.filter((review) => review.id !== personalReview.id)
+            fetchedReviews.filter((review) => review.id !== personalReview.id)
           );
         } else {
-          setReviews(visibleReviews);
+          setReviews(fetchedReviews);
         }
 
         // ML API: 사용자 취향 기반 영화 적합도 계산
@@ -453,12 +600,28 @@ export default function MovieDetailPage() {
         const existing = prev[review.id];
         next[review.id] = {
           likes: existing?.likes ?? review.likes_count ?? 0,
-          dislikes: existing?.dislikes ?? 0,
+          dislikes: existing?.dislikes ?? review.dislikes_count ?? 0,
         };
       });
       return next;
     });
   }, [reviews]);
+
+  useEffect(() => {
+    if (!currentUserPk) {
+      setMyReviewReactions({});
+      return;
+    }
+    const stored = getStoredReviewReactions(currentUserPk);
+    setMyReviewReactions(() => {
+      const next: Record<number, ReviewReaction | null> = {};
+      reviews.forEach((review) => {
+        const reaction = stored[String(review.id)];
+        next[review.id] = reaction ?? null;
+      });
+      return next;
+    });
+  }, [reviews, currentUserPk]);
 
   useEffect(() => {
     const authorIds = new Set<string>();
@@ -508,17 +671,44 @@ export default function MovieDetailPage() {
     };
   }, [reviews, personalReview?.user_id, currentUserPk, reviewAuthorNames]);
 
-  const incrementReaction = (reviewId: number, type: "likes" | "dislikes") => {
-    setReactions((prev) => {
-      const current = prev[reviewId] ?? { likes: 0, dislikes: 0 };
-      return {
+  const handleToggleReaction = async (reviewId: number, type: ReviewReaction) => {
+    if (!isLoggedIn) {
+      setShowReviewLoginMessage(true);
+      setReviewLoginMessageTick((prev) => prev + 1);
+      return;
+    }
+    if (!currentUserPk) return;
+
+    const currentReaction = myReviewReactions[reviewId] ?? null;
+    if (currentReaction && currentReaction !== type) {
+      return;
+    }
+
+    try {
+      const response = await toggleReviewLike(reviewId, currentUserPk, type === "like");
+      const nextReaction = currentReaction === type ? null : type;
+      setReactions((prev) => ({
         ...prev,
         [reviewId]: {
-          ...current,
-          [type]: current[type] + 1,
+          likes: response.likes_count,
+          dislikes: response.dislikes_count,
         },
-      };
-    });
+      }));
+      setMyReviewReactions((prev) => ({
+        ...prev,
+        [reviewId]: nextReaction,
+      }));
+
+      const stored = getStoredReviewReactions(currentUserPk);
+      if (nextReaction) {
+        stored[String(reviewId)] = nextReaction;
+      } else {
+        delete stored[String(reviewId)];
+      }
+      setStoredReviewReactions(currentUserPk, stored);
+    } catch (err) {
+      console.error("Failed to toggle review reaction:", err);
+    }
   };
 
   const applySavedPersonalReview = (nextReview: Review) => {
@@ -579,7 +769,7 @@ export default function MovieDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "리뷰 저장에 실패했습니다.";
 
-      if (
+        if (
         !personalReview?.id &&
         typeof message === "string" &&
         message.toLowerCase().includes("already reviewed")
@@ -589,7 +779,10 @@ export default function MovieDetailPage() {
             page: 1,
             page_size: 100,
           });
-          const existingReview = myReviews.reviews.find(
+          const scopedReviews = myReviews.reviews.filter(
+            (item) => String(item.user_id) === String(userId)
+          );
+          const existingReview = scopedReviews.find(
             (item) => item.movie_id === movie.id
           );
           if (existingReview) {
@@ -675,9 +868,16 @@ export default function MovieDetailPage() {
 
     try {
       await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
-      setIsMovieWatched(true);
     } catch (err) {
       console.error("Failed to save watched movie:", err);
+    } finally {
+      upsertLocalWatchedMovie(currentUserPk, {
+        movie_id: movie.id,
+        title: movie.title,
+        poster_url: movie.poster_url,
+        genres: movie.genres,
+      });
+      setIsMovieWatched(true);
     }
   };
 
@@ -745,6 +945,42 @@ export default function MovieDetailPage() {
     }));
   };
 
+  const loadReviewComments = async (reviewId: number) => {
+    setCommentLoading((prev) => ({ ...prev, [reviewId]: true }));
+    setCommentErrors((prev) => ({ ...prev, [reviewId]: null }));
+    const localComments = getLocalReviewComments(reviewId);
+    try {
+      const apiComments = await getReviewComments(reviewId);
+      const merged = mergeReviewComments(apiComments, localComments);
+      setReviewComments((prev) => ({ ...prev, [reviewId]: merged }));
+      if (localComments.length > 0) {
+        saveLocalReviewComments(reviewId, localComments);
+      }
+    } catch (err) {
+      console.error("Failed to fetch review comments:", err);
+      setReviewComments((prev) => ({
+        ...prev,
+        [reviewId]: mergeReviewComments(localComments, prev[reviewId] || []),
+      }));
+      setCommentErrors((prev) => ({
+        ...prev,
+        [reviewId]: "댓글을 불러오지 못했습니다.",
+      }));
+    } finally {
+      setCommentLoading((prev) => ({ ...prev, [reviewId]: false }));
+    }
+  };
+
+  const toggleCommentOpen = (reviewId: number) => {
+    setCommentOpen((prev) => {
+      const nextOpen = !prev[reviewId];
+      if (nextOpen) {
+        void loadReviewComments(reviewId);
+      }
+      return { ...prev, [reviewId]: nextOpen };
+    });
+  };
+
   const handleReplyChange = (reviewId: number, value: string) => {
     setReplyDrafts((prev) => ({
       ...prev,
@@ -752,11 +988,45 @@ export default function MovieDetailPage() {
     }));
   };
 
-  const handleReplySubmit = (reviewId: number) => {
+  const handleReplySubmit = async (reviewId: number) => {
     const nextValue = (replyDrafts[reviewId] || "").trim();
     if (!nextValue) return;
     setReplyDrafts((prev) => ({ ...prev, [reviewId]: "" }));
     setReplyOpen((prev) => ({ ...prev, [reviewId]: false }));
+
+    let createdComment: ReviewComment | null = null;
+    if (currentUserPk) {
+      try {
+        createdComment = await createReviewComment(reviewId, currentUserPk, {
+          content: nextValue,
+        });
+      } catch (err) {
+        console.error("Failed to save comment to API:", err);
+      }
+    }
+
+    if (!createdComment) {
+      const fallbackUserId = currentUserPk || "guest";
+      createdComment = createLocalReviewComment(
+        reviewId,
+        fallbackUserId,
+        nextValue
+      );
+      const localComments = getLocalReviewComments(reviewId);
+      const nextLocal = mergeReviewComments([createdComment], localComments);
+      saveLocalReviewComments(reviewId, nextLocal);
+    }
+
+    if (!createdComment) return;
+
+    setReviewComments((prev) => ({
+      ...prev,
+      [reviewId]: mergeReviewComments(
+        [createdComment],
+        prev[reviewId] || getLocalReviewComments(reviewId)
+      ),
+    }));
+    setCommentOpen((prev) => ({ ...prev, [reviewId]: true }));
   };
 
   const personalReviewVisibilityMeta = getReviewVisibilityMeta(
@@ -1182,6 +1452,19 @@ export default function MovieDetailPage() {
             <div className="review-list">
               {reviews.map((review) => {
                 const authorName = getDisplayAuthorName(review.user_id);
+                const reviewVisibility = getSavedReviewVisibility({
+                  movieId: review.movie_id,
+                  ownerUserId: review.user_id,
+                  currentUserId: currentUserPk,
+                  reviewId: review.id,
+                });
+                const visibilityMeta = getReviewVisibilityMeta(reviewVisibility);
+                const isPrivateForViewer =
+                  reviewVisibility === "private" &&
+                  !(currentUserPk && review.user_id === currentUserPk);
+                const reviewContent = isPrivateForViewer
+                  ? "이 리뷰는 비공개 리뷰입니다."
+                  : review.content ?? "리뷰 코멘트가 없습니다.";
                 return (
                   <article className="card review-card" key={review.id}>
                     <div className="review-header">
@@ -1191,36 +1474,73 @@ export default function MovieDetailPage() {
                         </div>
                         <div>
                           <p className="review-name">{authorName}</p>
-                          <p className="muted">
-                            {new Date(review.created_at).toLocaleDateString("ko-KR")} · 평점 {review.rating}
+                          <p className="muted review-meta-line">
+                            <span>
+                              {formatDateTime(review.created_at)} · 평점{" "}
+                              {formatRatingLabel(review.rating)}
+                            </span>
+                            {reviewVisibility === "private" && (
+                              <span
+                                className={`review-visibility-indicator ${visibilityMeta.className}`}
+                                role="img"
+                                aria-label={visibilityMeta.label}
+                                title={visibilityMeta.label}
+                              />
+                            )}
                           </p>
                         </div>
                       </div>
                       <div className="review-actions">
-                        <button
-                          className="ghost-btn"
-                          type="button"
-                          onClick={() => incrementReaction(review.id, "likes")}
-                        >
-                          좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
-                        </button>
-                        {/* <span className="muted">|</span> */}
-                        <button
-                          className="ghost-btn"
-                          type="button"
-                          onClick={() => incrementReaction(review.id, "dislikes")}
-                        >
-                          싫어요 {reactions[review.id]?.dislikes ?? 0}
-                        </button>
+                        {(() => {
+                          const reaction = myReviewReactions[review.id] ?? null;
+                          const likeActive = reaction === "like";
+                          const dislikeActive = reaction === "dislike";
+                          return (
+                            <>
+                              <button
+                                className={`ghost-btn review-reaction-btn ${
+                                  likeActive ? "is-active" : ""
+                                }`}
+                                type="button"
+                                aria-pressed={likeActive}
+                                disabled={dislikeActive}
+                                onClick={() => handleToggleReaction(review.id, "like")}
+                              >
+                                <span
+                                  className="review-reaction-icon"
+                                  aria-hidden="true"
+                                />
+                                좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
+                              </button>
+                              {/* <span className="muted">|</span> */}
+                              <button
+                                className={`ghost-btn review-reaction-btn ${
+                                  dislikeActive ? "is-active" : ""
+                                }`}
+                                type="button"
+                                aria-pressed={dislikeActive}
+                                disabled={likeActive}
+                                onClick={() => handleToggleReaction(review.id, "dislike")}
+                              >
+                                <span
+                                  className="review-reaction-icon is-dislike"
+                                  aria-hidden="true"
+                                />
+                                싫어요{" "}
+                                {reactions[review.id]?.dislikes ?? review.dislikes_count ?? 0}
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
-                    {review.content && (
-                      <p className="review-text">
-                        {review.content.length > 100 
-                          ? review.content.substring(0, 100) + '...' 
-                          : review.content}
-                      </p>
-                    )}
+                    <p className="review-text">
+                      {isPrivateForViewer
+                        ? reviewContent
+                        : reviewContent.length > 100
+                          ? reviewContent.substring(0, 100) + "..."
+                          : reviewContent}
+                    </p>
                     <div className="review-link-row">
                       <button
                         className="ghost-btn review-link-btn"
@@ -1229,7 +1549,11 @@ export default function MovieDetailPage() {
                       >
                         댓글 달기
                       </button>
-                      <button className="ghost-btn review-link-btn" type="button">
+                      <button
+                        className="ghost-btn review-link-btn"
+                        type="button"
+                        onClick={() => toggleCommentOpen(review.id)}
+                      >
                         댓글 보기
                       </button>
                     </div>
@@ -1252,6 +1576,32 @@ export default function MovieDetailPage() {
                             저장하기
                           </button>
                         </div>
+                      </div>
+                    )}
+                    {commentOpen[review.id] && (
+                      <div className="comment-list">
+                        {commentLoading[review.id] ? (
+                          <p className="muted">댓글을 불러오는 중...</p>
+                        ) : (reviewComments[review.id] || []).length > 0 ? (
+                          (reviewComments[review.id] || []).map((comment) => (
+                            <div className="comment-card" key={comment.id}>
+                              <div className="comment-meta">
+                                <span className="review-name">
+                                  {getDisplayAuthorName(comment.user_id)}
+                                </span>
+                                <span className="muted">
+                                  {formatDateTime(comment.created_at)}
+                                </span>
+                              </div>
+                              <p className="review-text">{comment.content}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="muted">아직 댓글이 없습니다.</p>
+                        )}
+                        {commentErrors[review.id] && (
+                          <p className="muted">{commentErrors[review.id]}</p>
+                        )}
                       </div>
                     )}
                   </article>

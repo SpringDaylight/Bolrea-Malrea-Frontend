@@ -20,6 +20,8 @@ export default function HomePage() {
   const [isEmotionalSearch, setIsEmotionalSearch] = useState(false);
   const [emotionTags, setEmotionTags] = useState<string[]>([]);
   const [recommendedPage, setRecommendedPage] = useState(1);
+  
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
 
   const RECOMMENDED_PAGE_SIZE = 4;
   const RECOMMENDED_TOTAL = 12;
@@ -349,61 +351,86 @@ export default function HomePage() {
         <section className="section">
           <div className="section-header">
             <h2>나를 위한 추천</h2>
-            <div className="home-recommend-controls">
-              <button
-                className="icon-btn page-arrow-btn"
-                type="button"
-                aria-label="이전 페이지"
-                onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
-                disabled={safeRecommendedPage === 1}
-              >
-                {"◀"}
-              </button>
-              <span className="page-number-text" aria-live="polite">
-                {safeRecommendedPage}/{recommendedTotalPages}
-              </span>
-              <button
-                className="icon-btn page-arrow-btn"
-                type="button"
-                aria-label="다음 페이지"
-                onClick={() =>
-                  setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))
-                }
-                disabled={safeRecommendedPage >= recommendedTotalPages}
-              >
-                {"▶"}
-              </button>
-            </div>
+            {isLoggedIn && (
+              <div className="home-recommend-controls">
+                <button
+                  className="icon-btn page-arrow-btn"
+                  type="button"
+                  aria-label="이전 페이지"
+                  onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
+                  disabled={safeRecommendedPage === 1}
+                >
+                  {"◀"}
+                </button>
+                <span className="page-number-text" aria-live="polite">
+                  {safeRecommendedPage}/{recommendedTotalPages}
+                </span>
+                <button
+                  className="icon-btn page-arrow-btn"
+                  type="button"
+                  aria-label="다음 페이지"
+                  onClick={() =>
+                    setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))
+                  }
+                  disabled={safeRecommendedPage >= recommendedTotalPages}
+                >
+                  {"▶"}
+                </button>
+              </div>
+            )}
           </div>
           
-          {loading && <p>로딩 중...</p>}
-          
-          {!loading && recommendedMovies.length > 0 && (
-            <div className="movie-grid">
-              {visibleRecommended.map((movie) => (
-                <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                  <article className="card movie-tile">
-                    <img
-                      className="poster"
-                      src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
-                      alt={`${movie.title} 포스터`}
-                    />
-                    <div className="movie-info">
-                      <h3>{movie.title}</h3>
-                      <p className="probability home-match-probability">
-                        적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
-                      </p>
-                      <p className="muted">
-                        {movie.synopsis 
-                          ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
-                          : '줄거리 정보가 없습니다.'}
-                      </p>
-                      <span className="ghost-btn movie-detail-btn">자세히 보기</span>
-                    </div>
-                  </article>
-                </Link>
-              ))}
+          {!isLoggedIn ? (
+            <div style={{ 
+              textAlign: "center", 
+              padding: "3rem 1rem",
+              backgroundColor: "#f8f9fa",
+              borderRadius: "8px",
+              margin: "1rem 0"
+            }}>
+              <p style={{ 
+                fontSize: "1.2rem", 
+                marginBottom: "1.5rem",
+                color: "#495057"
+              }}>
+                로그인하고 나만을 위한 맞춤 추천을 받아보세요!
+              </p>
+              <Link to="/login">
+                <button className="primary-btn">로그인하기</button>
+              </Link>
             </div>
+          ) : (
+            <>
+              {loading && <p>로딩 중...</p>}
+              
+              {!loading && recommendedMovies.length > 0 && (
+                <div className="movie-grid">
+                  {visibleRecommended.map((movie) => (
+                    <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                      <article className="card movie-tile">
+                        <img
+                          className="poster"
+                          src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
+                          alt={`${movie.title} 포스터`}
+                        />
+                        <div className="movie-info">
+                          <h3>{movie.title}</h3>
+                          <p className="probability home-match-probability">
+                            적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
+                          </p>
+                          <p className="muted">
+                            {movie.synopsis 
+                              ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
+                              : '줄거리 정보가 없습니다.'}
+                          </p>
+                          <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                        </div>
+                      </article>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
       </main>

@@ -4,8 +4,7 @@
  */
 import { 
   getUserPreference, 
-  saveUserPreference, 
-  checkUserPreferenceExists,
+  saveUserPreference,
   type UserPreference,
   type SaveUserPreferenceRequest 
 } from "../api/userPreferences";

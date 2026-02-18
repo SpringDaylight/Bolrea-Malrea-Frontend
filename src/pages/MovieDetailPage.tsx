@@ -788,7 +788,8 @@ export default function MovieDetailPage() {
           await updatePreferenceFromReview(
             userPk,
             movie.id,
-            reviewPayload.rating
+            reviewPayload.rating,
+            reviewPayload.content || undefined  // 리뷰 텍스트도 전달
           );
           console.log("User preference updated based on review");
         }

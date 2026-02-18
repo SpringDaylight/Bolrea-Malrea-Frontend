@@ -88,11 +88,23 @@ export function updatePreferenceFromReview(
   userId: string,
   movieId: number,
   rating: number,
+  reviewText?: string,
   learningRate: number = 0.15
 ): Promise<{ success: boolean; message: string; updated_at: string }> {
+  const params: Record<string, any> = {
+    movie_id: movieId,
+    rating,
+    learning_rate: learningRate
+  };
+  
+  // 리뷰 텍스트가 있으면 추가
+  if (reviewText && reviewText.trim()) {
+    params.review_text = reviewText.trim();
+  }
+  
   return post<{ success: boolean; message: string; updated_at: string }>(
     `/api/user-preferences/${userId}/update-from-review`,
     undefined,
-    { movie_id: movieId, rating, learning_rate: learningRate }
+    params
   );
 }

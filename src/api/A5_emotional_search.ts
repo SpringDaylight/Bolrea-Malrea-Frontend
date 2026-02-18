@@ -1,7 +1,7 @@
 /**
  * A-5: 자연어 기반 감성 검색 API
  */
-import { get, post } from "./http";
+import { post } from "./http";
 
 export interface EmotionalSearchRequest {
   text: string;

@@ -275,6 +275,22 @@ export default function SignupPage() {
     localStorage.setItem("mw_tast_keyword", JSON.stringify(keywords));
     localStorage.setItem("mw_taste_origin", origin);
 
+    // Analyze preference with ML
+    try {
+      const userText = `${vibe} ${keywords.join(', ')} ${genres.join(', ')}`;
+      const userDislikes = avoidGenres.filter(g => g !== "없음").join(', ');
+      
+      const { analyzePreference } = await import("../api/ml");
+      const userProfile = await analyzePreference({
+        text: userText,
+        dislikes: userDislikes || undefined,
+      });
+
+      localStorage.setItem("mw_user_profile", JSON.stringify(userProfile));
+    } catch (error) {
+      console.error("Failed to analyze preference:", error);
+    }
+
     // If Kakao mode, complete signup now
     if (isKakaoMode && kakaoData) {
       try {
@@ -303,6 +319,31 @@ export default function SignupPage() {
         localStorage.setItem("mw_profile_bio", user.avatar_text || "");
         localStorage.setItem("mw_access_token", kakaoData.access_token);
 
+        // Save preference to database
+        const userProfileStr = localStorage.getItem("mw_user_profile");
+        if (userProfileStr && user.id) {
+          try {
+            const userProfile = JSON.parse(userProfileStr);
+            const { saveUserPreference } = await import("../api/userPreferences");
+            await saveUserPreference({
+              user_id: user.id,
+              preference_vector_json: {
+                emotion_scores: userProfile.emotion_scores,
+                narrative_traits: userProfile.narrative_traits,
+                direction_mood: userProfile.direction_mood,
+                character_relationship: userProfile.character_relationship,
+                ending_preference: userProfile.ending_preference,
+              },
+              boost_tags: userProfile.boost_tags,
+              dislike_tags: userProfile.dislike_tags,
+              penalty_tags: [],
+            });
+            console.log("User preference saved to database");
+          } catch (dbError) {
+            console.error("Failed to save preference to database:", dbError);
+          }
+        }
+
         // Clear temp data
         sessionStorage.removeItem("kakao_signup_temp");
       } catch (error) {
@@ -318,6 +359,37 @@ export default function SignupPage() {
 
   const handleStart = async () => {
     await handleCompleteSurvey();
+    
+    // 일반 회원가입 사용자도 DB에 저장
+    if (!isKakaoMode) {
+      const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+      const userPk = localStorage.getItem("mw_user_pk");
+      const userProfileStr = localStorage.getItem("mw_user_profile");
+      
+      if (isLoggedIn && userPk && userProfileStr) {
+        try {
+          const userProfile = JSON.parse(userProfileStr);
+          const { saveUserPreference } = await import("../api/userPreferences");
+          await saveUserPreference({
+            user_id: userPk,
+            preference_vector_json: {
+              emotion_scores: userProfile.emotion_scores,
+              narrative_traits: userProfile.narrative_traits,
+              direction_mood: userProfile.direction_mood,
+              character_relationship: userProfile.character_relationship,
+              ending_preference: userProfile.ending_preference,
+            },
+            boost_tags: userProfile.boost_tags,
+            dislike_tags: userProfile.dislike_tags,
+            penalty_tags: [],
+          });
+          console.log("User preference saved to database (normal signup)");
+        } catch (dbError) {
+          console.error("Failed to save preference to database:", dbError);
+        }
+      }
+    }
+    
     navigate("/mypage");
   };
 

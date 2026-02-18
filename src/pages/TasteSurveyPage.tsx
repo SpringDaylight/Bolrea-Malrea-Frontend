@@ -90,11 +90,52 @@ export default function TasteSurveyPage() {
       // 분석 결과 저장
       localStorage.setItem("mw_user_profile", JSON.stringify(userProfile));
       
+      // 로그인한 사용자라면 DB에도 저장
+      const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+      // user_preferences.user_id는 users.id를 참조하므로 mw_user_pk 사용
+      const userPk = localStorage.getItem("mw_user_pk");
+      
+      console.log("TasteSurvey - isLoggedIn:", isLoggedIn);
+      console.log("TasteSurvey - userPk:", userPk);
+      
+      if (isLoggedIn && userPk) {
+        try {
+          const { saveUserPreference } = await import("../api/userPreferences");
+          
+          const saveRequest = {
+            user_id: userPk, // users.id (PK) 사용
+            preference_vector_json: {
+              emotion_scores: userProfile.emotion_scores,
+              narrative_traits: userProfile.narrative_traits,
+              direction_mood: userProfile.direction_mood,
+              character_relationship: userProfile.character_relationship,
+              ending_preference: userProfile.ending_preference,
+            },
+            boost_tags: userProfile.boost_tags,
+            dislike_tags: userProfile.dislike_tags,
+            penalty_tags: [],
+          };
+          
+          console.log("TasteSurvey - Saving to DB:", saveRequest);
+          
+          const result = await saveUserPreference(saveRequest);
+          console.log("TasteSurvey - User preference saved to database:", result);
+          
+          alert("취향 설정이 완료되었습니다!");
+        } catch (dbError) {
+          console.error("TasteSurvey - Failed to save preference to database:", dbError);
+          alert("취향 설정 저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+          // DB 저장 실패 시 홈으로 이동하지 않음
+          return;
+        }
+      } else {
+        console.log("TasteSurvey - Not logged in or no user PK, skipping DB save");
+      }
+      
       navigate("/");
     } catch (err) {
-      console.error('Failed to analyze preference:', err);
-      // 실패해도 홈으로 이동 (기본 기능은 유지)
-      navigate("/");
+      console.error('TasteSurvey - Failed to analyze preference:', err);
+      alert("취향 분석 중 오류가 발생했습니다.");
     } finally {
       setSubmitting(false);
     }

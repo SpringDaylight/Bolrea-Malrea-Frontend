@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
 import { emotionalSearch } from "../api/A5_emotional_search";
 import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
+import TasteSurveyModal from "../components/TasteSurveyModal";
 
 export default function HomePage() {
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
@@ -20,6 +21,8 @@ export default function HomePage() {
   const [isEmotionalSearch, setIsEmotionalSearch] = useState(false);
   const [emotionTags, setEmotionTags] = useState<string[]>([]);
   const [recommendedPage, setRecommendedPage] = useState(1);
+  const [needsTasteSetup, setNeedsTasteSetup] = useState(false);
+  const [showTasteSurveyModal, setShowTasteSurveyModal] = useState(false);
   
   const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
 
@@ -27,7 +30,16 @@ export default function HomePage() {
   const RECOMMENDED_TOTAL = 12;
 
   const computeMovieMatchRates = async (movies: Movie[]) => {
-    return calculateMoviesMatchRates(movies);
+    try {
+      return await calculateMoviesMatchRates(movies);
+    } catch (error: any) {
+      // 로그인 사용자의 취향 데이터가 없는 경우
+      if (isLoggedIn && (error?.message?.includes('404') || error?.message?.includes('not found'))) {
+        setNeedsTasteSetup(true);
+        return {};
+      }
+      throw error;
+    }
   };
 
   const fetchRecommendations = async (
@@ -399,6 +411,36 @@ export default function HomePage() {
                 <button className="primary-btn">로그인하기</button>
               </Link>
             </div>
+          ) : needsTasteSetup ? (
+            <div style={{ 
+              textAlign: "center", 
+              padding: "3rem 1rem",
+              backgroundColor: "#fff3cd",
+              borderRadius: "8px",
+              margin: "1rem 0",
+              border: "1px solid #ffc107"
+            }}>
+              <p style={{ 
+                fontSize: "1.2rem", 
+                marginBottom: "1rem",
+                color: "#856404"
+              }}>
+                취향 설정이 필요합니다
+              </p>
+              <p style={{ 
+                fontSize: "1rem", 
+                marginBottom: "1.5rem",
+                color: "#856404"
+              }}>
+                나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
+              </p>
+              <button 
+                className="primary-btn"
+                onClick={() => setShowTasteSurveyModal(true)}
+              >
+                취향 설정하기
+              </button>
+            </div>
           ) : (
             <>
               {loading && <p>로딩 중...</p>}
@@ -434,7 +476,19 @@ export default function HomePage() {
           )}
         </section>
       </main>
+
+      {/* 취향 설문 모달 */}
+      {showTasteSurveyModal && (
+        <TasteSurveyModal
+          onClose={() => setShowTasteSurveyModal(false)}
+          onComplete={() => {
+            setShowTasteSurveyModal(false);
+            setNeedsTasteSetup(false);
+            // 페이지 새로고침하여 추천 다시 로드
+            window.location.reload();
+          }}
+        />
+      )}
     </MainLayout>
   );
 }
-

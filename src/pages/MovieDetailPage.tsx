@@ -779,6 +779,24 @@ export default function MovieDetailPage() {
         visibility: myReviewVisibility,
       });
       await applySavedPersonalReview(nextReview);
+      
+      // 리뷰 작성 후 취향 업데이트
+      try {
+        const userPk = localStorage.getItem("mw_user_pk");
+        if (userPk && movie?.id) {
+          const { updatePreferenceFromReview } = await import("../api/userPreferences");
+          await updatePreferenceFromReview(
+            userPk,
+            movie.id,
+            reviewPayload.rating,
+            reviewPayload.content || undefined  // 리뷰 텍스트도 전달
+          );
+          console.log("User preference updated based on review");
+        }
+      } catch (prefError) {
+        console.warn("Failed to update preference from review:", prefError);
+        // 취향 업데이트 실패해도 리뷰는 저장됨
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "리뷰 저장에 실패했습니다.";
 

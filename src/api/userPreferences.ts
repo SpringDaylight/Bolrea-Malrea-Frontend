@@ -80,3 +80,19 @@ export function deleteUserPreference(userId: string): Promise<{ message: string 
 export function checkUserPreferenceExists(userId: string): Promise<UserPreferenceExistsResponse> {
   return get<UserPreferenceExistsResponse>(`/api/user-preferences/${userId}/exists`);
 }
+
+/**
+ * Update user preference based on review
+ */
+export function updatePreferenceFromReview(
+  userId: string,
+  movieId: number,
+  rating: number,
+  learningRate: number = 0.15
+): Promise<{ success: boolean; message: string; updated_at: string }> {
+  return post<{ success: boolean; message: string; updated_at: string }>(
+    `/api/user-preferences/${userId}/update-from-review`,
+    undefined,
+    { movie_id: movieId, rating, learning_rate: learningRate }
+  );
+}

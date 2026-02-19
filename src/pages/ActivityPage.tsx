@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
 import { getMovie } from "../api/A2_movies";
+import { changePassword } from "../api/auth";
 // import { getKakaoLoginUrl } from "../api/auth";
 import {
   deleteCurrentUser,
@@ -133,6 +134,12 @@ export default function ActivityPage() {
   const [savedWatchedMovies, setSavedWatchedMovies] = useState<WatchedMovieItem[]>([]);
   const [topWatchedGenres, setTopWatchedGenres] = useState<string[]>([]);
   const [watchedPage, setWatchedPage] = useState(1);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [passwordSuccessVisible, setPasswordSuccessVisible] = useState(false);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -396,6 +403,11 @@ export default function ActivityPage() {
   const handleOpenPassword = () => {
     setPasswordVisible(true);
     setEditVisible(false);
+    setCurrentPassword("");
+    setNextPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
+    setPasswordSuccessVisible(false);
   };
 
   /*
@@ -498,12 +510,50 @@ export default function ActivityPage() {
     setEditVisible(false);
   };
 
-  const handlePasswordSave = () => {
-    setPasswordVisible(false);
+  const handlePasswordSave = async () => {
+    if (isPasswordSaving) return;
+    const userId = localStorage.getItem("mw_user_id");
+    if (!userId) {
+      setPasswordError("세션 정보가 오래되었습니다. 다시 로그인해주세요.");
+      return;
+    }
+    if (!currentPassword.trim() || !nextPassword.trim() || !confirmPassword.trim()) {
+      setPasswordError("모든 비밀번호를 입력해주세요.");
+      return;
+    }
+    if (nextPassword !== confirmPassword) {
+      setPasswordError("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setIsPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await changePassword({
+        user_id: userId,
+        current_password: currentPassword,
+        new_password: nextPassword,
+        new_password_confirm: confirmPassword,
+      });
+      setPasswordVisible(false);
+      setPasswordSuccessVisible(true);
+      setCurrentPassword("");
+      setNextPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error("Failed to change password:", err);
+      setPasswordError("비밀번호 변경에 실패했습니다.");
+    } finally {
+      setIsPasswordSaving(false);
+    }
   };
 
   const handlePasswordCancel = () => {
     setPasswordVisible(false);
+    setCurrentPassword("");
+    setNextPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
   };
 
   const handleLogout = () => {
@@ -1243,18 +1293,38 @@ export default function ActivityPage() {
               </div>
               <div className="profile-edit">
                 <label htmlFor="password-current">현재 비밀번호</label>
-                <input id="password-current" type="password" placeholder="********" />
+                <input
+                  id="password-current"
+                  type="password"
+                  placeholder="********"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
                 <label htmlFor="password-next">새 비밀번호</label>
-                <input id="password-next" type="password" placeholder="********" />
+                <input
+                  id="password-next"
+                  type="password"
+                  placeholder="********"
+                  value={nextPassword}
+                  onChange={(event) => setNextPassword(event.target.value)}
+                />
                 <label htmlFor="password-confirm">새 비밀번호 확인</label>
-                <input id="password-confirm" type="password" placeholder="********" />
+                <input
+                  id="password-confirm"
+                  type="password"
+                  placeholder="********"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                />
+                {passwordError && <p className="error">{passwordError}</p>}
                 <div className="profile-edit-actions">
                   <button
                     className="primary-btn"
                     type="button"
                     onClick={handlePasswordSave}
+                    disabled={isPasswordSaving}
                   >
-                    변경
+                    {isPasswordSaving ? "변경 중..." : "변경"}
                   </button>
                   <button
                     className="ghost-btn"
@@ -1264,6 +1334,44 @@ export default function ActivityPage() {
                     취소
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {passwordSuccessVisible && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-success-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setPasswordSuccessVisible(false)}
+          />
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 id="password-success-title">비밀번호 변경 완료</h2>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="비밀번호 변경 완료 닫기"
+                onClick={() => setPasswordSuccessVisible(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-scroll">
+              <p>비밀번호가 변경되었습니다.</p>
+              <div className="modal-footer">
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => setPasswordSuccessVisible(false)}
+                >
+                  확인
+                </button>
               </div>
             </div>
           </div>

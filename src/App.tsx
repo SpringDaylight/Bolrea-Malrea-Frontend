@@ -7,7 +7,7 @@ import GroupPage from "./pages/GroupPage";
 import TasteAnalysisPage from "./pages/TasteAnalysisPage";
 import ActivityPage from "./pages/ActivityPage";
 import CommentPage from "./pages/CommentPage";
-import ProfilePage from "./pages/ProfilePage";
+// import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import FindIdPage from "./pages/FindIdPage";
@@ -35,7 +35,7 @@ export default function App() {
         <Route path="/taste-analysis" element={<TasteAnalysisPage />} />
         <Route path="/log" element={<CommentPage />} />
         <Route path="/moviemong" element={<MoviemongPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        {/* <Route path="/profile" element={<ProfilePage />} /> */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/find-id" element={<FindIdPage />} />

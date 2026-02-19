@@ -46,6 +46,13 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface PasswordChangeRequest {
+  user_id: string;
+  current_password: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
 export interface AuthUserResponse {
   id: string;
   user_id: string;
@@ -91,4 +98,13 @@ export function login(data: LoginRequest): Promise<AuthUserResponse> {
  */
 export function logout(): Promise<{ message: string }> {
   return post<{ message: string }>('/api/auth/logout');
+}
+
+/**
+ * Change password for local user
+ */
+export function changePassword(
+  data: PasswordChangeRequest
+): Promise<{ message: string }> {
+  return post<{ message: string }>('/api/auth/password', data);
 }

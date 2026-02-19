@@ -203,6 +203,17 @@ textarea {
   background: #ffffff;
 }
 
+select:focus,
+select:focus-visible,
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible {
+  border-color: #6FA3C8;
+  outline: none;
+  box-shadow: none;
+}
+
 textarea {
   resize: vertical;
   min-height: 110px;

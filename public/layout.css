@@ -1,5 +1,7 @@
 body {
-  font-family: "Pretendard Variable", "Pretendard", "SUIT", "Apple SD Gothic Neo", sans-serif;
+  font-family: "jttbareunsaenghwal", sans-serif;
+  font-weight: 400;
+  font-style: normal;
   background: radial-gradient(circle at top, #ffffff 0%, #f2f3f6 60%, #ededf1 100%);
   color: var(--text);
   line-height: 1.6;

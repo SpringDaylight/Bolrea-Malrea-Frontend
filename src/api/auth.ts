@@ -3,6 +3,7 @@
  */
 import { get, post } from './http';
 
+/*
 export interface KakaoLoginResponse {
   auth_url: string;
 }
@@ -28,6 +29,7 @@ export interface KakaoSignupCompleteRequest {
   birth_date?: string;
   gender?: string;
 }
+*/
 
 export interface SignupRequest {
   user_id: string;
@@ -36,6 +38,7 @@ export interface SignupRequest {
   email: string;
   password: string;
   password_confirm: string;
+  birth_date?: string;
 }
 
 export interface LoginRequest {
@@ -53,26 +56,21 @@ export interface AuthUserResponse {
   created_at: string;
 }
 
-/**
- * Get Kakao OAuth login URL
- */
+/*
+ * Kakao OAuth (unused)
+ *
 export function getKakaoLoginUrl(): Promise<KakaoLoginResponse> {
   return get<KakaoLoginResponse>('/api/auth/kakao/login');
 }
 
-/**
- * Handle Kakao OAuth callback
- */
 export function handleKakaoCallback(code: string): Promise<KakaoCallbackResponse> {
   return get<KakaoCallbackResponse>('/api/auth/kakao/callback', { code });
 }
 
-/**
- * Complete Kakao signup after tutorial
- */
 export function completeKakaoSignup(data: KakaoSignupCompleteRequest): Promise<AuthUserResponse> {
   return post<AuthUserResponse>('/api/auth/kakao/complete-signup', data);
 }
+*/
 
 /**
  * Local signup

@@ -3,6 +3,7 @@ import MainLayout from "../components/layout/MainLayout";
 import { type GroupSimulationResult } from "../api/ml";
 import { searchMovies, type Movie } from "../api/A2_movies";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
+import { getCurrentUser } from "../api/A7_profile";
 
 const groupTypeOptions = ["친구", "가족", "연인", "모임", "기타"];
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
@@ -82,14 +83,12 @@ export default function GroupPage() {
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
+  const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const currentUserId =
     getLocalStorageItem("mw_user_id") ||
     getLocalStorageItem("mw_user_pk") ||
     "";
-  const currentUserNickname =
-    getLocalStorageItem("mw_profile_nickname") ||
-    getLocalStorageItem("mw_profile_name") ||
-    "나";
+  const currentUserPk = getLocalStorageItem("mw_user_pk") || "";
   const [guestGenreSelections, setGuestGenreSelections] = useState<string[]>(
     () => Array.from({ length: MAX_GUEST_MEMBERS }, () => "")
   );
@@ -105,6 +104,32 @@ export default function GroupPage() {
     setError(message);
     setErrorTick((prev) => prev + 1);
   };
+
+  useEffect(() => {
+    if (!currentUserPk) return;
+    const isLoggedIn = getLocalStorageItem("mw_logged_in") === "true";
+    if (!isLoggedIn) return;
+
+    let isCancelled = false;
+    getCurrentUser(currentUserPk)
+      .then((user) => {
+        if (isCancelled) return;
+        const name =
+          user.nickname?.trim() ||
+          user.name?.trim() ||
+          user.user_id?.trim() ||
+          user.id;
+        setCurrentUserNickname(name || "나");
+      })
+      .catch((err) => {
+        console.error("Failed to load current user:", err);
+        if (!isCancelled) setCurrentUserNickname("나");
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentUserPk]);
 
   const userRequiredError = error === userRequiredMessage ? error : null;
   const movieRequiredError = error === "영화를 선택해주세요." ? error : null;

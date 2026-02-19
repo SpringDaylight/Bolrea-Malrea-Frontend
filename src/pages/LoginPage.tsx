@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
-import googleIcon from "../assets/web_neutral_sq_na@1x.png";
-import kakaoIcon from "../assets/kakao_sq_login.png";
-import { getKakaoLoginUrl, login as loginApi } from "../api/auth";
-
-const defaultProfileBio = "Enjoying drama and SF with strong emotional arcs.";
+// import googleIcon from "../assets/web_neutral_sq_na@1x.png";
+// import kakaoIcon from "../assets/kakao_sq_login.png";
+import { login as loginApi } from "../api/auth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -24,78 +22,16 @@ export default function LoginPage() {
       return;
     }
 
-    const existingRealname = localStorage.getItem("mw_profile_realname") || "";
-    const existingNickname = localStorage.getItem("mw_profile_nickname") || "";
-    const existingProfileId = localStorage.getItem("mw_profile_id") || "";
-    const existingUserPk = localStorage.getItem("mw_user_pk") || "";
-    const existingEmail = localStorage.getItem("mw_profile_email") || "";
-    const existingAge = localStorage.getItem("mw_profile_age") || "";
-    const existingGender = localStorage.getItem("mw_profile_gender") || "";
-    const rawSnapshot = localStorage.getItem("mw_signup_profile");
-    let snapshot: {
-      realname?: string;
-      nickname?: string;
-      id?: string;
-      userPk?: string;
-      email?: string;
-      age?: string;
-      gender?: string;
-    } = {};
-
-    if (rawSnapshot) {
-      try {
-        snapshot = JSON.parse(rawSnapshot) as typeof snapshot;
-      } catch (error) {
-        console.error("Failed to parse signup profile snapshot:", error);
-      }
-    }
-
     try {
       setIsSubmitting(true);
       const loggedInUser = await loginApi({
         user_id: userIdValue,
         password,
       });
-      const profileSnapshot = {
-        realname: loggedInUser.name || snapshot.realname || existingRealname || userIdValue,
-        nickname:
-          loggedInUser.nickname ||
-          snapshot.nickname ||
-          existingNickname ||
-          loggedInUser.name ||
-          userIdValue,
-        id: loggedInUser.user_id || snapshot.id || existingProfileId || userIdValue,
-        userPk: loggedInUser.id || snapshot.userPk || existingUserPk,
-        email: loggedInUser.email || snapshot.email || existingEmail,
-        age: snapshot.age || existingAge || "선택 안함",
-        gender: snapshot.gender || existingGender || "선택 안함",
-      };
-
+      localStorage.setItem("mw_user_pk", loggedInUser.id);
       localStorage.setItem(
-        "mw_profile_name",
-        profileSnapshot.nickname
-      );
-      localStorage.setItem(
-        "mw_profile_realname",
-        profileSnapshot.realname
-      );
-      localStorage.setItem(
-        "mw_profile_nickname",
-        profileSnapshot.nickname
-      );
-      localStorage.setItem("mw_profile_id", profileSnapshot.id);
-      localStorage.setItem("mw_user_pk", profileSnapshot.userPk);
-      localStorage.setItem("mw_profile_email", profileSnapshot.email);
-      localStorage.setItem("mw_profile_age", profileSnapshot.age);
-      localStorage.setItem(
-        "mw_profile_gender",
-        profileSnapshot.gender
-      );
-      localStorage.setItem("mw_user_id", profileSnapshot.id);
-      localStorage.setItem("mw_profile_bio", defaultProfileBio);
-      localStorage.setItem(
-        "mw_signup_profile",
-        JSON.stringify(profileSnapshot)
+        "mw_user_id",
+        loggedInUser.user_id || userIdValue
       );
       localStorage.setItem("mw_logged_in", "true");
       window.dispatchEvent(new Event("mw_auth_change"));
@@ -108,6 +44,7 @@ export default function LoginPage() {
     }
   };
 
+  /*
   const handleKakaoLogin = async () => {
     try {
       const response = await getKakaoLoginUrl();
@@ -118,6 +55,7 @@ export default function LoginPage() {
       alert('카카오 로그인에 실패했습니다.');
     }
   };
+  */
 
   return (
     <MainLayout>
@@ -176,14 +114,15 @@ export default function LoginPage() {
                 <Link className="secondary-btn" to="/find-password">비밀번호 찾기</Link>
               </li>
             </ul>
+            {/*
             <div className="social-login">
               <div className="social-login-buttons">
                 <button className="social-btn" type="button" aria-label="구글로 로그인">
                   <img src={googleIcon} alt="" />
                 </button>
-                <button 
-                  className="social-btn" 
-                  type="button" 
+                <button
+                  className="social-btn"
+                  type="button"
                   aria-label="카카오로 로그인"
                   onClick={handleKakaoLogin}
                 >
@@ -191,6 +130,7 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            */}
           </article>
         </section>
       </main>

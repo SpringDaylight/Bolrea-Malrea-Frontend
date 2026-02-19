@@ -13,7 +13,7 @@ import SignupPage from "./pages/SignupPage";
 import FindIdPage from "./pages/FindIdPage";
 import FindPasswordPage from "./pages/FindPasswordPage";
 import TasteSurveyPage from "./pages/TasteSurveyPage";
-import KakaoCallbackPage from "./pages/KakaoCallbackPage";
+// import KakaoCallbackPage from "./pages/KakaoCallbackPage";
 import SupportPage from "./pages/SupportPage";
 import MoviemongPage from "./pages/MoviemongPage";
 
@@ -41,7 +41,7 @@ export default function App() {
         <Route path="/find-id" element={<FindIdPage />} />
         <Route path="/find-password" element={<FindPasswordPage />} />
         <Route path="/taste-survey" element={<TasteSurveyPage />} />
-        <Route path="/auth/kakao/callback" element={<KakaoCallbackPage />} />
+        {/* <Route path="/auth/kakao/callback" element={<KakaoCallbackPage />} /> */}
         <Route path="/notice" element={<SupportPage />} />
         <Route path="/inquiry" element={<SupportPage />} />
         <Route path="/faq" element={<SupportPage />} />

@@ -24,7 +24,9 @@ export interface Review {
   content: string | null;
   created_at: string;
   likes_count: number;
+  dislikes_count?: number;
   comments_count: number;
+  is_public?: boolean;
 }
 
 export interface ReviewListResponse {
@@ -47,6 +49,10 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   avatar_text?: string;
+  nickname?: string;
+  email?: string;
+  birth_date?: string | null;
+  gender?: string | null;
 }
 
 // API Functions

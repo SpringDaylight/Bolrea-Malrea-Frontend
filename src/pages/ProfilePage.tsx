@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
+import { getCurrentUser, updateCurrentUser } from "../api/A7_profile";
 
 type ProfileState = {
   nickname: string;
@@ -23,46 +24,84 @@ const defaultProfile: ProfileState = {
   bio: "감정선 강한 드라마 · SF를 자주 봐요.",
 };
 
+const getAgeLabelFromBirthdate = (birthdate: string | null): string | null => {
+  if (!birthdate) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthdate.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  const hasNotHadBirthdayThisYear =
+    now.getMonth() + 1 < month ||
+    (now.getMonth() + 1 === month && now.getDate() < day);
+  if (hasNotHadBirthdayThisYear) age -= 1;
+  if (age < 0 || age > 130) return null;
+
+  return `만 ${age}세`;
+};
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
   const [editDraft, setEditDraft] = useState<ProfileState>(defaultProfile);
+  const [birthDate, setBirthDate] = useState<string | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    const rawSnapshot = localStorage.getItem("mw_signup_profile");
-    let snapshot: Partial<ProfileState> = {};
-    if (rawSnapshot) {
-      try {
-        snapshot = JSON.parse(rawSnapshot) as Partial<ProfileState>;
-      } catch (error) {
-        console.error("Failed to parse signup profile snapshot:", error);
-      }
+    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!isLoggedIn || !userId) {
+      setProfile(defaultProfile);
+      setEditDraft(defaultProfile);
+      setBirthDate(null);
+      return;
     }
 
-    const savedName = localStorage.getItem("mw_profile_name");
-    const savedBio = localStorage.getItem("mw_profile_bio");
-    const savedNickname = localStorage.getItem("mw_profile_nickname");
-    const savedRealname = localStorage.getItem("mw_profile_realname");
-    const savedAge = localStorage.getItem("mw_profile_age");
-    const savedGender = localStorage.getItem("mw_profile_gender");
-    const savedId = localStorage.getItem("mw_profile_id") || localStorage.getItem("mw_user_id");
-    const savedEmail = localStorage.getItem("mw_profile_email");
+    let isCancelled = false;
 
-    const nextProfile: ProfileState = {
-      nickname: savedNickname || snapshot.nickname || savedName || defaultProfile.nickname,
-      realname: savedRealname || snapshot.realname || defaultProfile.realname,
-      age: savedAge || snapshot.age || defaultProfile.age,
-      gender: savedGender || snapshot.gender || defaultProfile.gender,
-      id: savedId || snapshot.id || defaultProfile.id,
-      email: savedEmail || snapshot.email || defaultProfile.email,
-      bio: savedBio || defaultProfile.bio,
+    const fetchProfile = async () => {
+      try {
+        const user = await getCurrentUser(userId);
+        if (isCancelled) return;
+
+        const calculatedAge = getAgeLabelFromBirthdate(user.birth_date ?? null);
+        const nextProfile: ProfileState = {
+          nickname: user.nickname || user.name || defaultProfile.nickname,
+          realname: user.name || defaultProfile.realname,
+          age: calculatedAge || defaultProfile.age,
+          gender: user.gender || defaultProfile.gender,
+          id: user.user_id || user.id || defaultProfile.id,
+          email: user.email || defaultProfile.email,
+          bio: defaultProfile.bio,
+        };
+
+        setProfile(nextProfile);
+        setEditDraft(nextProfile);
+        setBirthDate(user.birth_date ?? null);
+      } catch (error) {
+        console.error("Failed to load current user profile:", error);
+        if (isCancelled) return;
+        setProfile(defaultProfile);
+        setEditDraft(defaultProfile);
+        setBirthDate(null);
+      }
     };
 
-    setProfile(nextProfile);
-    setEditDraft(nextProfile);
+    fetchProfile();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   const handleOpenEdit = () => {
@@ -76,7 +115,7 @@ export default function ProfilePage() {
     setEditVisible(false);
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     const nextProfile: ProfileState = {
       nickname: editDraft.nickname.trim() || defaultProfile.nickname,
       realname: editDraft.realname.trim() || defaultProfile.realname,
@@ -87,27 +126,22 @@ export default function ProfilePage() {
       bio: editDraft.bio.trim() || defaultProfile.bio,
     };
 
-    localStorage.setItem("mw_profile_nickname", nextProfile.nickname);
-    localStorage.setItem("mw_profile_realname", nextProfile.realname);
-    localStorage.setItem("mw_profile_age", nextProfile.age);
-    localStorage.setItem("mw_profile_gender", nextProfile.gender);
-    localStorage.setItem("mw_profile_id", nextProfile.id);
-    localStorage.setItem("mw_profile_email", nextProfile.email);
-    localStorage.setItem("mw_profile_name", nextProfile.nickname);
-    localStorage.setItem("mw_profile_bio", nextProfile.bio);
-    localStorage.setItem(
-      "mw_signup_profile",
-      JSON.stringify({
-        realname: nextProfile.realname,
-        nickname: nextProfile.nickname,
-        id: nextProfile.id,
-        email: nextProfile.email,
-        age: nextProfile.age,
-        gender: nextProfile.gender,
-      })
-    );
-    window.dispatchEvent(new Event("mw_auth_change"));
+    const userId = localStorage.getItem("mw_user_pk");
+    if (userId) {
+      try {
+        await updateCurrentUser(userId, {
+          name: nextProfile.realname,
+          nickname: nextProfile.nickname,
+          email: nextProfile.email,
+          gender: nextProfile.gender,
+          birth_date: birthDate ?? undefined,
+        });
+      } catch (error) {
+        console.error("Failed to update user profile:", error);
+      }
+    }
 
+    window.dispatchEvent(new Event("mw_auth_change"));
     setProfile(nextProfile);
     setEditVisible(false);
   };
@@ -127,13 +161,17 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     localStorage.setItem("mw_logged_in", "false");
+    localStorage.removeItem("mw_user_pk");
+    localStorage.removeItem("mw_user_id");
+    window.dispatchEvent(new Event("mw_auth_change"));
     navigate("/login");
   };
 
   const handleDelete = () => {
     localStorage.removeItem("mw_logged_in");
-    localStorage.removeItem("mw_profile_name");
-    localStorage.removeItem("mw_profile_bio");
+    localStorage.removeItem("mw_user_pk");
+    localStorage.removeItem("mw_user_id");
+    window.dispatchEvent(new Event("mw_auth_change"));
     navigate("/login");
   };
 
@@ -235,23 +273,13 @@ export default function ProfilePage() {
                     }
                   />
                   <label htmlFor="profile-age-input">나이대</label>
-                  <select
+                  <input
                     id="profile-age-input"
+                    type="text"
                     value={editDraft.age}
-                    onChange={(event) =>
-                      setEditDraft((prev) => ({
-                        ...prev,
-                        age: event.target.value,
-                      }))
-                    }
-                  >
-                    <option>선택 안함</option>
-                    <option>10대</option>
-                    <option>20대</option>
-                    <option>30대</option>
-                    <option>40대</option>
-                    <option>50대+</option>
-                  </select>
+                    readOnly
+                    aria-readonly="true"
+                  />
                   <label htmlFor="profile-gender-input">성별</label>
                   <select
                     id="profile-gender-input"
@@ -272,12 +300,8 @@ export default function ProfilePage() {
                     id="profile-id-input"
                     type="text"
                     value={editDraft.id}
-                    onChange={(event) =>
-                      setEditDraft((prev) => ({
-                        ...prev,
-                        id: event.target.value,
-                      }))
-                    }
+                    readOnly
+                    aria-readonly="true"
                   />
                   <label htmlFor="profile-email-input">이메일</label>
                   <input

@@ -1,5 +1,6 @@
 ﻿import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -132,6 +133,29 @@ export default function MovieDetailPage() {
   const personalReviewDate = personalReview?.created_at
     ? formatDateTime(personalReview.created_at)
     : formatDateTime();
+  const isPersonalReviewPrivate =
+    personalReview && toReviewVisibility(personalReview.is_public) === "private";
+  const reviewsForDisplay = useMemo(() => {
+    if (!personalReview || !movie || personalReview.movie_id !== movie.id) {
+      return reviews;
+    }
+    if (reviews.some((review) => review.id === personalReview.id)) {
+      return reviews;
+    }
+    const merged = [personalReview, ...reviews];
+    merged.sort(
+      (a, b) =>
+        new Date(b.created_at ?? 0).getTime() -
+        new Date(a.created_at ?? 0).getTime()
+    );
+    return merged;
+    }, [
+      reviews,
+      personalReview?.id,
+      personalReview?.movie_id,
+      personalReview?.is_public,
+      movie?.id,
+    ]);
   const previewReviewRating = hoverReviewRating ?? myReviewRating;
 
   const getDisplayAuthorName = (authorId: string) => {
@@ -301,19 +325,24 @@ export default function MovieDetailPage() {
           page_size: 10,
           user_id: currentUserPk || undefined,
         });
-        const fetchedReviews = reviewsData.reviews;
+          const fetchedReviews = reviewsData.reviews;
 
-        if (personalReview && personalReview.movie_id === movieData.id) {
-          const isPersonalPrivate =
-            toReviewVisibility(personalReview.is_public) === "private";
-          setReviews(
-            isPersonalPrivate
+          if (personalReview && personalReview.movie_id === movieData.id) {
+            const hasPersonal = fetchedReviews.some(
+              (review) => review.id === personalReview.id
+            );
+            const mergedReviews = hasPersonal
               ? fetchedReviews
-              : fetchedReviews.filter((review) => review.id !== personalReview.id)
-          );
-        } else {
-          setReviews(fetchedReviews);
-        }
+              : [personalReview, ...fetchedReviews];
+            mergedReviews.sort(
+              (a, b) =>
+                new Date(b.created_at ?? 0).getTime() -
+                new Date(a.created_at ?? 0).getTime()
+            );
+            setReviews(mergedReviews);
+          } else {
+            setReviews(fetchedReviews);
+          }
 
         // ML API: 사용자 취향 기반 영화 적합도 계산
         fetchMovieRecommendation(movieData);
@@ -326,7 +355,28 @@ export default function MovieDetailPage() {
     };
 
     fetchMovieData();
-  }, [movieId, personalReview?.id, personalReview?.movie_id, currentUserPk]);
+  }, [
+    movieId,
+    personalReview?.id,
+    personalReview?.movie_id,
+    personalReview?.is_public,
+    currentUserPk,
+  ]);
+
+  useEffect(() => {
+    if (!personalReview || !movie) return;
+    if (personalReview.movie_id !== movie.id) return;
+    setReviews((prev) => {
+      if (prev.some((review) => review.id === personalReview.id)) return prev;
+      const merged = [personalReview, ...prev];
+      merged.sort(
+        (a, b) =>
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime()
+      );
+      return merged;
+    });
+  }, [personalReview?.id, personalReview?.movie_id, personalReview?.is_public, movie?.id]);
 
   useEffect(() => {
     if (location.hash !== "#my-review") return;
@@ -934,9 +984,11 @@ export default function MovieDetailPage() {
                   </div>
                 </div>
               </div>
-              <p className="review-text">
-                {personalReview.content || "리뷰 코멘트가 없습니다."}
-              </p>
+                <p className="review-text">
+                  {isPersonalReviewPrivate
+                    ? "비공개로 설정한 리뷰입니다"
+                    : personalReview.content || "리뷰 코멘트가 없습니다."}
+                </p>
               <div className="review-link-row">
                 <button
                   className="ghost-btn review-link-btn"
@@ -1140,19 +1192,19 @@ export default function MovieDetailPage() {
             <h2>다른 사람들의 리뷰</h2>
             <p>이 영화에 대한 다양한 반응</p>
           </div>
-          {reviews.length === 0 ? (
-            <article className="card review-card review-empty">
-              <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
-            </article>
-          ) : (
-            <div className="review-list">
-              {reviews.map((review) => {
-                const authorName = getDisplayAuthorName(review.user_id);
+            {reviewsForDisplay.length === 0 ? (
+              <article className="card review-card review-empty">
+                <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
+              </article>
+            ) : (
+              <div className="review-list">
+                {reviewsForDisplay.map((review) => {
+                  const authorName = getDisplayAuthorName(review.user_id);
                 const reviewVisibility = toReviewVisibility(review.is_public);
                 const visibilityMeta = getReviewVisibilityMeta(reviewVisibility);
                 const isPrivateReview = reviewVisibility === "private";
-                const reviewContent = isPrivateReview
-                  ? "비공개로 설정된 리뷰입니다"
+                  const reviewContent = isPrivateReview
+                    ? "비공개로 설정한 리뷰입니다"
                   : review.content ?? "리뷰 코멘트가 없습니다.";
                 return (
                   <article className="card review-card" key={review.id}>

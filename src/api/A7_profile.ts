@@ -1,7 +1,7 @@
 /**
  * User Profile API
  */
-import { get, post, put } from './http';
+import { del, get, post, put } from './http';
 
 // Types
 export interface User {
@@ -80,6 +80,14 @@ export function updateCurrentUser(
   data: UpdateUserRequest
 ): Promise<User> {
   return put<User>(`/api/users/me?user_id=${encodeURIComponent(userId)}`, data);
+}
+
+/**
+ * Delete current user account
+ * MW-API-??? (users/me delete)
+ */
+export function deleteCurrentUser(userId: string): Promise<{ message: string }> {
+  return del(`/api/users/me?user_id=${encodeURIComponent(userId)}`);
 }
 
 /**

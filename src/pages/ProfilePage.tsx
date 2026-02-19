@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
-import { getCurrentUser, updateCurrentUser } from "../api/A7_profile";
+import { deleteCurrentUser, getCurrentUser, updateCurrentUser } from "../api/A7_profile";
 
 type ProfileState = {
   nickname: string;
@@ -167,12 +167,28 @@ export default function ProfilePage() {
     navigate("/login");
   };
 
-  const handleDelete = () => {
-    localStorage.removeItem("mw_logged_in");
-    localStorage.removeItem("mw_user_pk");
-    localStorage.removeItem("mw_user_id");
-    window.dispatchEvent(new Event("mw_auth_change"));
-    navigate("/login");
+  const handleDelete = async () => {
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      localStorage.removeItem("mw_logged_in");
+      localStorage.removeItem("mw_user_pk");
+      localStorage.removeItem("mw_user_id");
+      window.dispatchEvent(new Event("mw_auth_change"));
+      navigate("/login");
+      return;
+    }
+
+    try {
+      await deleteCurrentUser(userId);
+      localStorage.removeItem("mw_logged_in");
+      localStorage.removeItem("mw_user_pk");
+      localStorage.removeItem("mw_user_id");
+      window.dispatchEvent(new Event("mw_auth_change"));
+      navigate("/login");
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      alert("회원 탈퇴에 실패했습니다.");
+    }
   };
 
   return (

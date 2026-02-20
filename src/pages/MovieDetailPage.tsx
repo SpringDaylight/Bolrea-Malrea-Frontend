@@ -1162,15 +1162,6 @@ export default function MovieDetailPage() {
                 >
                   {commentOpen[personalReview.id] ? "댓글 접기" : "댓글 보기"}
                 </button>
-              </div>
-              <div className="review-actions-bottom">
-                <button
-                  className="ghost-btn review-link-btn"
-                  type="button"
-                  onClick={handleMyReviewEditOpen}
-                >
-                  {commentOpen[personalReview.id] ? "댓글 접기" : "댓글 보기"}
-                </button>
                 <div className="review-link-right">
                   <button
                     className="ghost-btn review-link-btn"

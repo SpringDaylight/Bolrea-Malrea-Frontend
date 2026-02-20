@@ -8,6 +8,8 @@ export interface Movie {
   id: number;
   title: string;
   avg_rating: number | null;
+  review_count?: number;
+  reviews_count?: number;
   release: string | null;
   runtime: number | null;
   synopsis: string | null;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+﻿import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
@@ -215,7 +215,7 @@ export default function TasteAnalysisPage() {
               const movie = await getMovie(review.movie_id);
               return {
                 movieId: review.movie_id,
-                title: movie.title || `영화 #${review.movie_id}`,
+                title: movie.title || `?곹솕 #${review.movie_id}`,
                 poster: movie.poster_url || POSTER_FALLBACK,
               };
             } catch (movieErr) {
@@ -225,7 +225,7 @@ export default function TasteAnalysisPage() {
               );
               return {
                 movieId: review.movie_id,
-                title: `영화 #${review.movie_id}`,
+                title: `?곹솕 #${review.movie_id}`,
                 poster: POSTER_FALLBACK,
               };
             }
@@ -360,7 +360,19 @@ export default function TasteAnalysisPage() {
 
   const savedKeywords = parseArrayFromStorage("mw_taste_keywords");
   const savedVibe = (getLocalStorageItem("mw_taste_vibe") || "").trim();
-  const wordCloudItems = getWordCloudItems([savedVibe, ...savedKeywords]);
+  const preferenceWordCloudTags = useMemo(() => {
+    if (!userProfile) return [];
+    return dedupe([
+      ...(userProfile.boost_tags ?? []),
+      ...(userProfile.dislike_tags ?? []),
+    ]);
+  }, [userProfile]);
+  const wordCloudSource =
+    preferenceWordCloudTags.length > 0
+      ? preferenceWordCloudTags
+      : [savedVibe, ...savedKeywords];
+  const wordCloudItems = getWordCloudItems(wordCloudSource);
+  const wordCloudRenderItems = wordCloudItems;
   const selectedGenres = parseArrayFromStorage("mw_taste_genres");
   const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
   const tasteContext = (getLocalStorageItem("mw_taste_context") || "").trim();
@@ -536,9 +548,9 @@ export default function TasteAnalysisPage() {
               </div>
               <div className="taste-preview-side">
                 <p className="muted">워드 클라우드</p>
-                {wordCloudItems.length > 0 ? (
+                {wordCloudRenderItems.length > 0 ? (
                   <div className="word-cloud">
-                    {wordCloudItems.map((item) => (
+                    {wordCloudRenderItems.map((item) => (
                       <span
                         key={`${item.word}-${item.size}`}
                         className={`word-cloud-item size-${item.size}`}
@@ -631,3 +643,6 @@ export default function TasteAnalysisPage() {
     </MainLayout>
   );
 }
+
+
+

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
@@ -71,11 +71,6 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
-const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
-  visibility === "private"
-    ? { className: "is-private", label: "비공개 리뷰" }
-    : { className: "is-public", label: "공개 리뷰" };
-
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
   realname: "사용자",
@@ -88,6 +83,7 @@ const defaultProfile: ProfileState = {
 };
 
 const WATCHED_PAGE_SIZE = 30;
+const REVIEWS_PAGE_SIZE = 8;
 
 const normalizeLegacyProfileGender = (value: string | null): string | null => {
   if (!value) return value;
@@ -134,6 +130,7 @@ export default function ActivityPage() {
   const [savedWatchedMovies, setSavedWatchedMovies] = useState<WatchedMovieItem[]>([]);
   const [topWatchedGenres, setTopWatchedGenres] = useState<string[]>([]);
   const [watchedPage, setWatchedPage] = useState(1);
+  const [reviewPage, setReviewPage] = useState(1);
   const [currentPassword, setCurrentPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -143,6 +140,7 @@ export default function ActivityPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const pendingScrollTarget = useRef<string | null>(null);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -164,6 +162,14 @@ export default function ActivityPage() {
       })),
     [savedWatchedMovies]
   );
+  const mergedReviewItems = useMemo(() => {
+    const seen = new Set<number>();
+    return savedReviews.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [savedReviews]);
   const topGenreLabel =
     topWatchedGenres.length > 0
       ? topWatchedGenres.join(" · ")
@@ -178,6 +184,16 @@ export default function ActivityPage() {
   const visiblePosters = posterItems.slice(
     watchedSliceStart,
     watchedSliceStart + WATCHED_PAGE_SIZE
+  );
+  const reviewTotalPages = Math.max(
+    1,
+    Math.ceil(mergedReviewItems.length / REVIEWS_PAGE_SIZE)
+  );
+  const safeReviewPage = Math.min(reviewPage, reviewTotalPages);
+  const reviewSliceStart = (safeReviewPage - 1) * REVIEWS_PAGE_SIZE;
+  const visibleReviews = mergedReviewItems.slice(
+    reviewSliceStart,
+    reviewSliceStart + REVIEWS_PAGE_SIZE
   );
 
   useEffect(() => {
@@ -383,17 +399,12 @@ export default function ActivityPage() {
     };
   }, [isLoggedIn]);
 
-  const mergedReviewItems = useMemo(() => {
-    const seen = new Set<number>();
-    return savedReviews.filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  }, [savedReviews]);
   useEffect(() => {
     setWatchedPage(1);
   }, [savedWatchedMovies.length]);
+  useEffect(() => {
+    setReviewPage(1);
+  }, [mergedReviewItems.length]);
   const watchedCount = posterItems.length;
   const reviewCount = mergedReviewItems.length;
 
@@ -668,29 +679,32 @@ export default function ActivityPage() {
     });
   };
 
-  const renderReviewRatingStars = (rating: number, reviewId: number) => {
+  const requestScrollToSection = (targetId: string, nextView: ViewMode) => {
+    if (view === nextView) {
+      scrollToWithHeaderOffset(targetId);
+      return;
+    }
+    pendingScrollTarget.current = targetId;
+    setView(nextView);
+  };
+
+  const formatReviewRating = (rating: number) => {
     const ratingValue = Number.isFinite(rating)
       ? Math.max(0, Math.min(5, Math.round(rating * 2) / 2))
       : 0;
-    const activeStars = Math.floor(ratingValue);
-    const ratingLabel =
-      Number.isInteger(ratingValue) ? `${ratingValue}` : ratingValue.toFixed(1);
-
-    return (
-      <span className="review-rating-stars" aria-label={`평점 ${ratingLabel}점`}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <span
-            key={`${reviewId}-star-${index}`}
-            className={`review-star ${index < activeStars ? "is-active" : ""}`}
-            aria-hidden="true"
-          >
-            ★
-          </span>
-        ))}
-        <span className="review-rating-value">{ratingLabel}점</span>
-      </span>
-    );
+    return Number.isInteger(ratingValue)
+      ? `${ratingValue}`
+      : ratingValue.toFixed(1);
   };
+
+  useEffect(() => {
+    if (!pendingScrollTarget.current) return;
+    const targetId = pendingScrollTarget.current;
+    pendingScrollTarget.current = null;
+    requestAnimationFrame(() => {
+      scrollToWithHeaderOffset(targetId);
+    });
+  }, [view]);
 
   if (!isLoggedIn) {
     return (
@@ -849,18 +863,12 @@ export default function ActivityPage() {
               role="button"
               tabIndex={0}
               onClick={() => {
-                setView("posters");
-                setTimeout(() => {
-                  scrollToWithHeaderOffset("posters-header");
-                }, 0);
+                requestScrollToSection("posters-section", "posters");
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setView("posters");
-                  setTimeout(() => {
-                    scrollToWithHeaderOffset("posters-header");
-                  }, 0);
+                  requestScrollToSection("posters-section", "posters");
                 }
               }}
             >
@@ -872,18 +880,12 @@ export default function ActivityPage() {
               role="button"
               tabIndex={0}
               onClick={() => {
-                setView("reviews");
-                setTimeout(() => {
-                  scrollToWithHeaderOffset("reviews-header");
-                }, 0);
+                requestScrollToSection("reviews-section", "reviews");
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setView("reviews");
-                  setTimeout(() => {
-                    scrollToWithHeaderOffset("reviews-header");
-                  }, 0);
+                  requestScrollToSection("reviews-section", "reviews");
                 }
               }}
             >
@@ -921,7 +923,7 @@ export default function ActivityPage() {
 
           {view === "posters" && (
             <article className="section view-section" data-view="posters" id="posters-section">
-              <div className="poster-grid poster-grid-6">
+              <div className="poster-grid poster-grid-10">
                 {visiblePosters.map((poster) => (
                   <div key={poster.id} className="poster-card">
                     <Link to={poster.to}>
@@ -979,9 +981,8 @@ export default function ActivityPage() {
 
           {view === "reviews" && (
             <article className="section view-section" data-view="reviews" id="reviews-section">
-            <div className="section-header" id="reviews-header" />
-              <div className="review-list">
-                {mergedReviewItems.map((review) => {
+            <div className="review-list activity-review-grid">
+                {visibleReviews.map((review) => {
                   const visibilityMeta = getReviewVisibilityMeta(review.visibility);
                   return (
                   <div className="review-item" key={review.id}>
@@ -998,11 +999,13 @@ export default function ActivityPage() {
                       }}
                     >
                       <div className="movie-tile">
-                        <img
-                          className="poster"
-                          src={review.poster}
-                          alt={`${review.title} 포스터`}
-                        />
+                        <div className="review-poster-block">
+                          <img
+                            className="poster"
+                            src={review.poster}
+                            alt={`${review.title} 포스터`}
+                          />
+                        </div>
                         <div className="movie-info">
                           <h3 className="review-title-row">
                             <span>{review.title}</span>
@@ -1013,19 +1016,49 @@ export default function ActivityPage() {
                               title={visibilityMeta.label}
                             />
                           </h3>
-                          <p className="muted">"{review.content}"</p>
-                          <div className="meta-list review-meta-inline">
-                            <span>{review.dateLabel}</span>
-                            <span>{review.genre}</span>
-                            {renderReviewRatingStars(review.rating, review.id)}
-                          </div>
+                          <p className="muted">{review.dateLabel}</p>
+                          <p className="muted">평점 {formatReviewRating(review.rating)}점</p>
                         </div>
                       </div>
+                      <p className="muted review-summary-text review-summary-full">
+                        "{review.content}"
+                      </p>
                     </article>
                 </div>
                   );
                 })}
               </div>
+              {mergedReviewItems.length > REVIEWS_PAGE_SIZE && (
+                <div className="pagination">
+                  <button
+                    className="icon-btn page-arrow-btn"
+                    type="button"
+                    aria-label="이전 페이지"
+                    onClick={() =>
+                      setReviewPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={safeReviewPage === 1}
+                  >
+                    {"◀"}
+                  </button>
+                  <span className="page-number-text" aria-live="polite">
+                    {safeReviewPage}/{reviewTotalPages}
+                  </span>
+                  <button
+                    className="icon-btn page-arrow-btn"
+                    type="button"
+                    aria-label="다음 페이지"
+                    onClick={() =>
+                      setReviewPage((prev) =>
+                        Math.min(reviewTotalPages, prev + 1)
+                      )
+                    }
+                    disabled={safeReviewPage >= reviewTotalPages}
+                  >
+                    {"▶"}
+                  </button>
+                </div>
+              )}
             </article>
           )}
           </article>
@@ -1484,5 +1517,16 @@ export default function ActivityPage() {
     </MainLayout>
   );
 }
+
+
+const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
+  visibility === "private"
+    ? { className: "is-private", label: "비공개 리뷰" }
+    : { className: "is-public", label: "공개 리뷰" };
+
+
+
+
+
 
 

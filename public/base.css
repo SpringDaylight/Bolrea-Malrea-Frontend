@@ -1,7 +1,7 @@
 ﻿@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css");
 
 :root {
-  --bg: #E9E9E7;
+  --bg: #F3F6F8;
   --bg-soft: #ffffff;
   --text: #111111;
   --text-subtle: #5d5d66;
@@ -24,6 +24,10 @@ html,
 body,
 #root {
   min-height: 100%;
+}
+
+#root {
+  background: var(--bg);
 }
 
 html {

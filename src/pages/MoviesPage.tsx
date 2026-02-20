@@ -340,7 +340,7 @@ export default function MoviesPage() {
     <MainLayout>
       <main className="container movies-page">
         <section className="page-title">
-          <h1>영화 목록</h1>
+          <h1>영화 검색하기</h1>
         </section>
 
         <section className="section card">

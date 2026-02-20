@@ -132,8 +132,8 @@
 }
 
 .poster {
-  width: 90px;
-  height: 132px;
+  width: 180px;
+  height: 264px;
   border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
@@ -770,6 +770,14 @@
   align-items: center;
   justify-content: flex-start;
 }
+
+.review-link-right {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 
 .review-actions-bottom {
   display: flex;

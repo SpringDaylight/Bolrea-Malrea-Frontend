@@ -140,6 +140,9 @@ export default function ActivityPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [passwordSuccessVisible, setPasswordSuccessVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -564,14 +567,26 @@ export default function ActivityPage() {
     navigate("/login");
   };
 
+  const handleDeleteRequest = () => {
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmVisible(false);
+  };
+
   const handleDelete = async () => {
+    if (isDeletingAccount) return;
+    setIsDeletingAccount(true);
     const userId = localStorage.getItem("mw_user_pk");
     if (!userId) {
       localStorage.removeItem("mw_logged_in");
       localStorage.removeItem("mw_user_pk");
       localStorage.removeItem("mw_user_id");
       window.dispatchEvent(new Event("mw_auth_change"));
-      navigate("/login");
+      setDeleteConfirmVisible(false);
+      setDeleteSuccessVisible(true);
+      setIsDeletingAccount(false);
       return;
     }
 
@@ -581,10 +596,13 @@ export default function ActivityPage() {
       localStorage.removeItem("mw_user_pk");
       localStorage.removeItem("mw_user_id");
       window.dispatchEvent(new Event("mw_auth_change"));
-      navigate("/login");
+      setDeleteConfirmVisible(false);
+      setDeleteSuccessVisible(true);
     } catch (err) {
       console.error("Failed to delete user:", err);
       alert("회원 탈퇴에 실패했습니다.");
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -1133,7 +1151,7 @@ export default function ActivityPage() {
                 <button className="secondary-btn" type="button" onClick={handleLogout}>
                   로그아웃
                 </button>
-                <button className="ghost-btn danger" type="button" onClick={handleDelete}>
+                <button className="ghost-btn danger" type="button" onClick={handleDeleteRequest}>
                   탈퇴하기
                 </button>
               </div>
@@ -1369,6 +1387,92 @@ export default function ActivityPage() {
                   className="primary-btn"
                   type="button"
                   onClick={() => setPasswordSuccessVisible(false)}
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirmVisible && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirm-title"
+        >
+          <div className="modal-overlay" onClick={handleDeleteCancel} />
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 id="delete-confirm-title">회원 탈퇴</h2>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="회원 탈퇴 취소"
+                onClick={handleDeleteCancel}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-scroll">
+              <p>정말 탈퇴하시겠어요?</p>
+              <div className="modal-footer">
+                <button className="ghost-btn" type="button" onClick={handleDeleteCancel}>
+                  취소
+                </button>
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeletingAccount}
+                >
+                  {isDeletingAccount ? "처리 중..." : "탈퇴하기"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteSuccessVisible && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-success-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setDeleteSuccessVisible(false);
+              navigate("/login");
+            }}
+          />
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 id="delete-success-title">탈퇴 완료</h2>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="탈퇴 완료 닫기"
+                onClick={() => {
+                  setDeleteSuccessVisible(false);
+                  navigate("/login");
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-scroll">
+              <p>회원 탈퇴가 완료되었습니다.</p>
+              <div className="modal-footer">
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => {
+                    setDeleteSuccessVisible(false);
+                    navigate("/login");
+                  }}
                 >
                   확인
                 </button>

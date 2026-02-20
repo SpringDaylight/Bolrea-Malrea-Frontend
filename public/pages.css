@@ -20,9 +20,17 @@
 }
 
 .movie-detail-card-actions {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
+  margin: 0;
+  z-index: 2;
+}
+
+.movie-detail-main-card {
+  position: relative;
 }
 
 .signup-birthdate-row {
@@ -546,6 +554,39 @@
 }
 .taste-preview-body > div {
   display: block;
+}
+
+.taste-preview-body > .survey-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.survey-summary-empty {
+  text-align: center;
+  padding: 24px 16px;
+  border-radius: 12px;
+  background: #f8f9fa;
+  border: 1px solid var(--line);
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+.survey-cta-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0 24px;
+}
+
+.survey-cta-btn {
+  width: auto;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
 }
 
 .taste-preview-body .muted,

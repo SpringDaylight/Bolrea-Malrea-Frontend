@@ -63,7 +63,7 @@ export default function Header() {
           <img className="brand-logo" src={logoToggle} alt="서비스 로고" />
           <div>
             <p className="brand-title">볼래! 말래?</p>
-            <p className="brand-sub">취향 기반 영화 탐색</p>
+            <p className="brand-sub">취향 기반 영화 탐색 서비스</p>
           </div>
         </Link>
 

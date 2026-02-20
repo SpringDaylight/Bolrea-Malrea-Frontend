@@ -867,17 +867,6 @@ export default function MovieDetailPage() {
 
         <section className="section">
           <article className="card movie-detail-main-card">
-            <div className="movie-detail-card-actions">
-              <button
-                className={`secondary-btn movie-watch-btn ${
-                  isMovieWatched ? "is-active" : ""
-                }`}
-                type="button"
-                onClick={handleMarkWatched}
-              >
-                시청함
-              </button>
-            </div>
             <div className="movie-tile">
               <img
                 className="poster"
@@ -949,6 +938,18 @@ export default function MovieDetailPage() {
                 </p>
               </div>
             )}
+
+            <div className="movie-detail-card-actions">
+              <button
+                className={`secondary-btn movie-watch-btn ${
+                  isMovieWatched ? "is-active" : ""
+                }`}
+                type="button"
+                onClick={handleMarkWatched}
+              >
+                시청함
+              </button>
+            </div>
 
             {/* <div className="hero-actions" style={{ marginTop: 18 }}>
               <button className="primary-btn">바로 감상하기</button>
@@ -1163,7 +1164,7 @@ export default function MovieDetailPage() {
                 </div>
               ) : (
                 <div className="review-empty-row">
-                  <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
+                  <p className="muted">아직 이 영화에는 리뷰를 작성하지 않았어요.</p>
                   <button
                     className="primary-btn"
                     type="button"
@@ -1243,6 +1244,7 @@ export default function MovieDetailPage() {
                                   likeActive ? "is-active" : ""
                                 }`}
                                 type="button"
+                                aria-label="좋아요"
                                 aria-pressed={likeActive}
                                 disabled={dislikeActive}
                                 onClick={() => handleToggleReaction(review.id, "like")}
@@ -1251,7 +1253,7 @@ export default function MovieDetailPage() {
                                   className="review-reaction-icon"
                                   aria-hidden="true"
                                 />
-                                좋아요 {reactions[review.id]?.likes ?? review.likes_count ?? 0}
+                                {reactions[review.id]?.likes ?? review.likes_count ?? 0}
                               </button>
                               {/* <span className="muted">|</span> */}
                               <button
@@ -1259,6 +1261,7 @@ export default function MovieDetailPage() {
                                   dislikeActive ? "is-active" : ""
                                 }`}
                                 type="button"
+                                aria-label="싫어요"
                                 aria-pressed={dislikeActive}
                                 disabled={likeActive}
                                 onClick={() => handleToggleReaction(review.id, "dislike")}
@@ -1267,7 +1270,6 @@ export default function MovieDetailPage() {
                                   className="review-reaction-icon is-dislike"
                                   aria-hidden="true"
                                 />
-                                싫어요{" "}
                                 {reactions[review.id]?.dislikes ?? review.dislikes_count ?? 0}
                               </button>
                             </>

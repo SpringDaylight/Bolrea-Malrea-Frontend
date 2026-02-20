@@ -1,0 +1,263 @@
+/* Unused styles (currently not referenced in markup) */
+/*
+.bar {
+  position: relative;
+  height: 10px;
+  background: #f0f0f4;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar span {
+  position: absolute;
+  inset: 0;
+  width: 60%;
+  background: linear-gradient(90deg, #6FA3C8, #ff7aa4);
+  border-radius: 999px;
+}
+*/
+
+/* Unused styles (auto-collected) */
+/* source: base.css */
+/*
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+*/
+/*
+.feature-card {
+  background: var(--bg-soft);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  animation: rise 0.7s ease both;
+}
+*/
+/*
+.feature-card h3 {
+  font-size: 1.05rem;
+  margin: 10px 0 6px;
+}
+*/
+/*
+.feature-card p {
+  color: var(--text-subtle);
+  font-size: 0.95rem;
+}
+*/
+/*
+.score-number {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+*/
+/*
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+*/
+/*
+@media (max-width: 900px) {
+  .mood-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+*/
+/*
+@media (max-width: 640px) {
+  .mood-grid {
+    grid-template-columns: 1fr;
+  }
+}
+*/
+/*
+.mood-card {
+  display: grid;
+  gap: 8px;
+}
+*/
+
+/* source: components.css */
+/*
+.btn-animate {
+  animation: rise 0.7s ease both;
+}
+*/
+/*
+.card-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 18px 0;
+}
+*/
+/*
+.poster-toggle-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+*/
+/*
+.poster-toggle-bar {
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-subtle);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+*/
+/*
+.poster-toggle-bar:hover,
+.poster-toggle-bar:focus-visible {
+  color: var(--text);
+}
+*/
+/*
+.poster-toggle-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+*/
+/*
+.poster-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+*/
+/*
+.review-replies {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #f8f8fb;
+  display: grid;
+  gap: 10px;
+}
+*/
+/*
+.review-form-row-half {
+  min-width: 0;
+}
+*/
+/*
+.review-form-spacer {
+  min-width: 0;
+}
+*/
+/*
+.review-visibility-select {
+  width: 98px;
+  min-width: 98px;
+}
+*/
+/*
+.review-rating-select {
+  width: 110px;
+  min-width: 110px;
+}
+*/
+/*
+.comment-form {
+  display: grid;
+  gap: 12px;
+}
+*/
+/*
+.comment-input {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+*/
+/*
+.comment-input textarea {
+  min-height: 90px;
+}
+*/
+/*
+.comment-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+*/
+
+/* source: pages.css */
+/*
+.profile-stats {
+  display: flex;
+  gap: 18px;
+  margin-top: 12px;
+}
+*/
+/*
+.profile-stats span {
+  font-size: 0.85rem;
+  color: var(--text-subtle);
+}
+*/
+/*
+.profile-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+*/
+/*
+.profile-meta-row > div {
+  min-width: 0;
+}
+*/
+/*
+.profile-link {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+}
+*/
+/*
+.taste-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+*/
+/*
+.taste-score {
+  text-align: center;
+  display: grid;
+  gap: 6px;
+}
+*/
+/*
+.taste-chart {
+  display: grid;
+  gap: 12px;
+}
+*/
+/*
+.taste-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 48px;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+}
+*/
+

@@ -117,10 +117,14 @@ export const saveLocalPreferenceToBackend = async (userId: string): Promise<bool
  * 리뷰 작성 후 선호도 동기화 및 캐시 무효화
  */
 export const syncAfterReview = async (userId: string): Promise<void> => {
-  // 1. 백엔드에서 최신 선호도 가져오기
-  await syncUserPreferenceToLocal(userId);
-  
-  // 2. 적합도 캐시 무효화
+  try {
+    // 백엔드 최신 선호도는 캐시 갱신 용도로만 조회
+    await fetchUserPreference(userId);
+  } catch {
+    // ignore fetch errors; cache invalidation still proceeds
+  }
+
+  // 적합도 캐시 무효화
   clearMatchRateCache();
 };
 

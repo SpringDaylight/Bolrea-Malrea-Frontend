@@ -3,6 +3,7 @@
  */
 import { get, post } from './http';
 
+/*
 export interface KakaoLoginResponse {
   auth_url: string;
 }
@@ -28,6 +29,7 @@ export interface KakaoSignupCompleteRequest {
   birth_date?: string;
   gender?: string;
 }
+*/
 
 export interface SignupRequest {
   user_id: string;
@@ -36,11 +38,19 @@ export interface SignupRequest {
   email: string;
   password: string;
   password_confirm: string;
+  birth_date?: string;
 }
 
 export interface LoginRequest {
   user_id: string;
   password: string;
+}
+
+export interface PasswordChangeRequest {
+  user_id: string;
+  current_password: string;
+  new_password: string;
+  new_password_confirm: string;
 }
 
 export interface AuthUserResponse {
@@ -53,26 +63,21 @@ export interface AuthUserResponse {
   created_at: string;
 }
 
-/**
- * Get Kakao OAuth login URL
- */
+/*
+ * Kakao OAuth (unused)
+ *
 export function getKakaoLoginUrl(): Promise<KakaoLoginResponse> {
   return get<KakaoLoginResponse>('/api/auth/kakao/login');
 }
 
-/**
- * Handle Kakao OAuth callback
- */
 export function handleKakaoCallback(code: string): Promise<KakaoCallbackResponse> {
   return get<KakaoCallbackResponse>('/api/auth/kakao/callback', { code });
 }
 
-/**
- * Complete Kakao signup after tutorial
- */
 export function completeKakaoSignup(data: KakaoSignupCompleteRequest): Promise<AuthUserResponse> {
   return post<AuthUserResponse>('/api/auth/kakao/complete-signup', data);
 }
+*/
 
 /**
  * Local signup
@@ -93,4 +98,13 @@ export function login(data: LoginRequest): Promise<AuthUserResponse> {
  */
 export function logout(): Promise<{ message: string }> {
   return post<{ message: string }>('/api/auth/logout');
+}
+
+/**
+ * Change password for local user
+ */
+export function changePassword(
+  data: PasswordChangeRequest
+): Promise<{ message: string }> {
+  return post<{ message: string }>('/api/auth/password', data);
 }

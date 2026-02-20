@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import TasteSurveyModal from "../components/TasteSurveyModal";
 import { getMovie } from "../api/A2_movies";
 import { getCurrentUserReviews } from "../api/A7_profile";
-import {
-  getCurrentUserWatchedMovies,
-  getLocalWatchedMovies,
-  saveLocalWatchedMovies,
-} from "../api/A8_watched";
+import { getCurrentUserWatchedMovies } from "../api/A8_watched";
 import { getTasteMap, type UserProfile } from "../api/ml";
+import { getUserPreference } from "../api/userPreferences";
 
 type WordCloudItem = {
   word: string;
@@ -96,23 +94,68 @@ export default function TasteAnalysisPage() {
   const [watchedGenreStats, setWatchedGenreStats] = useState<
     Array<{ genre: string; percent: number }>
   >([]);
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
   const isLoggedIn = useMemo(
     () => getLocalStorageItem("mw_logged_in") === "true",
     []
   );
 
+  const handleSurveyOpen = () => setIsSurveyOpen(true);
+  const handleSurveyClose = () => setIsSurveyOpen(false);
+  const handleSurveyComplete = () => {
+    setIsSurveyOpen(false);
+    setSurveyRefreshKey((prev) => prev + 1);
+  };
+
   useEffect(() => {
     const loadTasteAnalysis = async () => {
       setLoading(true);
       try {
-        const savedProfile = getLocalStorageItem("mw_user_profile");
-        if (savedProfile) {
-          const profile = JSON.parse(savedProfile) as UserProfile;
+        const userId = getLocalStorageItem("mw_user_pk");
+        if (isLoggedIn && userId) {
+          const preference = await getUserPreference(userId);
+          const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([tag]) => tag);
+          const topNarratives = Object.entries(
+            preference.preference_vector_json.narrative_traits
+          )
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([tag]) => tag);
+
+          const userText = [...topEmotions, ...topNarratives].join(", ");
+          const profile: UserProfile = {
+            user_text: userText,
+            emotion_scores: preference.preference_vector_json.emotion_scores,
+            narrative_traits: preference.preference_vector_json.narrative_traits,
+            direction_mood: preference.preference_vector_json.direction_mood,
+            character_relationship: preference.preference_vector_json.character_relationship,
+            ending_preference: preference.preference_vector_json.ending_preference,
+            dislike_tags: preference.penalty_tags ?? [],
+            boost_tags: preference.boost_tags ?? [],
+          };
           setUserProfile(profile);
-          await getTasteMap({
-            user_text: profile.user_text,
-            k: 8,
-          });
+          if (userText) {
+            await getTasteMap({
+              user_text: userText,
+              k: 8,
+            });
+          }
+        } else {
+          const savedProfile = getLocalStorageItem("mw_user_profile");
+          if (savedProfile) {
+            const profile = JSON.parse(savedProfile) as UserProfile;
+            setUserProfile(profile);
+            if (profile.user_text) {
+              await getTasteMap({
+                user_text: profile.user_text,
+                k: 8,
+              });
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to load taste analysis:", err);
@@ -122,7 +165,7 @@ export default function TasteAnalysisPage() {
     };
 
     loadTasteAnalysis();
-  }, []);
+  }, [isLoggedIn, surveyRefreshKey]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -222,15 +265,15 @@ export default function TasteAnalysisPage() {
     let isCancelled = false;
 
     const fetchWatchedGenreStats = async () => {
-      const localWatched = getLocalWatchedMovies(userId);
-      const localNeedingGenres = localWatched.filter(
-        (item) => !Array.isArray(item.genres) || item.genres.length === 0
-      );
-      let apiItems: typeof localWatched = [];
+      let apiItems: Array<{
+        movie_id: number;
+        user_id?: string | null;
+        genres?: string[] | null;
+      }> = [];
       try {
         const response = await getCurrentUserWatchedMovies(userId, {
           page: 1,
-          page_size: 500,
+          page_size: 100,
         });
         if (isCancelled) return;
         apiItems = response.items.filter(
@@ -243,10 +286,7 @@ export default function TasteAnalysisPage() {
       if (isCancelled) return;
 
       const movieIds = Array.from(
-        new Set([
-          ...localWatched.map((item) => Number(item.movie_id)),
-          ...apiItems.map((item) => Number(item.movie_id)),
-        ])
+        new Set(apiItems.map((item) => Number(item.movie_id)))
       ).filter((id) => Number.isFinite(id));
 
       if (movieIds.length === 0) {
@@ -255,16 +295,15 @@ export default function TasteAnalysisPage() {
       }
 
       const genreCounts = new Map<string, number>();
-      const needsFetch = new Set<number>(movieIds);
-
-      const localGenreMap = new Map<number, string[]>();
-      localWatched.forEach((item) => {
+      const needsFetch = new Set<number>();
+      apiItems.forEach((item) => {
         const movieId = Number(item.movie_id);
         if (!Number.isFinite(movieId)) return;
         const genres = Array.isArray(item.genres) ? item.genres : [];
-        if (genres.length === 0) return;
-        needsFetch.delete(movieId);
-        localGenreMap.set(movieId, genres);
+        if (genres.length === 0) {
+          needsFetch.add(movieId);
+          return;
+        }
         genres.forEach((genre) => {
           if (typeof genre !== "string") return;
           const trimmed = genre.trim();
@@ -272,39 +311,6 @@ export default function TasteAnalysisPage() {
           genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
         });
       });
-
-      if (localNeedingGenres.length > 0) {
-        await Promise.all(
-          localNeedingGenres.map(async (item) => {
-            const movieId = Number(item.movie_id);
-            if (!Number.isFinite(movieId)) return;
-            try {
-              const movie = await getMovie(movieId);
-              if (!movie?.genres || movie.genres.length === 0) return;
-              localGenreMap.set(movieId, movie.genres);
-              needsFetch.delete(movieId);
-              movie.genres.forEach((genre) => {
-                if (typeof genre !== "string") return;
-                const trimmed = genre.trim();
-                if (!trimmed) return;
-                genreCounts.set(trimmed, (genreCounts.get(trimmed) ?? 0) + 1);
-              });
-            } catch (err) {
-              console.error(
-                `Failed to backfill genres for movie_id=${movieId}:`,
-                err
-              );
-            }
-          })
-        );
-
-        const backfilled = localWatched.map((item) => ({
-          ...item,
-          genres:
-            localGenreMap.get(Number(item.movie_id)) ?? item.genres ?? null,
-        }));
-        saveLocalWatchedMovies(userId, backfilled);
-      }
 
       await Promise.all(
         Array.from(needsFetch).map(async (movieId) => {
@@ -359,6 +365,14 @@ export default function TasteAnalysisPage() {
   const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
   const tasteContext = (getLocalStorageItem("mw_taste_context") || "").trim();
   const tasteOrigin = (getLocalStorageItem("mw_taste_origin") || "").trim();
+  const hasSurveyData =
+    Boolean(userProfile) ||
+    selectedGenres.length > 0 ||
+    avoidedGenres.length > 0 ||
+    savedKeywords.length > 0 ||
+    Boolean(savedVibe) ||
+    Boolean(tasteContext) ||
+    Boolean(tasteOrigin);
   const preferenceSlots = Array.from({ length: 5 }, (_, index) => {
     const slot = watchedGenreStats[index];
     if (!slot) {
@@ -383,98 +397,121 @@ export default function TasteAnalysisPage() {
       <main className="container taste-analysis-page">
         <section className="page-title">
           <h1>취향 분석 상세</h1>
-          <p>마이홈에서 연결되는 취향 대시보드입니다.</p>
-          {!userProfile && (
-            <Link to="/taste-survey" className="primary-btn">
-              취향 설문 시작하기
-            </Link>
-          )}
+          <p>나의 영화 취향을 확인해보세요!</p>
         </section>
 
         <section className="section card taste-preview-section">
           <article className="taste-preview">
-            <div className="taste-preview-header">
-              <h2>나의 영화 취향 설문 결과</h2>
-              <p>설문 답변 요약</p>
+            <div className="taste-preview-header with-cta">
+              <div>
+                <h2>나의 영화 취향 설문 결과</h2>
+                <p>설문 답변 요약</p>
+              </div>
+              {hasSurveyData && (
+                <button
+                  className="secondary-btn taste-preview-top-cta"
+                  type="button"
+                  onClick={handleSurveyOpen}
+                >
+                  취향설문 다시하기
+                </button>
+              )}
             </div>
             <div className="taste-preview-body">
-              <div className="survey-summary-grid">
-                <div className="survey-summary-card">
-                  <h3 className="survey-summary-title">좋아하는 장르</h3>
-                  {selectedGenres.length > 0 ? (
-                    <div className="tag-list">
-                      {selectedGenres.map((genre) => (
-                        <span key={genre} className="tag">
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="survey-summary-value is-empty">미설정</p>
-                  )}
+              {hasSurveyData ? (
+                <div className="survey-summary-grid">
+                  <div className="survey-summary-card">
+                    <h3 className="survey-summary-title">좋아하는 장르</h3>
+                    {selectedGenres.length > 0 ? (
+                      <div className="tag-list">
+                        {selectedGenres.map((genre) => (
+                          <span key={genre} className="tag">
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="survey-summary-value is-empty">미설정</p>
+                    )}
+                  </div>
+                  <div className="survey-summary-card">
+                    <h3 className="survey-summary-title">싫어하는 장르</h3>
+                    {avoidedGenres.length > 0 ? (
+                      <div className="tag-list">
+                        {avoidedGenres.map((genre) => (
+                          <span key={genre} className="tag">
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="survey-summary-value is-empty">미설정</p>
+                    )}
+                  </div>
+                  <div className="survey-summary-card">
+                    <h3 className="survey-summary-title">주로 영화를 볼 때에는?</h3>
+                    <p
+                      className={`survey-summary-value ${
+                        tasteContext ? "" : "is-empty"
+                      }`}
+                    >
+                      {tasteContext || "미설정"}
+                    </p>
+                  </div>
+                  <div className="survey-summary-card">
+                    <h3 className="survey-summary-title">좋아하는 분위기</h3>
+                    <p
+                      className={`survey-summary-value ${
+                        savedVibe ? "" : "is-empty"
+                      }`}
+                    >
+                      {savedVibe || "미설정"}
+                    </p>
+                  </div>
+                  <div className="survey-summary-card">
+                    <h3 className="survey-summary-title">좋아하는 소재</h3>
+                    {savedKeywords.length > 0 ? (
+                      <div className="tag-list">
+                        {savedKeywords.map((keyword) => (
+                          <span key={keyword} className="tag">
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="survey-summary-value is-empty">미설정</p>
+                    )}
+                  </div>
+                  <div className="survey-summary-card">
+                    <h3 className="survey-summary-title">좋아하는 영화 나라</h3>
+                    <p
+                      className={`survey-summary-value ${
+                        tasteOrigin ? "" : "is-empty"
+                      }`}
+                    >
+                      {tasteOrigin || "미설정"}
+                    </p>
+                  </div>
                 </div>
-                <div className="survey-summary-card">
-                  <h3 className="survey-summary-title">싫어하는 장르</h3>
-                  {avoidedGenres.length > 0 ? (
-                    <div className="tag-list">
-                      {avoidedGenres.map((genre) => (
-                        <span key={genre} className="tag">
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="survey-summary-value is-empty">미설정</p>
-                  )}
+              ) : (
+                <div className="survey-summary-empty">
+                  <p>취향분석 설문에 참여해주세요.</p>
                 </div>
-                <div className="survey-summary-card">
-                  <h3 className="survey-summary-title">주로 영화를 볼 때에는?</h3>
-                  <p
-                    className={`survey-summary-value ${
-                      tasteContext ? "" : "is-empty"
-                    }`}
-                  >
-                    {tasteContext || "미설정"}
-                  </p>
-                </div>
-                <div className="survey-summary-card">
-                  <h3 className="survey-summary-title">좋아하는 분위기</h3>
-                  <p
-                    className={`survey-summary-value ${
-                      savedVibe ? "" : "is-empty"
-                    }`}
-                  >
-                    {savedVibe || "미설정"}
-                  </p>
-                </div>
-                <div className="survey-summary-card">
-                  <h3 className="survey-summary-title">좋아하는 소재</h3>
-                  {savedKeywords.length > 0 ? (
-                    <div className="tag-list">
-                      {savedKeywords.map((keyword) => (
-                        <span key={keyword} className="tag">
-                          {keyword}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="survey-summary-value is-empty">미설정</p>
-                  )}
-                </div>
-                <div className="survey-summary-card">
-                  <h3 className="survey-summary-title">좋아하는 영화 나라</h3>
-                  <p
-                    className={`survey-summary-value ${
-                      tasteOrigin ? "" : "is-empty"
-                    }`}
-                  >
-                    {tasteOrigin || "미설정"}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </article>
         </section>
+        {!hasSurveyData && (
+          <div className="survey-cta-row">
+            <button
+              className="icon-btn page-arrow-btn survey-cta-btn"
+              type="button"
+              onClick={handleSurveyOpen}
+            >
+              설문 참여하기
+            </button>
+          </div>
+        )}
 
         <section className="section card taste-preview-section">
           <article className="taste-preview">
@@ -585,6 +622,12 @@ export default function TasteAnalysisPage() {
           )}
         </section>
       </main>
+      {isSurveyOpen && (
+        <TasteSurveyModal
+          onClose={handleSurveyClose}
+          onComplete={handleSurveyComplete}
+        />
+      )}
     </MainLayout>
   );
 }

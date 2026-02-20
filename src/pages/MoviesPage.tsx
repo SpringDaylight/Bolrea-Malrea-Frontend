@@ -5,8 +5,6 @@ import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
-  getLocalWatchedMovies,
-  upsertLocalWatchedMovie,
 } from "../api/A8_watched";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
@@ -105,22 +103,18 @@ export default function MoviesPage() {
 
     const fetchWatchedMovies = async () => {
       try {
-        const localWatched = getLocalWatchedMovies(currentUserPk);
         const response = await getCurrentUserWatchedMovies(currentUserPk, {
           page: 1,
-          page_size: 500,
+          page_size: 100,
         });
         if (isCancelled) return;
         const scopedWatched = response.items.filter(
           (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
         );
-        const localIds = localWatched
-          .map((item) => Number(item.movie_id))
-          .filter((id) => Number.isFinite(id));
 
         setWatchedMovieIds(
           new Set(
-            [...scopedWatched.map((item) => Number(item.movie_id)), ...localIds].filter(
+            scopedWatched.map((item) => Number(item.movie_id)).filter(
               (id) => Number.isFinite(id)
             )
           )
@@ -128,11 +122,7 @@ export default function MoviesPage() {
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-        const localWatched = getLocalWatchedMovies(currentUserPk);
-        const localIds = localWatched
-          .map((item) => Number(item.movie_id))
-          .filter((id) => Number.isFinite(id));
-        setWatchedMovieIds(new Set(localIds));
+        setWatchedMovieIds(new Set());
       }
     };
 
@@ -300,20 +290,13 @@ export default function MoviesPage() {
 
     try {
       await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
-    } catch (err) {
-      console.error("Failed to save watched movie:", err);
-    } finally {
-      upsertLocalWatchedMovie(currentUserPk, {
-        movie_id: movie.id,
-        title: movie.title,
-        poster_url: movie.poster_url,
-        genres: movie.genres,
-      });
       setWatchedMovieIds((prev) => {
         const next = new Set(prev);
         next.add(movie.id);
         return next;
       });
+    } catch (err) {
+      console.error("Failed to save watched movie:", err);
     }
   };
 

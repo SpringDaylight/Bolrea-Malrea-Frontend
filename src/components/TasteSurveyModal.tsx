@@ -83,14 +83,52 @@ interface TasteSurveyModalProps {
   onComplete: () => void;
 }
 
+const readStorageArray = (key: string): string[] => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is string => typeof item === "string" && item.trim().length
+    );
+  } catch {
+    return [];
+  }
+};
+
+const readStorageString = (key: string): string => {
+  try {
+    return (localStorage.getItem(key) || "").trim();
+  } catch {
+    return "";
+  }
+};
+
+const readAvoidGenres = (): string[] => {
+  const stored = readStorageArray("mw_taste_avoid_genres");
+  if (stored.includes(avoidNoneLabel)) {
+    return [avoidNoneLabel];
+  }
+  return stored;
+};
+
+const readKeywords = (): string[] => {
+  const stored = readStorageArray("mw_taste_keywords");
+  if (stored.length > 0) return stored;
+  return readStorageArray("mw_tast_keyword");
+};
+
 export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyModalProps) {
   const [surveyStep, setSurveyStep] = useState(0);
-  const [genres, setGenres] = useState<string[]>([]);
-  const [avoidGenres, setAvoidGenres] = useState<string[]>([]);
-  const [context, setContext] = useState("");
-  const [vibe, setVibe] = useState("");
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [origin, setOrigin] = useState("");
+  const [genres, setGenres] = useState<string[]>(() =>
+    readStorageArray("mw_taste_genres")
+  );
+  const [avoidGenres, setAvoidGenres] = useState<string[]>(() => readAvoidGenres());
+  const [context, setContext] = useState(() => readStorageString("mw_taste_context"));
+  const [vibe, setVibe] = useState(() => readStorageString("mw_taste_vibe"));
+  const [keywords, setKeywords] = useState<string[]>(() => readKeywords());
+  const [origin, setOrigin] = useState(() => readStorageString("mw_taste_origin"));
   const [submitting, setSubmitting] = useState(false);
 
   const toggleValueWithLimit = (

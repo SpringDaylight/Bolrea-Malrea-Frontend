@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
-import googleIcon from "../assets/web_neutral_sq_na@1x.png";
-import kakaoIcon from "../assets/kakao_sq_login.png";
-import { signup as signupApi, completeKakaoSignup } from "../api/auth";
+// import googleIcon from "../assets/web_neutral_sq_na@1x.png";
+// import kakaoIcon from "../assets/kakao_sq_login.png";
+import { signup as signupApi } from "../api/auth";
 
 const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -20,15 +20,11 @@ const keywordOptions = [ "✨ 성장 / 청춘", "🤝 가족 / 우정", "💼 �
 const originOptions = [ "🇰🇷 한국 영화", "🇺🇸 미국/할리우드", "🇯🇵 일본 영화/애니", "🇪🇺 유럽/기타 해외", "🎞️ 고전 명작"];
 
 const totalSurveySteps = 6;
-const defaultProfileBio = "Enjoying drama and SF with strong emotional arcs.";
-
 type SignupField = "name" | "birthDate" | "nickname" | "userId" | "email" | "password" | "confirm";
 type SignupFieldErrors = Partial<Record<SignupField, string>>;
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const [isKakaoMode, setIsKakaoMode] = useState(false);
-  const [kakaoData, setKakaoData] = useState<any>(null);
   const [name, setName] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
@@ -65,6 +61,7 @@ export default function SignupPage() {
     (_, index) => String(index + 1)
   );
 
+  /*
   // Check if this is Kakao signup mode
   useEffect(() => {
     const tempData = sessionStorage.getItem("kakao_signup_temp");
@@ -77,6 +74,7 @@ export default function SignupPage() {
       setEmail(data.email || "");
     }
   }, []);
+  */
 
   useEffect(() => {
     if (birthDay && Number(birthDay) > daysInSelectedMonth) {
@@ -176,15 +174,12 @@ export default function SignupPage() {
     }
     if (!nickname.trim()) nextErrors.nickname = "내용을 입력해주세요.";
     
-    // Skip userId, email, and password validation for Kakao mode
-    if (!isKakaoMode) {
-      if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
-      if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
-      if (!password.trim()) nextErrors.password = "내용을 입력해주세요.";
-      if (!confirm.trim()) nextErrors.confirm = "내용을 입력해주세요.";
-      if (password && confirm && password !== confirm) {
-        nextErrors.confirm = "비밀번호가 일치하지 않습니다.";
-      }
+    if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
+    if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
+    if (!password.trim()) nextErrors.password = "내용을 입력해주세요.";
+    if (!confirm.trim()) nextErrors.confirm = "내용을 입력해주세요.";
+    if (password && confirm && password !== confirm) {
+      nextErrors.confirm = "비밀번호가 일치하지 않습니다.";
     }
 
     setFieldErrors(nextErrors);
@@ -199,63 +194,30 @@ export default function SignupPage() {
     try {
       setIsSubmitting(true);
 
-      if (isKakaoMode && kakaoData) {
-        // Kakao signup mode - update session data and proceed to survey
-        const formattedBirthDate = birthYear && birthMonth && birthDay
-          ? `${birthYear.padStart(4, "0")}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
-          : undefined;
+      const formattedBirthDate = `${birthYear.padStart(4, "0")}-${birthMonth.padStart(
+        2,
+        "0"
+      )}-${birthDay.padStart(2, "0")}`;
+      const payload = {
+        user_id: userId.trim(),
+        name: name.trim(),
+        nickname: nickname.trim(),
+        email: email.trim(),
+        password,
+        password_confirm: confirm,
+        birth_date: formattedBirthDate,
+      };
 
-        const updatedKakaoData = {
-          ...kakaoData,
-          nickname: nickname.trim(),
-          birth_date: formattedBirthDate,
-        };
+      const createdUser = await signupApi(payload);
+      localStorage.setItem("mw_user_pk", createdUser.id);
+      localStorage.setItem(
+        "mw_user_id",
+        createdUser.user_id || payload.user_id
+      );
+      localStorage.setItem("mw_logged_in", "true");
+      window.dispatchEvent(new Event("mw_auth_change"));
 
-        sessionStorage.setItem("kakao_signup_temp", JSON.stringify(updatedKakaoData));
-        setSignupStep(0); // Move to survey
-      } else {
-        // Normal signup mode
-        const payload = {
-          user_id: userId.trim(),
-          name: name.trim(),
-          nickname: nickname.trim(),
-          email: email.trim(),
-          password,
-          password_confirm: confirm,
-        };
-
-        const createdUser = await signupApi(payload);
-        const profileSnapshot = {
-          realname: createdUser.name || payload.name,
-          nickname: createdUser.nickname || payload.nickname,
-          id: createdUser.user_id || payload.user_id,
-          userPk: createdUser.id,
-          email: createdUser.email || payload.email,
-          age: "선택 안함",
-          gender: "선택 안함",
-        };
-
-        localStorage.setItem("mw_profile_name", profileSnapshot.nickname);
-        localStorage.setItem("mw_profile_realname", profileSnapshot.realname);
-        const formattedBirthDate = `${birthYear.padStart(4, "0")}-${birthMonth.padStart(
-          2,
-          "0"
-        )}-${birthDay.padStart(2, "0")}`;
-        localStorage.setItem("mw_profile_birthdate", formattedBirthDate);
-        localStorage.setItem("mw_profile_nickname", profileSnapshot.nickname);
-        localStorage.setItem("mw_profile_id", profileSnapshot.id);
-        localStorage.setItem("mw_user_pk", profileSnapshot.userPk);
-        localStorage.setItem("mw_user_id", profileSnapshot.id);
-        localStorage.setItem("mw_profile_email", profileSnapshot.email);
-        localStorage.setItem("mw_profile_age", profileSnapshot.age);
-        localStorage.setItem("mw_profile_gender", profileSnapshot.gender);
-        localStorage.setItem("mw_profile_bio", defaultProfileBio);
-        localStorage.setItem("mw_signup_profile", JSON.stringify(profileSnapshot));
-        localStorage.setItem("mw_logged_in", "true");
-        window.dispatchEvent(new Event("mw_auth_change"));
-
-        setSignupStep(0);
-      }
+      setSignupStep(0);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "회원가입에 실패했습니다.";
@@ -291,69 +253,6 @@ export default function SignupPage() {
       console.error("Failed to analyze preference:", error);
     }
 
-    // If Kakao mode, complete signup now
-    if (isKakaoMode && kakaoData) {
-      try {
-        const formattedBirthDate = birthYear && birthMonth && birthDay
-          ? `${birthYear.padStart(4, "0")}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
-          : undefined;
-
-        const user = await completeKakaoSignup({
-          kakao_id: kakaoData.kakao_id,
-          provider: kakaoData.provider,
-          nickname: nickname.trim(),
-          email: kakaoData.email,
-          birth_date: formattedBirthDate,
-        });
-
-        // Save user info to localStorage
-        localStorage.setItem("mw_logged_in", "true");
-        localStorage.setItem("mw_user_pk", user.id);
-        if (user.user_id) {
-          localStorage.setItem("mw_user_id", user.user_id);
-          localStorage.setItem("mw_profile_id", user.user_id);
-        }
-        localStorage.setItem("mw_profile_name", user.name);
-        localStorage.setItem("mw_profile_nickname", user.nickname);
-        localStorage.setItem("mw_profile_email", user.email || "");
-        localStorage.setItem("mw_profile_bio", user.avatar_text || "");
-        localStorage.setItem("mw_access_token", kakaoData.access_token);
-
-        // Save preference to database
-        const userProfileStr = localStorage.getItem("mw_user_profile");
-        if (userProfileStr && user.id) {
-          try {
-            const userProfile = JSON.parse(userProfileStr);
-            const { saveUserPreference } = await import("../api/userPreferences");
-            await saveUserPreference({
-              user_id: user.id,
-              preference_vector_json: {
-                emotion_scores: userProfile.emotion_scores,
-                narrative_traits: userProfile.narrative_traits,
-                direction_mood: userProfile.direction_mood,
-                character_relationship: userProfile.character_relationship,
-                ending_preference: userProfile.ending_preference,
-              },
-              boost_tags: userProfile.boost_tags,
-              dislike_tags: userProfile.dislike_tags,
-              penalty_tags: [],
-            });
-            console.log("User preference saved to database");
-          } catch (dbError) {
-            console.error("Failed to save preference to database:", dbError);
-          }
-        }
-
-        // Clear temp data
-        sessionStorage.removeItem("kakao_signup_temp");
-      } catch (error) {
-        console.error('Failed to complete Kakao signup:', error);
-        alert('회원가입 완료 중 오류가 발생했습니다.');
-        navigate('/login');
-        return;
-      }
-    }
-
     setSignupStep(null);
   };
 
@@ -361,32 +260,30 @@ export default function SignupPage() {
     await handleCompleteSurvey();
     
     // 일반 회원가입 사용자도 DB에 저장
-    if (!isKakaoMode) {
-      const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-      const userPk = localStorage.getItem("mw_user_pk");
-      const userProfileStr = localStorage.getItem("mw_user_profile");
+    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+    const userPk = localStorage.getItem("mw_user_pk");
+    const userProfileStr = localStorage.getItem("mw_user_profile");
       
-      if (isLoggedIn && userPk && userProfileStr) {
-        try {
-          const userProfile = JSON.parse(userProfileStr);
-          const { saveUserPreference } = await import("../api/userPreferences");
-          await saveUserPreference({
-            user_id: userPk,
-            preference_vector_json: {
-              emotion_scores: userProfile.emotion_scores,
-              narrative_traits: userProfile.narrative_traits,
-              direction_mood: userProfile.direction_mood,
-              character_relationship: userProfile.character_relationship,
-              ending_preference: userProfile.ending_preference,
-            },
-            boost_tags: userProfile.boost_tags,
-            dislike_tags: userProfile.dislike_tags,
-            penalty_tags: [],
-          });
-          console.log("User preference saved to database (normal signup)");
-        } catch (dbError) {
-          console.error("Failed to save preference to database:", dbError);
-        }
+    if (isLoggedIn && userPk && userProfileStr) {
+      try {
+        const userProfile = JSON.parse(userProfileStr);
+        const { saveUserPreference } = await import("../api/userPreferences");
+        await saveUserPreference({
+          user_id: userPk,
+          preference_vector_json: {
+            emotion_scores: userProfile.emotion_scores,
+            narrative_traits: userProfile.narrative_traits,
+            direction_mood: userProfile.direction_mood,
+            character_relationship: userProfile.character_relationship,
+            ending_preference: userProfile.ending_preference,
+          },
+          boost_tags: userProfile.boost_tags,
+          dislike_tags: userProfile.dislike_tags,
+          penalty_tags: [],
+        });
+        console.log("User preference saved to database (normal signup)");
+      } catch (dbError) {
+        console.error("Failed to save preference to database:", dbError);
       }
     }
     
@@ -568,8 +465,7 @@ export default function SignupPage() {
                 )}
               </div>
               {fieldErrors.nickname && <p className="field-error-text">{fieldErrors.nickname}</p>}
-              {!isKakaoMode && (
-                <>
+              <>
                   <label htmlFor="signup-userid">아이디</label>
                   <div className="input-with-clear">
                     <input
@@ -650,13 +546,7 @@ export default function SignupPage() {
                     )}
                   </div>
                   {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
-                </>
-              )}
-              {isKakaoMode && (
-                <div className="info-box" style={{ marginBottom: "16px" }}>
-                  <p>ℹ️ 카카오 계정으로 로그인하므로 별도의 아이디와 비밀번호는 필요하지 않습니다.</p>
-                </div>
-              )}
+              </>
               <label htmlFor="signup-email">이메일</label>
               <div className="input-with-clear">
                 <input
@@ -664,7 +554,6 @@ export default function SignupPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  disabled={isKakaoMode}
                   onChange={(event) => {
                     setEmail(event.target.value);
                     clearFieldError("email");
@@ -702,6 +591,7 @@ export default function SignupPage() {
                 로그인으로 돌아가기
               </Link>
             </div>
+            {/*
             <div className="social-login">
               <div className="social-login-buttons">
                 <button className="secondary-btn social-btn" type="button">
@@ -712,6 +602,7 @@ export default function SignupPage() {
                 </button>
               </div>
             </div>
+            */}
           </article>
         </section>
 

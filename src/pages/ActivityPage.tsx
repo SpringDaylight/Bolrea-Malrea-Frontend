@@ -3,13 +3,17 @@ import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
 import { getMovie } from "../api/A2_movies";
-import { getCurrentUserReviews } from "../api/A7_profile";
+import { changePassword } from "../api/auth";
+// import { getKakaoLoginUrl } from "../api/auth";
+import {
+  deleteCurrentUser,
+  getCurrentUser,
+  getCurrentUserReviews,
+  updateCurrentUser,
+} from "../api/A7_profile";
 import {
   deleteCurrentUserWatchedMovie,
   getCurrentUserWatchedMovies,
-  getLocalWatchedMovies,
-  removeLocalWatchedMovie,
-  saveLocalWatchedMovies,
 } from "../api/A8_watched";
 
 type ViewMode = "posters" | "reviews";
@@ -42,7 +46,7 @@ type ReviewItem = {
   rating: number;
   content: string;
   createdAt: string;
-  visibility?: ReviewVisibility;
+  visibility: ReviewVisibility;
   replies: ReviewReply[];
 };
 
@@ -54,11 +58,6 @@ type WatchedMovieItem = {
   genres?: string[] | null;
 };
 
-const REVIEW_VISIBILITY_STORAGE_KEY = "mw_review_visibility";
-const LEGACY_REVIEW_STORAGE_KEY = "mw_my_reviews";
-
-const normalizeReviewVisibility = (value: unknown): ReviewVisibility =>
-  value === "private" ? "private" : "public";
 
 const formatDateTime = (value?: string | null) => {
   const date = value ? new Date(value) : new Date();
@@ -72,99 +71,10 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
-const getReviewVisibilityMeta = (visibility: unknown) =>
-  normalizeReviewVisibility(visibility) === "private"
+const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
+  visibility === "private"
     ? { className: "is-private", label: "비공개 리뷰" }
     : { className: "is-public", label: "공개 리뷰" };
-
-const buildVisibilityKey = (
-  movieId: string | number,
-  ownerUserId: string
-) => `${ownerUserId}:${String(movieId)}`;
-
-const buildReviewVisibilityKey = (reviewId: number | string) =>
-  `review:${String(reviewId)}`;
-
-const getResolvedReviewVisibility = ({
-  movieId,
-  reviewId,
-  ownerUserId,
-  currentUserId,
-  latestVisibilityMap,
-  legacyVisibilityMap,
-}: {
-  movieId: string | number;
-  reviewId?: number | null;
-  ownerUserId?: string | null;
-  currentUserId?: string | null;
-  latestVisibilityMap: Record<string, ReviewVisibility>;
-  legacyVisibilityMap: Record<string, ReviewVisibility>;
-}): ReviewVisibility => {
-  if (typeof reviewId === "number") {
-    const reviewKey = buildReviewVisibilityKey(reviewId);
-    if (latestVisibilityMap[reviewKey]) {
-      return latestVisibilityMap[reviewKey];
-    }
-  }
-
-  if (ownerUserId) {
-    const scopedKey = buildVisibilityKey(movieId, ownerUserId);
-    if (latestVisibilityMap[scopedKey]) {
-      return latestVisibilityMap[scopedKey];
-    }
-  }
-
-  // Legacy visibility: 현재 로그인 사용자의 본인 리뷰에만 적용
-  if (ownerUserId && currentUserId && ownerUserId === currentUserId) {
-    const legacyKey = String(movieId);
-    if (legacyVisibilityMap[legacyKey]) {
-      return legacyVisibilityMap[legacyKey];
-    }
-  }
-
-  return "public";
-};
-
-const getStoredReviewVisibilityMap = (): Record<string, ReviewVisibility> => {
-  try {
-    const raw = localStorage.getItem(REVIEW_VISIBILITY_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-
-    return Object.entries(parsed).reduce<Record<string, ReviewVisibility>>(
-      (acc, [key, value]) => {
-        acc[key] = normalizeReviewVisibility(value);
-        return acc;
-      },
-      {}
-    );
-  } catch (err) {
-    console.error("Failed to parse review visibility storage:", err);
-    return {};
-  }
-};
-
-const getLegacyReviewVisibilityMap = (): Record<string, ReviewVisibility> => {
-  try {
-    const raw = localStorage.getItem(LEGACY_REVIEW_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Array<{ movieId?: unknown; visibility?: unknown }>;
-    if (!Array.isArray(parsed)) return {};
-
-    return parsed.reduce<Record<string, ReviewVisibility>>((acc, item) => {
-      const movieId = Number(item.movieId);
-      if (!Number.isFinite(movieId)) return acc;
-      acc[String(movieId)] = normalizeReviewVisibility(item.visibility);
-      return acc;
-    }, {});
-  } catch (err) {
-    console.error("Failed to parse legacy review storage:", err);
-    return {};
-  }
-};
 
 const defaultProfile: ProfileState = {
   nickname: "닉네임",
@@ -179,21 +89,6 @@ const defaultProfile: ProfileState = {
 
 const WATCHED_PAGE_SIZE = 30;
 
-const normalizeLegacyProfileAge = (value: string | null): string | null => {
-  if (!value) return value;
-
-  const allowed = new Set(["선택 안함", "10대", "20대", "30대", "40대", "50대+"]);
-  if (allowed.has(value)) return value;
-
-  if (value.startsWith("10")) return "10대";
-  if (value.startsWith("20")) return "20대";
-  if (value.startsWith("30")) return "30대";
-  if (value.startsWith("40")) return "40대";
-  if (value.startsWith("50")) return "50대+";
-
-  return "선택 안함";
-};
-
 const normalizeLegacyProfileGender = (value: string | null): string | null => {
   if (!value) return value;
   if (value === "선택 안함" || value === "여성" || value === "남성") {
@@ -201,6 +96,7 @@ const normalizeLegacyProfileGender = (value: string | null): string | null => {
   }
   return "선택 안함";
 };
+// 생년월일 기준 실제 나이 계산
 const getAgeLabelFromBirthdate = (birthdate: string | null): string | null => {
   if (!birthdate) return null;
 
@@ -222,7 +118,7 @@ const getAgeLabelFromBirthdate = (birthdate: string | null): string | null => {
   if (hasNotHadBirthdayThisYear) age -= 1;
   if (age < 0 || age > 130) return null;
 
-  return `${age}세`;
+  return `만 ${age}세`;
 };
 
 export default function ActivityPage() {
@@ -230,6 +126,7 @@ export default function ActivityPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
   const [editDraft, setEditDraft] = useState<ProfileState>(defaultProfile);
+  const [birthDate, setBirthDate] = useState<string | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -237,6 +134,17 @@ export default function ActivityPage() {
   const [savedWatchedMovies, setSavedWatchedMovies] = useState<WatchedMovieItem[]>([]);
   const [topWatchedGenres, setTopWatchedGenres] = useState<string[]>([]);
   const [watchedPage, setWatchedPage] = useState(1);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [passwordSuccessVisible, setPasswordSuccessVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
+  // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
     () => localStorage.getItem("mw_logged_in") === "true",
     []
@@ -273,32 +181,58 @@ export default function ActivityPage() {
   );
 
   useEffect(() => {
-    const savedName = localStorage.getItem("mw_profile_name");
-    const savedBio = localStorage.getItem("mw_profile_bio");
-    const savedNickname = localStorage.getItem("mw_profile_nickname");
-    const savedRealname = localStorage.getItem("mw_profile_realname");
-    const savedAge = normalizeLegacyProfileAge(localStorage.getItem("mw_profile_age"));
-    const savedBirthdate =
-      localStorage.getItem("mw_profile_birthdate") ||
-      localStorage.getItem("mw_profile_birth_date");
-    const calculatedAge = getAgeLabelFromBirthdate(savedBirthdate);
-    const savedGender = normalizeLegacyProfileGender(localStorage.getItem("mw_profile_gender"));
-    const savedId = localStorage.getItem("mw_profile_id");
-    const savedEmail = localStorage.getItem("mw_profile_email");
+    if (!isLoggedIn) {
+      setProfile(defaultProfile);
+      setEditDraft(defaultProfile);
+      setBirthDate(null);
+      return;
+    }
 
-    const nextProfile: ProfileState = {
-      nickname: savedNickname || savedName || defaultProfile.nickname,
-      realname: savedRealname || defaultProfile.realname,
-      age: calculatedAge || savedAge || defaultProfile.age,
-      gender: savedGender || defaultProfile.gender,
-      id: savedId || defaultProfile.id,
-      email: savedEmail || defaultProfile.email,
-      bio: savedBio || defaultProfile.bio,
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      setProfile(defaultProfile);
+      setEditDraft(defaultProfile);
+      setBirthDate(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchProfile = async () => {
+      try {
+        const user = await getCurrentUser(userId);
+        if (isCancelled) return;
+
+        const calculatedAge = getAgeLabelFromBirthdate(user.birth_date ?? null);
+        const nextProfile: ProfileState = {
+          nickname: user.nickname || user.name || defaultProfile.nickname,
+          realname: user.name || defaultProfile.realname,
+          age: calculatedAge || "나이 정보 없음",
+          gender:
+            normalizeLegacyProfileGender(user.gender ?? null) || defaultProfile.gender,
+          id: user.user_id || user.id || defaultProfile.id,
+          email: user.email || defaultProfile.email,
+          bio: defaultProfile.bio,
+        };
+
+        setProfile(nextProfile);
+        setEditDraft(nextProfile);
+        setBirthDate(user.birth_date ?? null);
+      } catch (err) {
+        console.error("Failed to load current user profile:", err);
+        if (isCancelled) return;
+        setProfile(defaultProfile);
+        setEditDraft(defaultProfile);
+        setBirthDate(null);
+      }
     };
 
-    setProfile(nextProfile);
-    setEditDraft(nextProfile);
-  }, []);
+    fetchProfile();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -320,8 +254,6 @@ export default function ActivityPage() {
           page: 1,
           page_size: 100,
         });
-        const legacyVisibilityMap = getLegacyReviewVisibilityMap();
-        const latestVisibilityMap = getStoredReviewVisibilityMap();
         const scopedReviews = reviewResponse.reviews.filter(
           (review) => String(review.user_id) === String(userId)
         );
@@ -342,14 +274,7 @@ export default function ActivityPage() {
                 rating: Number(review.rating) || 0,
                 content: review.content ?? "",
                 createdAt: review.created_at,
-                visibility: getResolvedReviewVisibility({
-                  movieId: review.movie_id,
-                  reviewId: review.id,
-                  ownerUserId: review.user_id,
-                  currentUserId: userId,
-                  latestVisibilityMap,
-                  legacyVisibilityMap,
-                }),
+                visibility: review.is_public === false ? "private" : "public",
                 replies: [],
               };
             } catch (movieErr) {
@@ -367,14 +292,7 @@ export default function ActivityPage() {
                 rating: Number(review.rating) || 0,
                 content: review.content ?? "",
                 createdAt: review.created_at,
-                visibility: getResolvedReviewVisibility({
-                  movieId: review.movie_id,
-                  reviewId: review.id,
-                  ownerUserId: review.user_id,
-                  currentUserId: userId,
-                  latestVisibilityMap,
-                  legacyVisibilityMap,
-                }),
+                visibility: review.is_public === false ? "private" : "public",
                 replies: [],
               };
             }
@@ -421,10 +339,9 @@ export default function ActivityPage() {
 
     const fetchWatchedMovies = async () => {
       try {
-        const localWatched = getLocalWatchedMovies(userId);
         const response = await getCurrentUserWatchedMovies(userId, {
           page: 1,
-          page_size: 500,
+          page_size: 100,
         });
         if (isCancelled) return;
 
@@ -440,65 +357,22 @@ export default function ActivityPage() {
           addedAt: item.watched_at || new Date().toISOString(),
           genres: null,
         }));
-        const normalizedLocal = localWatched.map((item) => ({
-          movieId: Number(item.movie_id),
-          title: item.title || `영화 #${item.movie_id}`,
-          poster:
-            item.poster_url ||
-            "https://via.placeholder.com/500x750?text=No+Image",
-          addedAt: item.watched_at || new Date().toISOString(),
-          genres: Array.isArray(item.genres) ? item.genres : null,
-        }));
 
-        const mergedMap = new Map<number, WatchedMovieItem>();
-        [...normalizedLocal, ...normalizedApi].forEach((item) => {
-          const existing = mergedMap.get(item.movieId);
-          if (!existing) {
-            mergedMap.set(item.movieId, item);
-            return;
-          }
-          const existingTime = new Date(existing.addedAt || 0).getTime();
-          const nextTime = new Date(item.addedAt || 0).getTime();
-          const keep = nextTime >= existingTime ? item : existing;
-          mergedMap.set(item.movieId, {
-            ...keep,
-            title: keep.title || existing.title,
-            poster: keep.poster || existing.poster,
-            genres: keep.genres || existing.genres || null,
-          });
-        });
-        const merged = Array.from(mergedMap.values()).sort(
+        const merged = normalizedApi.sort(
           (a, b) =>
             new Date(b.addedAt || 0).getTime() -
             new Date(a.addedAt || 0).getTime()
         );
         setSavedWatchedMovies(merged);
 
-        const topGenres = await computeTopGenres(merged, userId, localWatched);
+        const topGenres = await computeTopGenres(merged);
         if (isCancelled) return;
         setTopWatchedGenres(topGenres);
       } catch (err) {
         if (isCancelled) return;
         console.error("Failed to fetch watched movies:", err);
-        const fallback = getLocalWatchedMovies(userId)
-          .map((item) => ({
-            movieId: Number(item.movie_id),
-            title: item.title || `영화 #${item.movie_id}`,
-            poster:
-              item.poster_url ||
-              "https://via.placeholder.com/500x750?text=No+Image",
-            addedAt: item.watched_at || new Date().toISOString(),
-            genres: Array.isArray(item.genres) ? item.genres : null,
-          }))
-          .sort(
-            (a, b) =>
-              new Date(b.addedAt || 0).getTime() -
-              new Date(a.addedAt || 0).getTime()
-          );
-        setSavedWatchedMovies(fallback);
-        const topGenres = await computeTopGenres(fallback, userId, getLocalWatchedMovies(userId));
-        if (isCancelled) return;
-        setTopWatchedGenres(topGenres);
+        setSavedWatchedMovies([]);
+        setTopWatchedGenres([]);
       }
     };
 
@@ -532,30 +406,33 @@ export default function ActivityPage() {
   const handleOpenPassword = () => {
     setPasswordVisible(true);
     setEditVisible(false);
+    setCurrentPassword("");
+    setNextPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
+    setPasswordSuccessVisible(false);
   };
 
+  /*
+  const handleKakaoLink = async () => {
+    try {
+      const response = await getKakaoLoginUrl();
+      window.location.href = response.auth_url;
+    } catch (err) {
+      console.error("Failed to get Kakao login URL:", err);
+      alert("카카오 로그인에 실패했습니다.");
+    }
+  };
+  */
+
   const computeTopGenres = async (
-    items: WatchedMovieItem[],
-    userId: string,
-    localRaw?: ReturnType<typeof getLocalWatchedMovies>
+    items: WatchedMovieItem[]
   ) => {
     const genreCounts = new Map<string, number>();
-    const localGenreMap = new Map<number, string[]>();
-    if (localRaw) {
-      localRaw.forEach((item) => {
-        const movieId = Number(item.movie_id);
-        if (!Number.isFinite(movieId)) return;
-        const genres = Array.isArray(item.genres) ? item.genres : [];
-        if (genres.length === 0) return;
-        localGenreMap.set(movieId, genres);
-      });
-    }
 
     const missingIds = new Set<number>();
     items.forEach((item) => {
-      const genres = Array.isArray(item.genres)
-        ? item.genres
-        : localGenreMap.get(item.movieId);
+      const genres = Array.isArray(item.genres) ? item.genres : null;
       if (genres && genres.length > 0) {
         genres.forEach((genre) => {
           if (typeof genre !== "string") return;
@@ -574,7 +451,6 @@ export default function ActivityPage() {
           try {
             const movie = await getMovie(movieId);
             if (!movie?.genres || movie.genres.length === 0) return;
-            localGenreMap.set(movieId, movie.genres);
             movie.genres.forEach((genre) => {
               if (typeof genre !== "string") return;
               const trimmed = genre.trim();
@@ -591,21 +467,6 @@ export default function ActivityPage() {
       );
     }
 
-    if (localRaw && localGenreMap.size > 0) {
-      const updated = localRaw.map((item) => {
-        const movieId = Number(item.movie_id);
-        if (!Number.isFinite(movieId)) return item;
-        const genres =
-          localGenreMap.get(movieId) ??
-          (Array.isArray(item.genres) ? item.genres : null);
-        return {
-          ...item,
-          genres,
-        };
-      });
-      saveLocalWatchedMovies(userId, updated);
-    }
-
     if (genreCounts.size === 0) return [];
 
     const maxCount = Math.max(...Array.from(genreCounts.values()));
@@ -616,28 +477,35 @@ export default function ActivityPage() {
       .slice(0, 3);
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     const nextProfile: ProfileState = {
       nickname: editDraft.nickname.trim() || defaultProfile.nickname,
       realname: editDraft.realname.trim() || defaultProfile.realname,
-      age: editDraft.age || defaultProfile.age,
+      age: editDraft.age || "나이 정보 없음",
       gender: editDraft.gender || defaultProfile.gender,
       id: editDraft.id.trim() || defaultProfile.id,
       email: editDraft.email.trim() || defaultProfile.email,
       bio: editDraft.bio.trim() || defaultProfile.bio,
     };
 
-    localStorage.setItem("mw_profile_nickname", nextProfile.nickname);
-    localStorage.setItem("mw_profile_realname", nextProfile.realname);
-    localStorage.setItem("mw_profile_age", nextProfile.age);
-    localStorage.setItem("mw_profile_gender", nextProfile.gender);
-    localStorage.setItem("mw_profile_id", nextProfile.id);
-    localStorage.setItem("mw_profile_email", nextProfile.email);
-    localStorage.setItem("mw_profile_name", nextProfile.nickname);
-    localStorage.setItem("mw_profile_bio", nextProfile.bio);
+    const userId = localStorage.getItem("mw_user_pk");
+    if (userId) {
+      try {
+        await updateCurrentUser(userId, {
+          name: nextProfile.realname,
+          nickname: nextProfile.nickname,
+          email: nextProfile.email,
+          gender: nextProfile.gender,
+          birth_date: birthDate ?? undefined,
+        });
+      } catch (err) {
+        console.error("Failed to update user profile:", err);
+      }
+    }
 
     setProfile(nextProfile);
     setEditVisible(false);
+    window.dispatchEvent(new Event("mw_auth_change"));
   };
 
   const handleCancelEdit = () => {
@@ -645,24 +513,97 @@ export default function ActivityPage() {
     setEditVisible(false);
   };
 
-  const handlePasswordSave = () => {
-    setPasswordVisible(false);
+  const handlePasswordSave = async () => {
+    if (isPasswordSaving) return;
+    const userId = localStorage.getItem("mw_user_id");
+    if (!userId) {
+      setPasswordError("세션 정보가 오래되었습니다. 다시 로그인해주세요.");
+      return;
+    }
+    if (!currentPassword.trim() || !nextPassword.trim() || !confirmPassword.trim()) {
+      setPasswordError("모든 비밀번호를 입력해주세요.");
+      return;
+    }
+    if (nextPassword !== confirmPassword) {
+      setPasswordError("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setIsPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      await changePassword({
+        user_id: userId,
+        current_password: currentPassword,
+        new_password: nextPassword,
+        new_password_confirm: confirmPassword,
+      });
+      setPasswordVisible(false);
+      setPasswordSuccessVisible(true);
+      setCurrentPassword("");
+      setNextPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error("Failed to change password:", err);
+      setPasswordError("비밀번호 변경에 실패했습니다.");
+    } finally {
+      setIsPasswordSaving(false);
+    }
   };
 
   const handlePasswordCancel = () => {
     setPasswordVisible(false);
+    setCurrentPassword("");
+    setNextPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
   };
 
   const handleLogout = () => {
     localStorage.setItem("mw_logged_in", "false");
+    localStorage.removeItem("mw_user_pk");
+    localStorage.removeItem("mw_user_id");
+    window.dispatchEvent(new Event("mw_auth_change"));
     navigate("/login");
   };
 
-  const handleDelete = () => {
-    localStorage.removeItem("mw_logged_in");
-    localStorage.removeItem("mw_profile_name");
-    localStorage.removeItem("mw_profile_bio");
-    navigate("/login");
+  const handleDeleteRequest = () => {
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmVisible(false);
+  };
+
+  const handleDelete = async () => {
+    if (isDeletingAccount) return;
+    setIsDeletingAccount(true);
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      localStorage.removeItem("mw_logged_in");
+      localStorage.removeItem("mw_user_pk");
+      localStorage.removeItem("mw_user_id");
+      window.dispatchEvent(new Event("mw_auth_change"));
+      setDeleteConfirmVisible(false);
+      setDeleteSuccessVisible(true);
+      setIsDeletingAccount(false);
+      return;
+    }
+
+    try {
+      await deleteCurrentUser(userId);
+      localStorage.removeItem("mw_logged_in");
+      localStorage.removeItem("mw_user_pk");
+      localStorage.removeItem("mw_user_id");
+      window.dispatchEvent(new Event("mw_auth_change"));
+      setDeleteConfirmVisible(false);
+      setDeleteSuccessVisible(true);
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      alert("회원 탈퇴에 실패했습니다.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   const handleRemoveWatchedMovie = async (movieId: number) => {
@@ -671,10 +612,6 @@ export default function ActivityPage() {
 
     try {
       await deleteCurrentUserWatchedMovie(userId, movieId);
-    } catch (err) {
-      console.error("Failed to delete watched movie:", err);
-    } finally {
-      removeLocalWatchedMovie(userId, movieId);
       setSavedWatchedMovies((prev) => {
         const next = prev.filter((item) => item.movieId !== movieId);
         void (async () => {
@@ -714,6 +651,8 @@ export default function ActivityPage() {
         })();
         return next;
       });
+    } catch (err) {
+      console.error("Failed to delete watched movie:", err);
     }
   };
 
@@ -1157,21 +1096,35 @@ export default function ActivityPage() {
                 </ul>
               </div>
 
+              {/*
               <div className="modal-section">
                 <h3>SNS 연동 설정</h3>
-                <ul className="auth-actions support-actions">
-                  <li>
-                    <button className="secondary-btn" type="button">
-                      카카오
-                    </button>
+                <ul className="auth-actions support-actions sns-link-list">
+                  <li className="sns-link-item">
+                    <span className="sns-label">카카오</span>
+                    {isKakaoLinked ? (
+                      <span className="sns-status connected">연결됨</span>
+                    ) : (
+                      <button
+                        className="sns-status-link"
+                        type="button"
+                        onClick={handleKakaoLink}
+                      >
+                        연결안됨
+                      </button>
+                    )}
                   </li>
-                  <li>
-                    <button className="secondary-btn" type="button">
-                      구글
-                    </button>
+                  <li className="sns-link-item">
+                    <span className="sns-label">구글</span>
+                    {isGoogleLinked ? (
+                      <span className="sns-status connected">연결됨</span>
+                    ) : (
+                      <span className="sns-status">연결안됨</span>
+                    )}
                   </li>
                 </ul>
               </div>
+              */}
 
               <div className="modal-section">
                 <h3>고객센터</h3>
@@ -1198,7 +1151,7 @@ export default function ActivityPage() {
                 <button className="secondary-btn" type="button" onClick={handleLogout}>
                   로그아웃
                 </button>
-                <button className="ghost-btn danger" type="button" onClick={handleDelete}>
+                <button className="ghost-btn danger" type="button" onClick={handleDeleteRequest}>
                   탈퇴하기
                 </button>
               </div>
@@ -1358,18 +1311,38 @@ export default function ActivityPage() {
               </div>
               <div className="profile-edit">
                 <label htmlFor="password-current">현재 비밀번호</label>
-                <input id="password-current" type="password" placeholder="********" />
+                <input
+                  id="password-current"
+                  type="password"
+                  placeholder="********"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
                 <label htmlFor="password-next">새 비밀번호</label>
-                <input id="password-next" type="password" placeholder="********" />
+                <input
+                  id="password-next"
+                  type="password"
+                  placeholder="********"
+                  value={nextPassword}
+                  onChange={(event) => setNextPassword(event.target.value)}
+                />
                 <label htmlFor="password-confirm">새 비밀번호 확인</label>
-                <input id="password-confirm" type="password" placeholder="********" />
+                <input
+                  id="password-confirm"
+                  type="password"
+                  placeholder="********"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                />
+                {passwordError && <p className="error">{passwordError}</p>}
                 <div className="profile-edit-actions">
                   <button
                     className="primary-btn"
                     type="button"
                     onClick={handlePasswordSave}
+                    disabled={isPasswordSaving}
                   >
-                    변경
+                    {isPasswordSaving ? "변경 중..." : "변경"}
                   </button>
                   <button
                     className="ghost-btn"
@@ -1379,6 +1352,130 @@ export default function ActivityPage() {
                     취소
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {passwordSuccessVisible && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-success-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => setPasswordSuccessVisible(false)}
+          />
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 id="password-success-title">비밀번호 변경 완료</h2>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="비밀번호 변경 완료 닫기"
+                onClick={() => setPasswordSuccessVisible(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-scroll">
+              <p>비밀번호가 변경되었습니다.</p>
+              <div className="modal-footer">
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => setPasswordSuccessVisible(false)}
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirmVisible && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirm-title"
+        >
+          <div className="modal-overlay" onClick={handleDeleteCancel} />
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 id="delete-confirm-title">회원 탈퇴</h2>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="회원 탈퇴 취소"
+                onClick={handleDeleteCancel}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-scroll">
+              <p>정말 탈퇴하시겠어요?</p>
+              <div className="modal-footer">
+                <button className="ghost-btn" type="button" onClick={handleDeleteCancel}>
+                  취소
+                </button>
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeletingAccount}
+                >
+                  {isDeletingAccount ? "처리 중..." : "탈퇴하기"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteSuccessVisible && (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-success-title"
+        >
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setDeleteSuccessVisible(false);
+              navigate("/login");
+            }}
+          />
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 id="delete-success-title">탈퇴 완료</h2>
+              <button
+                className="icon-btn"
+                type="button"
+                aria-label="탈퇴 완료 닫기"
+                onClick={() => {
+                  setDeleteSuccessVisible(false);
+                  navigate("/login");
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-scroll">
+              <p>회원 탈퇴가 완료되었습니다.</p>
+              <div className="modal-footer">
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => {
+                    setDeleteSuccessVisible(false);
+                    navigate("/login");
+                  }}
+                >
+                  확인
+                </button>
               </div>
             </div>
           </div>

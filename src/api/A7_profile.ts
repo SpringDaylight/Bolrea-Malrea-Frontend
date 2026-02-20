@@ -1,7 +1,7 @@
 /**
  * User Profile API
  */
-import { get, post, put } from './http';
+import { del, get, post, put } from './http';
 
 // Types
 export interface User {
@@ -24,7 +24,9 @@ export interface Review {
   content: string | null;
   created_at: string;
   likes_count: number;
+  dislikes_count?: number;
   comments_count: number;
+  is_public?: boolean;
 }
 
 export interface ReviewListResponse {
@@ -47,6 +49,10 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   avatar_text?: string;
+  nickname?: string;
+  email?: string;
+  birth_date?: string | null;
+  gender?: string | null;
 }
 
 // API Functions
@@ -74,6 +80,14 @@ export function updateCurrentUser(
   data: UpdateUserRequest
 ): Promise<User> {
   return put<User>(`/api/users/me?user_id=${encodeURIComponent(userId)}`, data);
+}
+
+/**
+ * Delete current user account
+ * MW-API-??? (users/me delete)
+ */
+export function deleteCurrentUser(userId: string): Promise<{ message: string }> {
+  return del(`/api/users/me?user_id=${encodeURIComponent(userId)}`);
 }
 
 /**

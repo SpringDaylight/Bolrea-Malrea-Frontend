@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { Link, NavLink } from "react-router-dom";
 import logoToggle from "../../assets/logo-ticket-ver2.png";
+import { getCurrentUser } from "../../api/A7_profile";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -19,11 +20,24 @@ export default function Header() {
 
   const syncProfile = useCallback(() => {
     const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-    const savedName = localStorage.getItem("mw_profile_name");
+    const userId = localStorage.getItem("mw_user_pk");
 
-    if (isLoggedIn) {
+    if (isLoggedIn && userId) {
       setProfileHref("/mypage");
-      setProfileLabel(savedName ? savedName.slice(0, 2) : "DS");
+      setProfileLabel("DS");
+      getCurrentUser(userId)
+        .then((user) => {
+          const name =
+            user.nickname?.trim() ||
+            user.name?.trim() ||
+            user.user_id?.trim() ||
+            user.id;
+          setProfileLabel(name ? name.slice(0, 2) : "DS");
+        })
+        .catch((error) => {
+          console.error("Failed to load current user:", error);
+          setProfileLabel("DS");
+        });
     } else {
       setProfileHref("/login");
       setProfileLabel("로그인");
@@ -49,7 +63,7 @@ export default function Header() {
           <img className="brand-logo" src={logoToggle} alt="서비스 로고" />
           <div>
             <p className="brand-title">볼래! 말래?</p>
-            <p className="brand-sub">취향 기반 영화 탐색</p>
+            <p className="brand-sub">취향 기반 영화 탐색 서비스</p>
           </div>
         </Link>
 

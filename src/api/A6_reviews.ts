@@ -12,7 +12,9 @@ export interface Review {
   content: string | null;
   created_at: string;
   likes_count: number;
+  dislikes_count?: number;
   comments_count: number;
+  is_public?: boolean;
 }
 
 export interface Comment {
@@ -26,12 +28,14 @@ export interface Comment {
 export interface UpdateReviewRequest {
   rating?: number;
   content?: string | null;
+  is_public?: boolean;
 }
 
 export interface CreateReviewRequest {
   movie_id: number;
   rating: number;
   content?: string | null;
+  is_public?: boolean;
 }
 
 export interface CreateCommentRequest {
@@ -113,6 +117,7 @@ export function getReviewComments(
   params?: {
     skip?: number;
     limit?: number;
+    user_id?: string;
   }
 ): Promise<Comment[]> {
   return get<Comment[]>(`/api/reviews/${reviewId}/comments`, params);

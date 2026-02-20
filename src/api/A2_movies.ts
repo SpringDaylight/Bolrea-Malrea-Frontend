@@ -33,6 +33,7 @@ export interface Review {
   created_at: string;
   likes_count: number;
   dislikes_count?: number;
+  is_public?: boolean;
   comments_count: number;
 }
 
@@ -80,6 +81,7 @@ export function getMovieReviews(
   params?: {
     page?: number;
     page_size?: number;
+    user_id?: string;
   }
 ): Promise<ReviewListResponse> {
   return get<ReviewListResponse>(`/api/movies/${movieId}/reviews`, params);

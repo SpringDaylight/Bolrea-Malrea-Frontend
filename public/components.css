@@ -771,6 +771,14 @@
   justify-content: flex-start;
 }
 
+.review-actions-bottom {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  width: 100%;
+}
+
 .review-link-btn {
   padding: 0;
   border: none;
@@ -1031,6 +1039,32 @@
   margin-top: 12px;
 }
 
+.comment-thread {
+  position: relative;
+  margin-top: 8px;
+  margin-left: 24px;
+  padding-left: 16px;
+  padding-top: 6px;
+  border-left: 1px solid var(--line);
+}
+
+.comment-thread::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 10px;
+  height: 10px;
+  background: var(--card);
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+
+.comment-thread .comment-list {
+  margin-top: 0;
+}
+
 .comment-card {
   display: grid;
   gap: 10px;
@@ -1075,4 +1109,62 @@
 .word-cloud-item.size-sm {
   font-size: 0.85rem;
   opacity: 0.85;
+}
+
+
+.comment-delete-btn {
+  margin-left: auto;
+  font-size: 0.78rem;
+}
+
+.comment-delete-btn:hover,
+.comment-delete-btn:focus-visible {
+  color: var(--accent);
+}
+
+
+.comment-card {
+  position: relative;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.comment-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+}
+
+
+.comment-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 4;
+}
+
+.comment-edit-btn,
+.comment-delete-btn {
+  font-size: 0.78rem;
+}
+
+.comment-actions .comment-delete-btn {
+  position: static;
+  margin-left: 0;
+}
+
+.comment-edit-form {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

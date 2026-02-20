@@ -12,6 +12,8 @@ import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_mo
 import {
   createReview,
   createReviewComment,
+  deleteReviewComment,
+  updateReviewComment,
   deleteReview,
   getReviewComments,
   updateReview,
@@ -117,6 +119,9 @@ export default function MovieDetailPage() {
   const [commentErrors, setCommentErrors] = useState<Record<number, string | null>>(
     {}
   );
+
+  const [commentEditing, setCommentEditing] = useState<Record<number, boolean>>({});
+  const [commentEditDrafts, setCommentEditDrafts] = useState<Record<number, string>>({});
   const [reviewAuthorNames, setReviewAuthorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -802,6 +807,87 @@ export default function MovieDetailPage() {
     }
   };
 
+
+
+  const handleCommentDelete = async (reviewId: number, commentId: number) => {
+    if (!currentUserPk) return;
+
+    try {
+      await deleteReviewComment(commentId, currentUserPk);
+      setReviewComments((prev) => ({
+        ...prev,
+        [reviewId]: (prev[reviewId] || []).filter((comment) => comment.id != commentId),
+      }));
+    } catch (err) {
+      console.error("Failed to delete comment:", err);
+      setCommentErrors((prev) => ({
+        ...prev,
+        [reviewId]: "댓글 삭제에 실패했습니다.",
+      }));
+    }
+  };
+
+
+
+  const handleCommentEditOpen = (commentId: number, content: string) => {
+    setCommentEditDrafts((prev) => ({
+      ...prev,
+      [commentId]: content,
+    }));
+    setCommentEditing((prev) => ({
+      ...prev,
+      [commentId]: true,
+    }));
+  };
+
+  const handleCommentEditChange = (commentId: number, value: string) => {
+    setCommentEditDrafts((prev) => ({
+      ...prev,
+      [commentId]: value,
+    }));
+  };
+
+  const handleCommentEditCancel = (commentId: number) => {
+    setCommentEditing((prev) => ({
+      ...prev,
+      [commentId]: false,
+    }));
+  };
+
+  const handleCommentEditSave = async (reviewId: number, commentId: number) => {
+    if (!currentUserPk) return;
+    const nextValue = (commentEditDrafts[commentId] || "").trim();
+    if (!nextValue) {
+      setCommentErrors((prev) => ({
+        ...prev,
+        [reviewId]: "댓글 내용을 입력해주세요.",
+      }));
+      return;
+    }
+
+    try {
+      const updated = await updateReviewComment(commentId, currentUserPk, {
+        content: nextValue,
+      });
+      setReviewComments((prev) => ({
+        ...prev,
+        [reviewId]: (prev[reviewId] || []).map((comment) =>
+          comment.id === commentId ? { ...comment, content: updated.content } : comment
+        ),
+      }));
+      setCommentEditing((prev) => ({
+        ...prev,
+        [commentId]: false,
+      }));
+    } catch (err) {
+      console.error("Failed to update comment:", err);
+      setCommentErrors((prev) => ({
+        ...prev,
+        [reviewId]: "댓글 수정에 실패했습니다.",
+      }));
+    }
+  };
+
   const personalReviewVisibilityMeta = getReviewVisibilityMeta(
     personalReviewVisibility
   );
@@ -978,7 +1064,8 @@ export default function MovieDetailPage() {
             <h2>내 리뷰</h2>
           </div>
           {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
-            <article className="card review-card">
+            <div className="review-item">
+              <article className="card review-card">
               <div className="review-header">
                 <div className="review-user">
                   <div className="review-avatar">
@@ -1010,6 +1097,15 @@ export default function MovieDetailPage() {
                 <button
                   className="ghost-btn review-link-btn"
                   type="button"
+                  onClick={() => toggleCommentOpen(personalReview.id)}
+                >
+                  {commentOpen[personalReview.id] ? "댓글 접기" : "댓글 보기"}
+                </button>
+              </div>
+              <div className="review-actions-bottom">
+                <button
+                  className="ghost-btn review-link-btn"
+                  type="button"
                   onClick={handleMyReviewEditOpen}
                 >
                   리뷰 수정
@@ -1022,7 +1118,82 @@ export default function MovieDetailPage() {
                   리뷰 삭제
                 </button>
               </div>
-            </article>
+              </article>
+              {commentOpen[personalReview.id] && (
+                <div className="comment-thread">
+                  <div className="comment-list">
+                  {commentLoading[personalReview.id] ? (
+                    <p className="muted">댓글을 불러오는 중...</p>
+                  ) : (reviewComments[personalReview.id] || []).length > 0 ? (
+                    (reviewComments[personalReview.id] || []).map((comment) => (
+                      <div className="comment-card" key={comment.id}>
+                        <div className="comment-meta">
+                          <span className="review-name">
+                            {getDisplayAuthorName(comment.user_id)}
+                          </span>
+                          <span className="muted">
+                            {formatDateTime(comment.created_at)}
+                          </span>
+                          {currentUserPk && String(comment.user_id) === String(currentUserPk) && (
+                            <div className="comment-actions">
+                              <button
+                                className="ghost-btn comment-edit-btn"
+                                type="button"
+                                onClick={() => handleCommentEditOpen(comment.id, comment.content)}
+                              >
+                                댓글 수정
+                              </button>
+                              <button
+                                className="ghost-btn comment-delete-btn"
+                                type="button"
+                                onClick={() => handleCommentDelete(personalReview.id, comment.id)}
+                              >
+                                댓글 삭제
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {commentEditing[comment.id] ? (
+                          <div className="comment-edit-form">
+                            <textarea
+                              className="review-reply-input"
+                              value={commentEditDrafts[comment.id] ?? comment.content}
+                              onChange={(event) =>
+                                handleCommentEditChange(comment.id, event.target.value)
+                              }
+                            />
+                            <div className="comment-edit-actions">
+                              <button
+                                className="primary-btn review-reply-submit"
+                                type="button"
+                                onClick={() => handleCommentEditSave(personalReview.id, comment.id)}
+                              >
+                                저장하기
+                              </button>
+                              <button
+                                className="ghost-btn review-link-btn"
+                                type="button"
+                                onClick={() => handleCommentEditCancel(comment.id)}
+                              >
+                                취소
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="review-text">{comment.content}</p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="muted">아직 댓글이 없습니다.</p>
+                  )}
+                  {commentErrors[personalReview.id] && (
+                    <p className="muted">{commentErrors[personalReview.id]}</p>
+                  )}
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <article className="card review-card review-empty review-empty-stack">
               {myReviewOpen ? (
@@ -1224,7 +1395,8 @@ export default function MovieDetailPage() {
                     ? "비공개로 설정한 리뷰입니다"
                   : review.content ?? "리뷰 코멘트가 없습니다.";
                 return (
-                  <article className="card review-card" key={review.id}>
+                  <div className="review-item" key={review.id}>
+                    <article className="card review-card">
                     <div className="review-header">
                       <div className="review-user">
                         <div className="review-avatar">
@@ -1315,7 +1487,7 @@ export default function MovieDetailPage() {
                             type="button"
                             onClick={() => toggleCommentOpen(review.id)}
                           >
-                            댓글 보기
+                            {commentOpen[review.id] ? "댓글 접기" : "댓글 보기"}
                           </button>
                         </div>
                         {replyOpen[review.id] && (
@@ -1339,35 +1511,84 @@ export default function MovieDetailPage() {
                             </div>
                           </div>
                         )}
-                        {commentOpen[review.id] && (
-                          <div className="comment-list">
-                            {commentLoading[review.id] ? (
-                              <p className="muted">댓글을 불러오는 중...</p>
-                            ) : (reviewComments[review.id] || []).length > 0 ? (
-                              (reviewComments[review.id] || []).map((comment) => (
-                                <div className="comment-card" key={comment.id}>
-                                  <div className="comment-meta">
-                                    <span className="review-name">
-                                      {getDisplayAuthorName(comment.user_id)}
-                                    </span>
-                                    <span className="muted">
-                                      {formatDateTime(comment.created_at)}
-                                    </span>
-                                  </div>
-                                  <p className="review-text">{comment.content}</p>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="muted">아직 댓글이 없습니다.</p>
-                            )}
-                            {commentErrors[review.id] && (
-                              <p className="muted">{commentErrors[review.id]}</p>
-                            )}
-                          </div>
-                        )}
                       </>
                     )}
-                  </article>
+                    </article>
+                    {!isPrivateReview && commentOpen[review.id] && (
+                      <div className="comment-thread">
+                        <div className="comment-list">
+                      {commentLoading[review.id] ? (
+                        <p className="muted">댓글을 불러오는 중...</p>
+                      ) : (reviewComments[review.id] || []).length > 0 ? (
+                        (reviewComments[review.id] || []).map((comment) => (
+                          <div className="comment-card" key={comment.id}>
+                        <div className="comment-meta">
+                          <span className="review-name">
+                            {getDisplayAuthorName(comment.user_id)}
+                          </span>
+                          <span className="muted">
+                            {formatDateTime(comment.created_at)}
+                          </span>
+                          {currentUserPk && String(comment.user_id) === String(currentUserPk) && (
+                            <div className="comment-actions">
+                              <button
+                                className="ghost-btn comment-edit-btn"
+                                type="button"
+                                onClick={() => handleCommentEditOpen(comment.id, comment.content)}
+                              >
+                                댓글 수정
+                              </button>
+                              <button
+                                className="ghost-btn comment-delete-btn"
+                                type="button"
+                                onClick={() => handleCommentDelete(review.id, comment.id)}
+                              >
+                                댓글 삭제
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {commentEditing[comment.id] ? (
+                          <div className="comment-edit-form">
+                            <textarea
+                              className="review-reply-input"
+                              value={commentEditDrafts[comment.id] ?? comment.content}
+                              onChange={(event) =>
+                                handleCommentEditChange(comment.id, event.target.value)
+                              }
+                            />
+                            <div className="comment-edit-actions">
+                              <button
+                                className="primary-btn review-reply-submit"
+                                type="button"
+                                onClick={() => handleCommentEditSave(review.id, comment.id)}
+                              >
+                                저장하기
+                              </button>
+                              <button
+                                className="ghost-btn review-link-btn"
+                                type="button"
+                                onClick={() => handleCommentEditCancel(comment.id)}
+                              >
+                                취소
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="review-text">{comment.content}</p>
+                        )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="muted">아직 댓글이 없습니다.</p>
+                      )}
+                      {commentErrors[review.id] && (
+                        <p className="muted">{commentErrors[review.id]}</p>
+                      )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

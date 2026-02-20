@@ -40,6 +40,7 @@ export interface CreateReviewRequest {
 
 export interface CreateCommentRequest {
   content: string;
+  is_public?: boolean;
 }
 
 export interface MessageResponse {
@@ -132,10 +133,39 @@ export function createReviewComment(
   userId: string,
   data: CreateCommentRequest
 ): Promise<Comment> {
+  const payload = { is_public: true, ...data, review_id: reviewId };
   return post<Comment>(
     `/api/reviews/${reviewId}/comments`,
-    data,
+    payload,
     { user_id: userId }
+  );
+}
+
+
+/**
+ * Delete a comment
+ */
+export function deleteReviewComment(
+  commentId: number,
+  userId: string
+): Promise<MessageResponse> {
+  return del<MessageResponse>(
+    `/api/reviews/comments/${commentId}?user_id=${encodeURIComponent(userId)}`
+  );
+}
+
+
+/**
+ * Update a comment
+ */
+export function updateReviewComment(
+  commentId: number,
+  userId: string,
+  data: { content: string }
+): Promise<Comment> {
+  return put<Comment>(
+    `/api/reviews/comments/${commentId}?user_id=${encodeURIComponent(userId)}`,
+    data
   );
 }
 

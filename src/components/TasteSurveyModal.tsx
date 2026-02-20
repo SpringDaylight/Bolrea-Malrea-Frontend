@@ -90,7 +90,7 @@ const readStorageArray = (key: string): string[] => {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
-      (item): item is string => typeof item === "string" && item.trim().length
+      (item): item is string => typeof item === "string" && item.trim().length > 0
     );
   } catch {
     return [];

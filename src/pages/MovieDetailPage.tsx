@@ -904,23 +904,39 @@ export default function MovieDetailPage() {
               {/* <h3>나와의 적합도</h3> */}
               {mlLoading ? (
                 <p className="muted">분석 중...</p>
-              ) : prediction && explanation ? (
+              ) : prediction ? (
                 <>
-                  <p className="probability">적합 확률 {Math.round(prediction.match_rate)}%</p>
-                  <p className="muted" style={{ marginTop: 8, marginBottom: 12 }}>
-                    {explanation.explanation}
+                  <p className="probability">
+                    {`이 영화는 ${currentUserNickname}님과 ${Math.round(
+                      prediction.match_rate
+                    )}% 잘 맞아요`}
                   </p>
-                  <ul className="list">
-                    {explanation.key_factors.slice(0, 3).map((factor, idx) => (
-                      <li key={idx}>
-                        {factor.label}: {Math.round(factor.score * 100)}% 일치
-                      </li>
-                    ))}
-                  </ul>
+                  {explanation ? (
+                    <>
+                      <p className="muted" style={{ marginTop: 8, marginBottom: 12 }}>
+                        {explanation.explanation}
+                      </p>
+                      <ul className="list">
+                        {explanation.key_factors.slice(0, 3).map((factor, idx) => (
+                          <li key={idx}>
+                            {factor.label}: {Math.round(factor.score * 100)}% 일치
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <ul className="list">
+                      <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
+                      <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
+                      <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
+                    </ul>
+                  )}
                 </>
               ) : (
                 <>
-                  <p className="probability">적합 확률 83%</p>
+                  <p className="probability">
+                    {`이 영화는 ${currentUserNickname}님과 83% 잘 맞아요`}
+                  </p>
                   <ul className="list">
                     <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
                     <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>

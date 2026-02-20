@@ -5,9 +5,11 @@ import type { RouletteItem } from "./rouletteItems";
 type Props = {
   items: RouletteItem[];
   onResult?: (item: RouletteItem) => void;
+  onSpin?: () => Promise<RouletteItem | null> | RouletteItem | null;
+  onResultConfirm?: (item: RouletteItem) => void;
 };
 
-export default function Roulette({ items, onResult }: Props) {
+export default function Roulette({ items, onResult, onSpin, onResultConfirm }: Props) {
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
@@ -18,6 +20,7 @@ export default function Roulette({ items, onResult }: Props) {
   const toRef = useRef(0);
   const rotationRef = useRef(0);
   const resultIndexRef = useRef(-1);
+  const forcedResultRef = useRef<RouletteItem | null>(null);
 
   const segmentAngle = items.length ? 360 / items.length : 0;
   const startOffset = -segmentAngle / 2;
@@ -113,7 +116,8 @@ export default function Roulette({ items, onResult }: Props) {
         ? resultIndexRef.current
         : getIndexFromRotation(rotationRef.current);
     resultIndexRef.current = -1;
-    const result = items[index];
+    const result = forcedResultRef.current ?? items[index];
+    forcedResultRef.current = null;
     if (result) {
       setResultItem(result);
       setResultOpen(true);
@@ -121,13 +125,46 @@ export default function Roulette({ items, onResult }: Props) {
     }
   };
 
-  const startSpin = () => {
+  const closeResult = () => {
+    if (resultItem) {
+      onResultConfirm?.(resultItem);
+    }
+    setResultOpen(false);
+    setResultItem(null);
+  };
+
+  const startSpin = async () => {
     if (isSpinning || !items.length) return;
     setResultOpen(false);
     setResultItem(null);
-    setIsSpinning(true);
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    const index = selectResultIndex();
+    setIsSpinning(true);
+
+    let index = selectResultIndex();
+    let forcedItem: RouletteItem | null = null;
+
+    if (onSpin) {
+      try {
+        const serverItem = await onSpin();
+        if (!serverItem) {
+          setIsSpinning(false);
+          return;
+        }
+        const serverIndex = items.findIndex(
+          (item) => item.label === serverItem.label
+        );
+        if (serverIndex >= 0) {
+          index = serverIndex;
+          forcedItem = serverItem;
+        }
+      } catch (error) {
+        console.error("Failed to spin roulette:", error);
+        setIsSpinning(false);
+        return;
+      }
+    }
+
+    forcedResultRef.current = forcedItem;
     resultIndexRef.current = index;
     fromRef.current = rotationRef.current;
     const extraRotations = 4 + Math.floor(Math.random() * 2);
@@ -219,7 +256,7 @@ export default function Roulette({ items, onResult }: Props) {
         >
           <div
             className="modal-overlay"
-            onClick={() => setResultOpen(false)}
+            onClick={closeResult}
           />
           <div className="modal-content settings-modal rm-result-modal">
             <div className="modal-scroll">
@@ -229,7 +266,7 @@ export default function Roulette({ items, onResult }: Props) {
                   className="icon-btn"
                   type="button"
                   aria-label="결과 닫기"
-                  onClick={() => setResultOpen(false)}
+                  onClick={closeResult}
                 >
                   ✕
                 </button>
@@ -247,7 +284,7 @@ export default function Roulette({ items, onResult }: Props) {
                 <button
                   className="primary-btn"
                   type="button"
-                  onClick={() => setResultOpen(false)}
+                  onClick={closeResult}
                 >
                   확인
                 </button>

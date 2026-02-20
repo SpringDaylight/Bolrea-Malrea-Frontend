@@ -13,6 +13,10 @@ export interface User {
   birth_date?: string | null;
   gender?: string | null;
   avatar_text: string | null;
+  level?: number | null;
+  exp?: number | null;
+  popcorn?: number | null;
+  last_roulette_date?: string | null;
   created_at: string;
 }
 

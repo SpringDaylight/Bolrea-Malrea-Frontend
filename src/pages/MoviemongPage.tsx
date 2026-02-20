@@ -12,7 +12,8 @@ import moviemongTheme2 from "../assets/moviemong-theme2.png";
 import moviemongTheme3 from "../assets/moviemong-theme3.png";
 import moviemongTheme4 from "../assets/moviemong-theme4.png";
 import Roulette from "../components/roulette/Roulette";
-import { rouletteItems } from "../components/roulette/rouletteItems";
+import { rouletteItems, type RouletteItem } from "../components/roulette/rouletteItems";
+import { getMoviemongHome, playFeeding } from "../api/A9_roulette";
 
 type QuestionItem = {
   id: number;
@@ -59,6 +60,25 @@ export default function MoviemongPage() {
     return 2000;
   };
 
+  const deriveLevelFromTotalExp = (totalExp: number) => {
+    let levelValue = 1;
+    let remainingExp = Number.isFinite(totalExp) ? totalExp : 0;
+    if (remainingExp < 0) remainingExp = 0;
+
+    while (true) {
+      const nextRequirement = getNextExpRequirement(levelValue + 1);
+      if (nextRequirement <= 0) break;
+      if (remainingExp >= nextRequirement) {
+        remainingExp -= nextRequirement;
+        levelValue += 1;
+        continue;
+      }
+      break;
+    }
+
+    return { level: levelValue, expValue: remainingExp };
+  };
+
   const [activeTab, setActiveTab] = useState<TabType | null>(null);
   const [panelVersion, setPanelVersion] = useState(0);
   const [level, setLevel] = useState(1);
@@ -73,6 +93,10 @@ export default function MoviemongPage() {
   const [canThemeScrollLeft, setCanThemeScrollLeft] = useState(false);
   const [canThemeScrollRight, setCanThemeScrollRight] = useState(false);
   const [isThemeDragging, setIsThemeDragging] = useState(false);
+  const [pendingReward, setPendingReward] = useState<{
+    totalPopcorn: number;
+    totalExp: number;
+  } | null>(null);
   const themeScrollRef = useRef<HTMLDivElement | null>(null);
   const themeDragRef = useRef<{
     pointerId: number;
@@ -117,18 +141,59 @@ export default function MoviemongPage() {
   const rangeEnd = hasQuestions
     ? Math.min(safeQuestionPage * QUESTION_PAGE_SIZE, filteredQuestions.length)
     : 0;
+  const rouletteWheelItems = rouletteItems;
 
-  const handleRouletteResult = (item: typeof rouletteItems[number]) => {
-    const currentExpMax = expMax;
-    setPopcornCount((prev) => prev + item.popcornGain);
-    setExpValue((prev) => {
-      const nextValue = prev + item.expGain;
-      if (currentExpMax > 0 && nextValue >= currentExpMax) {
-        setLevel((current) => current + 1);
-        return 0;
+  const handleRouletteSpin = async (): Promise<RouletteItem | null> => {
+    if (!isLoggedIn) {
+      alert("로그인 후 이용해주세요.");
+      return null;
+    }
+    const userId = localStorage.getItem("mw_user_pk");
+    if (!userId) {
+      alert("세션 정보가 없습니다. 다시 로그인해주세요.");
+      return null;
+    }
+
+    try {
+      const response = await playFeeding();
+      if (!response.success) {
+        alert(response.message || "오늘은 이미 룰렛을 돌렸어요.");
+        return null;
       }
-      return nextValue;
-    });
+
+      const matched = rouletteWheelItems.find(
+        (item) => item.label === response.prize
+      );
+      const resultItem: RouletteItem = matched
+        ? {
+            ...matched,
+            popcornGain: response.reward?.popcorn ?? matched.popcornGain,
+            expGain: response.reward?.exp ?? matched.expGain,
+          }
+        : {
+            label: response.prize,
+            probability: "",
+            popcornGain: response.reward?.popcorn ?? 0,
+            expGain: response.reward?.exp ?? 0,
+          };
+
+      try {
+        const home = await getMoviemongHome();
+        setPendingReward({
+          totalPopcorn: home.currency.popcorn,
+          totalExp: home.character.exp,
+        });
+      } catch (homeError) {
+        console.error("Failed to refresh moviemong stats:", homeError);
+      }
+      return resultItem;
+    } catch (error) {
+      console.error("Failed to spin roulette:", error);
+      const message =
+        error instanceof Error ? error.message : "룰렛 결과 저장에 실패했습니다.";
+      alert(message || "룰렛 결과 저장에 실패했습니다.");
+      return null;
+    }
   };
 
   const refreshTabSection = (tab: TabType) => {
@@ -263,13 +328,67 @@ export default function MoviemongPage() {
     themeDragMovedRef.current = false;
   };
 
-  const handleThemeSelect = (themeId: string) => {
+    const handleThemeSelect = (themeId: string) => {
     if (themeDragMovedRef.current) {
       themeDragMovedRef.current = false;
       return;
     }
     setSelectedThemeId(themeId);
   };
+
+  const handleRouletteConfirm = () => {
+    if (!pendingReward) return;
+    setPopcornCount(pendingReward.totalPopcorn);
+    const { level: nextLevel, expValue: nextExpValue } =
+      deriveLevelFromTotalExp(pendingReward.totalExp);
+    setLevel(nextLevel);
+    setExpValue(nextExpValue);
+    setPendingReward(null);
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setLevel(1);
+      setExpValue(0);
+      setPopcornCount(0);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadUserStats = async () => {
+      try {
+        const home = await getMoviemongHome();
+        if (isCancelled) return;
+        if (typeof home.character.exp === "number") {
+          const { level: nextLevel, expValue: nextExpValue } =
+            deriveLevelFromTotalExp(home.character.exp);
+          setLevel(home.character.level ?? nextLevel);
+          setExpValue(nextExpValue);
+        } else {
+          setLevel(1);
+          setExpValue(0);
+        }
+
+        if (typeof home.currency.popcorn === "number") {
+          setPopcornCount(home.currency.popcorn);
+        } else {
+          setPopcornCount(0);
+        }
+      } catch (error) {
+        console.error("Failed to load moviemong stats:", error);
+          setLevel(1);
+          setExpValue(0);
+          setPopcornCount(0);
+        }
+      };
+
+    loadUserStats();
+
+    return () => {
+      isCancelled = true;
+    };
+    }, [isLoggedIn]);
 
   return (
     <MainLayout>
@@ -473,7 +592,11 @@ export default function MoviemongPage() {
                   </div>
                 )}
                 {activeTab === "feed" && (
-                  <Roulette items={rouletteItems} onResult={handleRouletteResult} />
+                  <Roulette
+                    items={rouletteWheelItems}
+                    onSpin={handleRouletteSpin}
+                    onResultConfirm={handleRouletteConfirm}
+                  />
                 )}
                 {activeTab === "theme" && (
                   <div className="reviewmong-question">
@@ -538,12 +661,12 @@ export default function MoviemongPage() {
                     </div>
                   </div>
                 )}
-                {activeTab === "recipe" && (
+                {/* {activeTab === "recipe" && (
                   <div className="reviewmong-question">
                     <p className="question-title">취향 레시피</p>
                     <p className="question-text">준비 중이에요.</p>
                   </div>
-                )}
+                )} */}
                 {activeTab === "bag" && (
                   <div className="reviewmong-question">
                     <p className="question-title">내 가방</p>

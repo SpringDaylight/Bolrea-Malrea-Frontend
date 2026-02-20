@@ -1,7 +1,7 @@
 /**
  * Authentication API
  */
-import { get, post } from './http';
+import { post } from './http';
 
 /*
 export interface KakaoLoginResponse {

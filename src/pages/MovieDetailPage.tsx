@@ -154,13 +154,14 @@ export default function MovieDetailPage() {
         new Date(a.created_at ?? 0).getTime()
     );
     return merged;
-    }, [
-      reviews,
-      personalReview?.id,
-      personalReview?.movie_id,
-      personalReview?.is_public,
-      movie?.id,
-    ]);
+  }, [
+    reviews,
+    personalReview?.id,
+    personalReview?.movie_id,
+    personalReview?.is_public,
+    movie?.id,
+  ]);
+
   const otherReviewsForDisplay = useMemo(() => {
     if (!personalReview) return reviewsForDisplay;
     return reviewsForDisplay.filter((review) => review.id !== personalReview.id);
@@ -180,13 +181,28 @@ export default function MovieDetailPage() {
     return Math.min(100, Math.max(0, (averageRating / 5) * 100));
   }, [averageRating]);
 
+  const normalizeText = (value?: string | null) =>
+    typeof value === "string" ? value.normalize("NFC") : "";
+  const movieTitle = normalizeText(movie?.title).trim() || "제목 정보 없음";
+  const movieSynopsis =
+    normalizeText(movie?.synopsis).trim() || "줄거리 정보가 없습니다.";
+  const movieGenres = (movie?.genres ?? [])
+    .map((genre) => normalizeText(genre).trim())
+    .filter(Boolean);
+  const movieTags = (movie?.tags ?? [])
+    .map((tag) => normalizeText(tag).trim())
+    .filter(Boolean);
+  const genreSummary =
+    movieGenres.length > 0 ? movieGenres.slice(0, 2).join("/") : "장르 정보 없음";
+  const tagSummary = movieTags.slice(0, 5);
+
   const previewReviewRating = hoverReviewRating ?? myReviewRating;
 
   const getDisplayAuthorName = (authorId: string) => {
     if (currentUserPk && authorId === currentUserPk) {
-      return currentUserNickname;
+      return normalizeText(currentUserNickname).trim() || "나";
     }
-    return reviewAuthorNames[authorId] || authorId;
+    return normalizeText(reviewAuthorNames[authorId] || authorId).trim() || "사용자";
   };
 
   useEffect(() => {
@@ -213,11 +229,12 @@ export default function MovieDetailPage() {
     getCurrentUser(currentUserPk)
       .then((user) => {
         if (isCancelled) return;
-        const name =
+        const name = normalizeText(
           user.nickname?.trim() ||
-          user.name?.trim() ||
-          user.user_id?.trim() ||
-          user.id;
+            user.name?.trim() ||
+            user.user_id?.trim() ||
+            user.id
+        ).trim();
         setCurrentUserNickname(name || "나");
       })
       .catch((error) => {
@@ -581,6 +598,14 @@ export default function MovieDetailPage() {
         });
       }
       await applySavedPersonalReview(nextReview);
+      if (currentUserPk && movie?.id) {
+        try {
+          await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
+        } catch (watchErr) {
+          console.warn("Failed to sync watched movie after review:", watchErr);
+        }
+        setIsMovieWatched(true);
+      }
       
       // 리뷰 작성 후 취향 업데이트
       try {
@@ -971,7 +996,7 @@ export default function MovieDetailPage() {
         </section> */}
 
         <section className="section">
-          <article className="card movie-detail-main-card">
+          <article className="movie-detail-main-card">
             {averageRating !== null && (
               <div className="movie-detail-rating">
                 <span className="movie-detail-rating-label">평균 평점</span>
@@ -995,27 +1020,38 @@ export default function MovieDetailPage() {
                   movie.poster_url ||
                   "https://via.placeholder.com/500x750?text=No+Image"
                 }
-                alt={`${movie.title} 포스터`}
+                alt={`${movieTitle} 포스터`}
               />
               <div className="movie-info">
-                <h2>{movie.title}</h2>
+                <div className="movie-title-row">
+                  <h2 style={{ marginTop: 6 }}>{movieTitle}</h2>
+                  <button
+                    className={`ghost-btn movie-detail-watch-btn ${
+                      isMovieWatched ? "is-active" : ""
+                    }`}
+                    type="button"
+                    onClick={handleMarkWatched}
+                  >
+                    시청함
+                  </button>
+                </div>
                 <p className="muted">
                   {movie.release
                     ? new Date(movie.release).getFullYear()
                     : "미정"}{" "}
-                  · {movie.genres.slice(0, 2).join("/")} ·{" "}
+                  · {genreSummary} ·{" "}
                   {movie.runtime ? `${movie.runtime}분` : "정보 없음"}
                 </p>
-                <div className="tag-list" style={{ marginTop: 10 }}>
-                  {movie.tags.slice(0, 5).map((tag) => (
-                    <span key={tag} className="tag">{tag}</span>
-                  ))}
-                </div>
                 <div className="section" style={{ marginTop: 18 }}>
                   <h3>줄거리</h3>
-                  <p className="muted">
-                    {movie.synopsis || "줄거리 정보가 없습니다."}
+                  <p className="muted synopsis-text">
+                    {movieSynopsis}
                   </p>
+                </div>
+                <div className="tag-list" style={{ marginTop: 10 }}>
+                  {tagSummary.map((tag) => (
+                    <span key={tag} className="tag">{tag}</span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1075,28 +1111,16 @@ export default function MovieDetailPage() {
               </div>
             )}
 
-            <div className="movie-detail-card-actions">
-              <button
-                className={`secondary-btn movie-watch-btn ${
-                  isMovieWatched ? "is-active" : ""
-                }`}
-                type="button"
-                onClick={handleMarkWatched}
-              >
-                시청함
-              </button>
-            </div>
-
             {/* <div className="hero-actions" style={{ marginTop: 18 }}>
-              <button className="primary-btn">바로 감상하기</button>
+              <button className="ghost-btn movie-detail-watch-btn is-active">바로 감상하기</button>
             </div> */}
           </article>
         </section>
 
         <section className="section" id="my-review">
-          <div className="section-header">
+          {/* <div className="section-header">
             <h2>내 리뷰</h2>
-          </div>
+          </div> */}
           {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
             <div className="review-item">
               <article className="card review-card">
@@ -1328,7 +1352,7 @@ export default function MovieDetailPage() {
                             {myReviewVisibility === "private" ? "비공개" : "공개"}
                           </span>
                           <span className="option-select-arrow" aria-hidden="true">
-                            ▾
+                            ?
                           </span>
                         </button>
                         {isVisibilityOpen && isLoggedIn && (
@@ -1348,7 +1372,7 @@ export default function MovieDetailPage() {
                               }}
                             >
                               <strong>공개</strong>
-                              {myReviewVisibility === "public" && <span>✓</span>}
+                              {myReviewVisibility === "public" && <span>?</span>}
                             </button>
                             <button
                               type="button"
@@ -1361,7 +1385,7 @@ export default function MovieDetailPage() {
                               }}
                             >
                               <strong>비공개</strong>
-                              {myReviewVisibility === "private" && <span>✓</span>}
+                              {myReviewVisibility === "private" && <span>?</span>}
                             </button>
                           </div>
                         )}
@@ -1387,7 +1411,7 @@ export default function MovieDetailPage() {
                 <div className="review-empty-row">
                   <p className="muted">아직 이 영화에는 리뷰를 작성하지 않았어요.</p>
                   <button
-                    className="primary-btn"
+                    className="ghost-btn movie-detail-watch-btn is-active review-start-btn"
                     type="button"
                     onClick={() => {
                       setIsEditingMyReview(false);
@@ -1669,6 +1693,12 @@ export default function MovieDetailPage() {
     </MainLayout>
   );
 }
+
+
+
+
+
+
 
 
 

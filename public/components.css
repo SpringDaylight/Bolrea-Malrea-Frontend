@@ -124,6 +124,13 @@
   gap: 14px;
 }
 
+.movie-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .movie-tile .movie-info,
 .movie-card .movie-info {
   display: flex;
@@ -132,8 +139,8 @@
 }
 
 .poster {
-  width: 180px;
-  height: 264px;
+  width: 200px;
+  height: 292px;
   border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
@@ -754,7 +761,7 @@
 }
 
 .review-text {
-  color: var(--text);
+  color: #4A4C6A;
   font-size: 0.95rem;
 }
 
@@ -791,14 +798,14 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--text-subtle);
+  color: #4A4C6A;
   font-weight: 600;
   font-size: 0.85rem;
 }
 
 .review-link-btn:hover,
 .review-link-btn:focus-visible {
-  color: var(--accent);
+  color: #4A4C6A;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -1123,11 +1130,12 @@
 .comment-delete-btn {
   margin-left: auto;
   font-size: 0.78rem;
+  color: #4A4C6A;
 }
 
 .comment-delete-btn:hover,
 .comment-delete-btn:focus-visible {
-  color: var(--accent);
+  color: #4A4C6A;
 }
 
 
@@ -1159,6 +1167,7 @@
 .comment-edit-btn,
 .comment-delete-btn {
   font-size: 0.78rem;
+  color: #4A4C6A;
 }
 
 .comment-actions .comment-delete-btn {

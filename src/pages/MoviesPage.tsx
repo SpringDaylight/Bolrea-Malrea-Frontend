@@ -22,9 +22,10 @@ type MoviesPageSnapshot = {
 };
 
 const sortFilters = [
-  { value: "latest", label: "최신 개봉순" },
-  { value: "popular", label: "리뷰 많은순" },
-  { value: "rating", label: "평점 높은순" },
+  { value: "latest", label: "최신개봉순" },
+  { value: "title", label: "가나다순" },
+  { value: "popular", label: "리뷰많은순" },
+  { value: "rating", label: "평점높은순" },
 ];
 
 type GenreFilter = {
@@ -219,9 +220,10 @@ export default function MoviesPage() {
       setLoading(true);
       setError(null);
       try {
+        const sortKey = appliedSorts.length > 0 ? appliedSorts[0] : undefined;
         const sort =
-          appliedSorts.length > 0
-            ? (appliedSorts[0] as "latest" | "popular" | "rating")
+          sortKey && sortKey !== "title"
+            ? (sortKey as "latest" | "popular" | "rating")
             : undefined;
         const genres = appliedGenres.length > 0 ? appliedGenres.join(",") : undefined;
 
@@ -234,10 +236,25 @@ export default function MoviesPage() {
         });
 
         if (isCancelled) return;
-        setMovies(response.movies);
+        const normalizedQuery = appliedQuery.trim().toLowerCase();
+        const filteredByTitle =
+          normalizedQuery.length > 0
+            ? response.movies.filter((movie) =>
+                (movie.title ?? "").toLowerCase().includes(normalizedQuery)
+              )
+            : response.movies;
+        const nextMovies =
+          sortKey === "title"
+            ? [...filteredByTitle].sort((a, b) =>
+                (a.title ?? "").localeCompare(b.title ?? "", "ko")
+              )
+            : filteredByTitle;
+        setMovies(nextMovies);
+        const totalSource =
+          normalizedQuery.length > 0 ? filteredByTitle.length : response.total;
         const nextTotalPages = Math.max(
           1,
-          Math.ceil(response.total / response.page_size)
+          Math.ceil(totalSource / response.page_size)
         );
         setTotalPages(nextTotalPages);
       } catch (err) {
@@ -344,9 +361,9 @@ export default function MoviesPage() {
         </section>
 
         <section className="section card">
-          <div className="section-header">
+          {/* <div className="section-header">
             <p>장르와 분위기에 따라 원하는 기준으로 골라보세요</p>
-          </div>
+          </div> */}
           <div className="section-search">
             <div className="hero-actions">
               <input
@@ -367,41 +384,22 @@ export default function MoviesPage() {
             </div>
           </div>
 
-          <div className="filter-card">
-            <div className="filter-group">
-              <div>
-                <p className="filter-title">정렬</p>
-                <div className="tag-list">
-                  {sortFilters.map((filter) => (
-                    <button
-                      key={filter.value}
-                      className={`filter-chip ${
-                        selectedSorts.includes(filter.value) ? "active" : ""
-                      }`}
-                      type="button"
-                      onClick={() => handleSortSelect(filter.value)}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="filter-title">장르</p>
-                <div className="tag-list">
-                  {genreFilters.map((filter) => (
-                    <button
-                      key={filter.value}
-                      className={`filter-chip ${
-                        selectedGenres.includes(filter.value) ? "active" : ""
-                      }`}
-                      type="button"
-                      onClick={() => handleGenreToggle(filter.value)}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
+          <div className="filter-group movie-filter-group">
+            <div>
+              <p className="filter-title">장르</p>
+              <div className="tag-list">
+                {genreFilters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    className={`filter-chip ${
+                      selectedGenres.includes(filter.value) ? "active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => handleGenreToggle(filter.value)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -410,7 +408,22 @@ export default function MoviesPage() {
         <section className="section">
           <div className="section-header">
             <h2>검색결과</h2>
-            <p>선택한 기준으로 추천된 영화가 표시됩니다</p>
+            {/* <p>선택한 기준으로 추천된 영화가 표시됩니다</p> */}
+          </div>
+          <div className="movie-sort-links">
+            {sortFilters.map((filter) => (
+              <button
+                key={filter.value}
+                className={`movie-sort-link ${
+                  selectedSorts.includes(filter.value) ? "active" : ""
+                }`}
+                type="button"
+                onClick={() => handleSortSelect(filter.value)}
+                aria-pressed={selectedSorts.includes(filter.value)}
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
 
           {loading && <p>로딩 중...</p>}
@@ -445,12 +458,29 @@ export default function MoviesPage() {
                     alt={`${movie.title} 포스터`}
                   />
                   <div className="movie-info">
-                    <h3>{movie.title}</h3>
+                    <div className="movie-card-title-row">
+                      <h3>{movie.title}</h3>
+                      <button
+                        className={`ghost-btn movie-detail-watch-btn ${
+                          watchedMovieIds.has(movie.id) ? "is-active" : ""
+                        }`}
+                        type="button"
+                        aria-pressed={watchedMovieIds.has(movie.id)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleMarkWatched(movie);
+                        }}
+                      >
+                        시청함
+                      </button>
+                    </div>
                     <p className="movie-rating">
                       평점{" "}
                       {typeof movie.avg_rating === "number"
                         ? movie.avg_rating.toFixed(1)
-                        : "정보 없음"}
+                        : "정보 없음"}{" "}
+                      ({movie.reviews_count ?? movie.review_count ?? 0})
                     </p>
                     <p className="muted">
                       {movie.synopsis
@@ -464,20 +494,6 @@ export default function MoviesPage() {
                       ))}
                       {movie.runtime && <span>{movie.runtime}분</span>}
                     </div>
-                    <button
-                      className={`secondary-btn movie-watch-btn movie-detail-btn ${
-                        watchedMovieIds.has(movie.id) ? "is-active" : ""
-                      }`}
-                      type="button"
-                      aria-pressed={watchedMovieIds.has(movie.id)}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleMarkWatched(movie);
-                      }}
-                    >
-                      시청함
-                    </button>
                   </div>
                 </article>
               ))}

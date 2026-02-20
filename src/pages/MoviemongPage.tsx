@@ -13,7 +13,8 @@ import moviemongTheme3 from "../assets/moviemong-theme3.png";
 import moviemongTheme4 from "../assets/moviemong-theme4.png";
 import Roulette from "../components/roulette/Roulette";
 import { rouletteItems, type RouletteItem } from "../components/roulette/rouletteItems";
-import { getMoviemongHome, playFeeding } from "../api/A9_roulette";
+import { getCurrentUser } from "../api/A7_profile";
+import { getRouletteConfig, getRouletteStatus, spinRoulette } from "../api/A9_roulette";
 
 type QuestionItem = {
   id: number;
@@ -93,6 +94,9 @@ export default function MoviemongPage() {
   const [canThemeScrollLeft, setCanThemeScrollLeft] = useState(false);
   const [canThemeScrollRight, setCanThemeScrollRight] = useState(false);
   const [isThemeDragging, setIsThemeDragging] = useState(false);
+  const [rouletteWheelItems, setRouletteWheelItems] = useState<RouletteItem[]>(
+    rouletteItems
+  );
   const [pendingReward, setPendingReward] = useState<{
     totalPopcorn: number;
     totalExp: number;
@@ -141,57 +145,52 @@ export default function MoviemongPage() {
   const rangeEnd = hasQuestions
     ? Math.min(safeQuestionPage * QUESTION_PAGE_SIZE, filteredQuestions.length)
     : 0;
-  const rouletteWheelItems = rouletteItems;
 
   const handleRouletteSpin = async (): Promise<RouletteItem | null> => {
     if (!isLoggedIn) {
-      alert("로그인 후 이용해주세요.");
+      alert("????????????????.");
       return null;
     }
     const userId = localStorage.getItem("mw_user_pk");
     if (!userId) {
-      alert("세션 정보가 없습니다. 다시 로그인해주세요.");
+      alert("??? ????? ??????. ??? ???????????");
       return null;
     }
 
     try {
-      const response = await playFeeding();
-      if (!response.success) {
-        alert(response.message || "오늘은 이미 룰렛을 돌렸어요.");
+      const status = await getRouletteStatus(userId);
+      if (!status.can_spin) {
+        alert("????? ??? ???????????.");
         return null;
       }
 
+      const response = await spinRoulette(userId);
       const matched = rouletteWheelItems.find(
-        (item) => item.label === response.prize
+        (item) => item.label === response.item
       );
       const resultItem: RouletteItem = matched
         ? {
             ...matched,
-            popcornGain: response.reward?.popcorn ?? matched.popcornGain,
-            expGain: response.reward?.exp ?? matched.expGain,
+            popcornGain: response.popcorn_gain ?? matched.popcornGain,
+            expGain: response.exp_gain ?? matched.expGain,
           }
         : {
-            label: response.prize,
+            label: response.item,
             probability: "",
-            popcornGain: response.reward?.popcorn ?? 0,
-            expGain: response.reward?.exp ?? 0,
+            popcornGain: response.popcorn_gain ?? 0,
+            expGain: response.exp_gain ?? 0,
           };
 
-      try {
-        const home = await getMoviemongHome();
-        setPendingReward({
-          totalPopcorn: home.currency.popcorn,
-          totalExp: home.character.exp,
-        });
-      } catch (homeError) {
-        console.error("Failed to refresh moviemong stats:", homeError);
-      }
+      setPendingReward({
+        totalPopcorn: response.total_popcorn,
+        totalExp: response.total_exp,
+      });
       return resultItem;
     } catch (error) {
       console.error("Failed to spin roulette:", error);
       const message =
-        error instanceof Error ? error.message : "룰렛 결과 저장에 실패했습니다.";
-      alert(message || "룰렛 결과 저장에 실패했습니다.");
+        error instanceof Error ? error.message : "??? ??? ????? ?????????.";
+      alert(message || "??? ??? ????? ?????????.");
       return null;
     }
   };
@@ -347,6 +346,37 @@ export default function MoviemongPage() {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+
+    const loadRouletteConfig = async () => {
+      try {
+        const config = await getRouletteConfig();
+        if (isCancelled) return;
+        if (Array.isArray(config.items) && config.items.length > 0) {
+          const mapped: RouletteItem[] = config.items.map((item) => ({
+            label: item.label,
+            probability: item.probability,
+            popcornGain: item.popcorn_gain,
+            expGain: item.exp_gain,
+          }));
+          setRouletteWheelItems(mapped);
+        }
+      } catch (error) {
+        console.error("Failed to load roulette config:", error);
+        if (!isCancelled) {
+          setRouletteWheelItems(rouletteItems);
+        }
+      }
+    };
+
+    loadRouletteConfig();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isLoggedIn) {
       setLevel(1);
       setExpValue(0);
@@ -358,30 +388,29 @@ export default function MoviemongPage() {
 
     const loadUserStats = async () => {
       try {
-        const home = await getMoviemongHome();
-        if (isCancelled) return;
-        if (typeof home.character.exp === "number") {
-          const { level: nextLevel, expValue: nextExpValue } =
-            deriveLevelFromTotalExp(home.character.exp);
-          setLevel(home.character.level ?? nextLevel);
-          setExpValue(nextExpValue);
-        } else {
+        const userId = localStorage.getItem("mw_user_pk");
+        if (!userId) {
           setLevel(1);
           setExpValue(0);
+          setPopcornCount(0);
+          return;
         }
 
-        if (typeof home.currency.popcorn === "number") {
-          setPopcornCount(home.currency.popcorn);
-        } else {
-          setPopcornCount(0);
-        }
+        const user = await getCurrentUser(userId);
+        if (isCancelled) return;
+        const totalExp = typeof user.exp === "number" ? user.exp : 0;
+        const { level: nextLevel, expValue: nextExpValue } =
+          deriveLevelFromTotalExp(totalExp);
+        setLevel(nextLevel);
+        setExpValue(nextExpValue);
+        setPopcornCount(typeof user.popcorn === "number" ? user.popcorn : 0);
       } catch (error) {
         console.error("Failed to load moviemong stats:", error);
-          setLevel(1);
-          setExpValue(0);
-          setPopcornCount(0);
-        }
-      };
+        setLevel(1);
+        setExpValue(0);
+        setPopcornCount(0);
+      }
+    };
 
     loadUserStats();
 

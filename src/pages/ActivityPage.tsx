@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
@@ -140,6 +140,7 @@ export default function ActivityPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const pendingScrollTarget = useRef<string | null>(null);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -678,6 +679,15 @@ export default function ActivityPage() {
     });
   };
 
+  const requestScrollToSection = (targetId: string, nextView: ViewMode) => {
+    if (view === nextView) {
+      scrollToWithHeaderOffset(targetId);
+      return;
+    }
+    pendingScrollTarget.current = targetId;
+    setView(nextView);
+  };
+
   const formatReviewRating = (rating: number) => {
     const ratingValue = Number.isFinite(rating)
       ? Math.max(0, Math.min(5, Math.round(rating * 2) / 2))
@@ -686,6 +696,15 @@ export default function ActivityPage() {
       ? `${ratingValue}`
       : ratingValue.toFixed(1);
   };
+
+  useEffect(() => {
+    if (!pendingScrollTarget.current) return;
+    const targetId = pendingScrollTarget.current;
+    pendingScrollTarget.current = null;
+    requestAnimationFrame(() => {
+      scrollToWithHeaderOffset(targetId);
+    });
+  }, [view]);
 
   if (!isLoggedIn) {
     return (
@@ -844,18 +863,12 @@ export default function ActivityPage() {
               role="button"
               tabIndex={0}
               onClick={() => {
-                setView("posters");
-                setTimeout(() => {
-                  scrollToWithHeaderOffset("posters-header");
-                }, 0);
+                requestScrollToSection("posters-section", "posters");
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setView("posters");
-                  setTimeout(() => {
-                    scrollToWithHeaderOffset("posters-header");
-                  }, 0);
+                  requestScrollToSection("posters-section", "posters");
                 }
               }}
             >
@@ -867,18 +880,12 @@ export default function ActivityPage() {
               role="button"
               tabIndex={0}
               onClick={() => {
-                setView("reviews");
-                setTimeout(() => {
-                  scrollToWithHeaderOffset("reviews-header");
-                }, 0);
+                requestScrollToSection("reviews-section", "reviews");
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setView("reviews");
-                  setTimeout(() => {
-                    scrollToWithHeaderOffset("reviews-header");
-                  }, 0);
+                  requestScrollToSection("reviews-section", "reviews");
                 }
               }}
             >
@@ -916,7 +923,7 @@ export default function ActivityPage() {
 
           {view === "posters" && (
             <article className="section view-section" data-view="posters" id="posters-section">
-              <div className="poster-grid poster-grid-6">
+              <div className="poster-grid poster-grid-10">
                 {visiblePosters.map((poster) => (
                   <div key={poster.id} className="poster-card">
                     <Link to={poster.to}>
@@ -974,8 +981,7 @@ export default function ActivityPage() {
 
           {view === "reviews" && (
             <article className="section view-section" data-view="reviews" id="reviews-section">
-            <div className="section-header" id="reviews-header" />
-              <div className="review-list activity-review-grid">
+            <div className="review-list activity-review-grid">
                 {visibleReviews.map((review) => {
                   const visibilityMeta = getReviewVisibilityMeta(review.visibility);
                   return (
@@ -1517,3 +1523,10 @@ const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
   visibility === "private"
     ? { className: "is-private", label: "비공개 리뷰" }
     : { className: "is-public", label: "공개 리뷰" };
+
+
+
+
+
+
+

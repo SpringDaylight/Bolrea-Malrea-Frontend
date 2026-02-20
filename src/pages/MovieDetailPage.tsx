@@ -1152,6 +1152,9 @@ export default function MovieDetailPage() {
                     : personalReview.content || "리뷰 코멘트가 없습니다."}
                 </p>
               <div className="review-link-row">
+                <span className="muted">
+                  댓글이 {reviewComments[personalReview.id]?.length ?? personalReview.comments_count ?? 0}개 있어요
+                </span>
                 <button
                   className="ghost-btn review-link-btn"
                   type="button"
@@ -1533,6 +1536,9 @@ export default function MovieDetailPage() {
                     {!isPrivateReview && (
                       <>
                         <div className="review-link-row">
+                          <span className="muted">
+                            댓글이 {reviewComments[review.id]?.length ?? review.comments_count ?? 0}개 있어요
+                          </span>
                           <button
                             className="ghost-btn review-link-btn"
                             type="button"

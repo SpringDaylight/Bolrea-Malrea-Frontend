@@ -516,6 +516,11 @@
   gap: 10px;
 }
 
+.poster-search {
+  margin-bottom: 12px;
+  max-width: 420px;
+}
+
 .poster-card {
   position: relative;
   display: flex;
@@ -570,6 +575,10 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.poster-grid-10 {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
 .poster-pagination {
   display: flex;
   align-items: center;
@@ -597,17 +606,29 @@
   .poster-grid-6 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  .poster-grid-10 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 860px) {
   .poster-grid-6 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .poster-grid-10 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
   .poster-grid-6 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .poster-grid-10 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -636,6 +657,50 @@
   display: grid;
   gap: 16px;
 }
+
+.review-list.activity-review-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.review-list.activity-review-grid .review-card {
+  height: 100%;
+}
+
+.review-list.activity-review-grid .movie-tile {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.review-list.activity-review-grid .review-poster-block {
+  width: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-list.activity-review-grid .poster {
+  width: 50px;
+  height: 73px;
+  box-shadow: 0 6px 12px rgba(23, 23, 28, 0.12);
+}
+
+.review-list.activity-review-grid .movie-info {
+  width: 100%;
+  flex: 1;
+}
+
+.review-summary-text {
+  margin: 6px 0 0;
+  line-height: 1.4;
+  font-size: 0.72rem;
+  word-break: keep-all;
+}
+
+.review-summary-text.review-summary-full {
+  margin-top: 10px;
+}
+
 
 .review-item {
   display: grid;
@@ -1094,6 +1159,18 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.word-cloud-sample {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px dashed rgba(74, 76, 106, 0.4);
+  color: #4A4C6A;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
 .word-cloud-item {

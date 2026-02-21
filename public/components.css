@@ -698,11 +698,6 @@
 }
 
 .review-summary-text.review-summary-full {
-  max-height: calc(1.4em * 2);
-  overflow: hidden;
-}
-
-.review-summary-text.review-summary-full {
   margin-top: 10px;
 }
 
@@ -1275,12 +1270,10 @@
 
 
 .comment-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: flex;
   gap: 6px;
-  z-index: 4;
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 
 .comment-edit-btn,
@@ -1292,6 +1285,10 @@
 .comment-actions .comment-delete-btn {
   position: static;
   margin-left: 0;
+}
+
+.comment-reactions {
+  margin-left: auto;
 }
 
 .comment-edit-form {

@@ -23,6 +23,8 @@ export interface Comment {
   user_id: string;
   content: string;
   created_at: string;
+  likes_count?: number;
+  dislikes_count?: number;
 }
 
 export interface UpdateReviewRequest {
@@ -50,6 +52,13 @@ export interface MessageResponse {
 export interface LikeToggleResponse {
   message: string;
   review_id: number;
+  likes_count: number;
+  dislikes_count: number;
+}
+
+export interface CommentLikeToggleResponse {
+  message: string;
+  comment_id: number;
   likes_count: number;
   dislikes_count: number;
 }
@@ -104,6 +113,21 @@ export function toggleReviewLike(
 ): Promise<LikeToggleResponse> {
   return post<LikeToggleResponse>(
     `/api/reviews/${reviewId}/likes`,
+    undefined,
+    { user_id: userId, is_like: isLike }
+  );
+}
+
+/**
+ * Toggle like on a comment
+ */
+export function toggleCommentLike(
+  commentId: number,
+  userId: string,
+  isLike = true
+): Promise<CommentLikeToggleResponse> {
+  return post<CommentLikeToggleResponse>(
+    `/api/reviews/comments/${commentId}/likes`,
     undefined,
     { user_id: userId, is_like: isLike }
   );

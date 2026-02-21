@@ -142,6 +142,11 @@ export default function ActivityPage() {
   const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const pendingScrollTarget = useRef<string | null>(null);
+  const reviewSummaryRefs = useRef<Record<number, HTMLSpanElement | null>>({});
+  const reviewMeasureRefs = useRef<Record<number, HTMLSpanElement | null>>({});
+  const [overflowedReviewIds, setOverflowedReviewIds] = useState<
+    Record<number, boolean>
+  >({});
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -717,6 +722,27 @@ export default function ActivityPage() {
     });
   }, [view]);
 
+  useEffect(() => {
+    let rafId = 0;
+    const measure = () => {
+      const next: Record<number, boolean> = {};
+      visibleReviews.forEach((review) => {
+        const body = reviewSummaryRefs.current[review.id];
+        const measure = reviewMeasureRefs.current[review.id];
+        if (!body || !measure) return;
+        next[review.id] = measure.scrollHeight > body.clientHeight + 1;
+      });
+      setOverflowedReviewIds(next);
+    };
+    rafId = window.requestAnimationFrame(measure);
+    const handleResize = () => measure();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [visibleReviews]);
+
   if (!isLoggedIn) {
     return (
       <MainLayout>
@@ -991,6 +1017,7 @@ export default function ActivityPage() {
             <div className="review-list activity-review-grid">
                 {visibleReviews.map((review) => {
                   const visibilityMeta = getReviewVisibilityMeta(review.visibility);
+                  const reviewText = review.content ?? "";
                   return (
                   <div className="review-item" key={review.id}>
                     <article
@@ -1005,6 +1032,13 @@ export default function ActivityPage() {
                         }
                       }}
                     >
+                      <Link
+                        className="review-detail-link"
+                        to={`/movies/${review.movieId}#my-review`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        자세히보기
+                      </Link>
                       <div className="movie-tile">
                         <div className="review-poster-block">
                           <img
@@ -1028,7 +1062,7 @@ export default function ActivityPage() {
                         </div>
                       </div>
                       <p className="muted review-summary-text review-summary-full">
-                        "{review.content}"
+                        "{reviewText}"
                       </p>
                     </article>
                 </div>

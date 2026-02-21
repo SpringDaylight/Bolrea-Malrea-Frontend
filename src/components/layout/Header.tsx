@@ -97,7 +97,14 @@ export default function Header() {
             className={navClass}
             onClick={handleHeaderLinkClick("/llm-lab")}
           >
-            🧪 LLM Lab
+            💬 LLM Chat
+          </NavLink>
+          <NavLink
+            to="/llm-recommend"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/llm-recommend")}
+          >
+            🎯 AI 추천
           </NavLink>
           <NavLink
             to="/mypage"

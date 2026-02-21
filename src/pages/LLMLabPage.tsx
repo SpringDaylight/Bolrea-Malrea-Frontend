@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { sendChatMessage, getSystemPrompts } from '../api/llmChat';
+import { recommendMovies, type Movie } from '../api/llmRecommend';
 import type { ChatMessage, SystemPrompt } from '../api/llmChat';
 import '../styles/LLMLabPage.css';
 
 export default function LLMLabPage() {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -12,6 +15,9 @@ export default function LLMLabPage() {
   const [customPrompt, setCustomPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [showSettings, setShowSettings] = useState(false);
+  const [mode, setMode] = useState<'chat' | 'recommend'>('chat');
+  const [recommendations, setRecommendations] = useState<Movie[]>([]);
+  const [explanation, setExplanation] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,39 +47,59 @@ export default function LLMLabPage() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: input.trim()
-    };
+    if (mode === 'recommend') {
+      // 추천 모드
+      setIsLoading(true);
+      try {
+        const response = await recommendMovies({
+          user_input: input.trim(),
+          top_k: 5
+        });
 
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const response = await sendChatMessage({
-        messages: newMessages,
-        system_prompt: customPrompt || selectedPrompt,
-        temperature,
-        max_tokens: 2000
-      });
-
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: response.response
+        setRecommendations(response.recommendations);
+        setExplanation(response.explanation);
+      } catch (error) {
+        console.error('Recommendation error:', error);
+        setExplanation(`오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // 채팅 모드
+      const userMessage: ChatMessage = {
+        role: 'user',
+        content: input.trim()
       };
 
-      setMessages([...newMessages, assistantMessage]);
-    } catch (error) {
-      console.error('Chat error:', error);
-      const errorMessage: ChatMessage = {
-        role: 'assistant',
-        content: `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
-      };
-      setMessages([...newMessages, errorMessage]);
-    } finally {
-      setIsLoading(false);
+      const newMessages = [...messages, userMessage];
+      setMessages(newMessages);
+      setInput('');
+      setIsLoading(true);
+
+      try {
+        const response = await sendChatMessage({
+          messages: newMessages,
+          system_prompt: customPrompt || selectedPrompt,
+          temperature,
+          max_tokens: 2000
+        });
+
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: response.response
+        };
+
+        setMessages([...newMessages, assistantMessage]);
+      } catch (error) {
+        console.error('Chat error:', error);
+        const errorMessage: ChatMessage = {
+          role: 'assistant',
+          content: `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
+        };
+        setMessages([...newMessages, errorMessage]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -86,6 +112,8 @@ export default function LLMLabPage() {
 
   const clearChat = () => {
     setMessages([]);
+    setRecommendations([]);
+    setExplanation('');
   };
 
   return (
@@ -94,12 +122,28 @@ export default function LLMLabPage() {
         <div className="llm-lab-header">
           <h1>🎬 LLM Lab - 영화 추천 실험실</h1>
           <p>자연어로 대화하며 영화 추천 방식을 테스트해보세요</p>
+          
+          <div className="mode-selector">
+            <button 
+              className={mode === 'chat' ? 'active' : ''}
+              onClick={() => setMode('chat')}
+            >
+              💬 채팅 모드
+            </button>
+            <button 
+              className={mode === 'recommend' ? 'active' : ''}
+              onClick={() => setMode('recommend')}
+            >
+              🎯 추천 모드
+            </button>
+          </div>
+          
           <div className="header-actions">
             <button onClick={() => setShowSettings(!showSettings)} className="settings-btn">
               ⚙️ 설정
             </button>
             <button onClick={clearChat} className="clear-btn">
-              🗑️ 대화 초기화
+              🗑️ 초기화
             </button>
           </div>
         </div>

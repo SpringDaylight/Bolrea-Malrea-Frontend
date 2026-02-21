@@ -16,6 +16,7 @@ import FindPasswordPage from "./pages/FindPasswordPage";
 import SupportPage from "./pages/SupportPage";
 import MoviemongPage from "./pages/MoviemongPage";
 import LLMLabPage from "./pages/LLMLabPage";
+import LLMRecommendPage from "./pages/LLMRecommendPage";
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/log" element={<CommentPage />} />
         <Route path="/moviemong" element={<MoviemongPage />} />
         <Route path="/llm-lab" element={<LLMLabPage />} />
+        <Route path="/llm-recommend" element={<LLMRecommendPage />} />
         {/* <Route path="/profile" element={<ProfilePage />} /> */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />

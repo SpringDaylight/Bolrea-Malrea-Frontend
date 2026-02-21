@@ -230,7 +230,7 @@ export default function TasteAnalysisPage() {
       try {
         const response = await getCurrentUserWatchedMovies(userId, {
           page: 1,
-          page_size: 500,
+          page_size: 100,
         });
         if (isCancelled) return;
         apiItems = response.items.filter(

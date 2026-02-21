@@ -108,7 +108,7 @@ export default function MoviesPage() {
         const localWatched = getLocalWatchedMovies(currentUserPk);
         const response = await getCurrentUserWatchedMovies(currentUserPk, {
           page: 1,
-          page_size: 500,
+          page_size: 100,
         });
         if (isCancelled) return;
         const scopedWatched = response.items.filter(

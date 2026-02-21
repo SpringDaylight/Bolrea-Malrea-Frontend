@@ -93,6 +93,13 @@ export default function Header() {
             무비몽
           </NavLink>
           <NavLink
+            to="/llm-lab"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/llm-lab")}
+          >
+            🧪 LLM Lab
+          </NavLink>
+          <NavLink
             to="/mypage"
             className={navClass}
             onClick={handleHeaderLinkClick("/mypage")}

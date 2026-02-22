@@ -306,7 +306,7 @@ export default function HomePage() {
               )}
               {isEmotionalSearch && emotionTags.length > 0 && (
                 <div style={{ marginTop: "0.5rem" }}>
-                  <p style={{ fontSize: "0.9rem", color: "#666" }}>
+                  <p style={{ fontSize: "0.9rem", color: "#373850" }}>
                     🎭 감성 태그: {emotionTags.join(", ")}
                   </p>
                 </div>
@@ -403,7 +403,7 @@ export default function HomePage() {
               <p style={{ 
                 fontSize: "1.2rem", 
                 marginBottom: "1.5rem",
-                color: "#495057"
+                color: "#373850"
               }}>
                 로그인하고 나만을 위한 맞춤 추천을 받아보세요!
               </p>
@@ -423,14 +423,14 @@ export default function HomePage() {
               <p style={{ 
                 fontSize: "1.2rem", 
                 marginBottom: "1rem",
-                color: "#856404"
+                color: "#373850"
               }}>
                 취향 설정이 필요합니다
               </p>
               <p style={{ 
                 fontSize: "1rem", 
                 marginBottom: "1.5rem",
-                color: "#856404"
+                color: "#373850"
               }}>
                 나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
               </p>

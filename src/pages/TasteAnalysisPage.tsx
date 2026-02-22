@@ -599,8 +599,8 @@ export default function TasteAnalysisPage() {
 
         <section className="section">
           <div className="section-header">
-            <h2>최근 고평점 리뷰</h2>
-            <p>평점 4.5점 이상</p>
+            <h2>최근 가장 만족했던 영화</h2>
+            <p>최근 리뷰 중에서 4.5점 이상으로 평점을 저장했던 영화 4개를 보여줄게요</p>
           </div>
           {reviewsLoading ? (
             <p className="muted">불러오는 중...</p>

@@ -836,7 +836,7 @@ export default function ActivityPage() {
               </div> */}
             </div>
           </div>
-          {/* <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p> */}
+          <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
         </section>
 
           <section className="section card taste-preview-section activity-top-card">

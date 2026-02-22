@@ -10,6 +10,7 @@ export default function LLMRecommendPage() {
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [explanation, setExplanation] = useState('');
   const [error, setError] = useState('');
+  const [useOrchestrator, setUseOrchestrator] = useState(false); // 오케스트레이터 옵션
 
   const handleRecommend = async () => {
     if (!input.trim() || isLoading) return;
@@ -22,7 +23,8 @@ export default function LLMRecommendPage() {
     try {
       const response = await recommendMovies({
         user_input: input.trim(),
-        top_k: 5
+        top_k: 5,
+        use_orchestrator: useOrchestrator // 오케스트레이터 사용 여부
       });
 
       setRecommendations(response.recommendations);
@@ -64,6 +66,25 @@ export default function LLMRecommendPage() {
               rows={3}
               disabled={isLoading}
             />
+            
+            {/* 오케스트레이터 옵션 */}
+            <div className="orchestrator-option">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={useOrchestrator}
+                  onChange={(e) => setUseOrchestrator(e.target.checked)}
+                  disabled={isLoading}
+                />
+                <span className="checkbox-text">
+                  🎯 고급 추천 모드 (오케스트레이터)
+                  <span className="option-hint">
+                    더 정확하지만 느림 (2-3배 시간 소요)
+                  </span>
+                </span>
+              </label>
+            </div>
+            
             <button 
               onClick={handleRecommend} 
               disabled={!input.trim() || isLoading}
@@ -139,6 +160,9 @@ export default function LLMRecommendPage() {
                     <p className="movie-year">📅 {movie.release_year}</p>
                     {movie.rating && (
                       <p className="movie-rating">⭐ {movie.rating.toFixed(1)}</p>
+                    )}
+                    {movie.reason && (
+                      <p className="movie-reason">💡 {movie.reason}</p>
                     )}
                     <div className="movie-similarity">
                       <div className="similarity-bar">

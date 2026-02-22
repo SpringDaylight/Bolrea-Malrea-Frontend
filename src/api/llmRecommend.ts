@@ -10,6 +10,7 @@ export interface RecommendRequest {
   genres?: string[];
   year_from?: number;
   year_to?: number;
+  use_orchestrator?: boolean; // 오케스트레이터 사용 여부
 }
 
 export interface Movie {
@@ -21,12 +22,14 @@ export interface Movie {
   detail_url: string;
   poster_url?: string;
   rating?: number;
+  reason?: string; // 개별 추천 이유 (오케스트레이터 모드)
 }
 
 export interface RecommendResponse {
   recommendations: Movie[];
   explanation: string;
   candidates_count: number;
+  method?: string; // 'basic' or 'orchestrator'
   usage?: {
     input_tokens: number;
     output_tokens: number;

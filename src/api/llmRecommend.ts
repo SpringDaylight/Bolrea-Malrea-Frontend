@@ -28,6 +28,8 @@ export interface Movie {
   poster_url?: string;
   rating?: number;
   reason?: string; // 개별 추천 이유 (오케스트레이터 모드)
+  is_selected?: boolean;  // 최종 선택 여부
+  not_selected_reason?: string;  // 선택되지 않은 이유
 }
 
 export interface RecommendResponse {
@@ -39,6 +41,10 @@ export interface RecommendResponse {
     input_tokens: number;
     output_tokens: number;
   };
+  keyword_candidates?: Movie[];  // 키워드 후보군
+  vector_candidates?: Movie[];  // 벡터 후보군
+  keyword_weight?: number;  // 키워드 가중치
+  emotion_weight?: number;  // 감성 가중치
 }
 
 /**

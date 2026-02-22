@@ -38,6 +38,7 @@
   display: flex;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  align-items: flex-start;
 }
 
 .search-box textarea {
@@ -80,6 +81,30 @@
 }
 
 .recommend-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.clear-btn {
+  padding: 1rem;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.clear-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+.clear-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
@@ -399,23 +424,7 @@
   font-size: 0.85rem;
 }
 
-.score-summary {
-  cursor: pointer;
-  color: #667eea;
-  font-weight: 600;
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  user-select: none;
-  transition: background-color 0.2s;
-}
-
-.score-summary:hover {
-  background-color: #e9ecef;
-}
-
 .score-breakdown {
-  margin-top: 0.5rem;
   padding: 0.75rem;
   background-color: #f8f9fa;
   border-radius: 6px;
@@ -427,6 +436,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.25rem 0;
+}
+
+.score-item:first-child {
+  padding-top: 0;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
 }
 
 .score-label {
@@ -443,4 +459,165 @@
   font-size: 0.85rem;
   color: #27ae60;
   font-weight: 600;
+}
+
+/* 후보군 섹션 */
+.candidates-section {
+  margin-top: 2rem;
+}
+
+.candidates-section h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.weight-info {
+  background: #f0f7ff;
+  border-left: 4px solid #667eea;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border-radius: 8px;
+}
+
+.weight-info p {
+  margin: 0;
+  color: #333;
+}
+
+.candidate-group {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.candidate-group h3 {
+  margin: 0 0 0.5rem 0;
+  color: #667eea;
+}
+
+.candidate-description {
+  color: #666;
+  margin: 0 0 1.5rem 0;
+  font-size: 0.95rem;
+}
+
+.candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.candidate-card {
+  background: #fafafa;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 2px solid transparent;
+}
+
+.candidate-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.candidate-card.selected {
+  border-color: #27ae60;
+  background: #f0fff4;
+}
+
+.candidate-card.not-selected {
+  opacity: 0.7;
+}
+
+.candidate-poster {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+
+.candidate-poster-placeholder {
+  width: 100%;
+  height: 250px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+}
+
+.candidate-info {
+  padding: 1rem;
+}
+
+.candidate-info h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #333;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.candidate-genres {
+  color: #667eea;
+  font-size: 0.8rem;
+  margin: 0.25rem 0;
+  font-weight: 600;
+}
+
+.candidate-score {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.75rem 0;
+  gap: 0.5rem;
+}
+
+.score-badge {
+  background: #667eea;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.selected-badge {
+  background: #27ae60;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.not-selected-badge {
+  background: #e74c3c;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.not-selected-reason {
+  font-size: 0.8rem;
+  color: #e74c3c;
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem;
+  background-color: #fee;
+  border-radius: 4px;
+  line-height: 1.3;
+}
+
+/* 반응형 - 후보군 */
+@media (max-width: 768px) {
+  .candidate-grid {
+    grid-template-columns: 1fr;
+  }
 }

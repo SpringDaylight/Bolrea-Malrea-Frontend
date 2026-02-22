@@ -171,8 +171,44 @@ export default function LLMRecommendPage() {
                           style={{ width: `${movie.similarity_score * 100}%` }}
                         ></div>
                       </div>
-                      <span>{(movie.similarity_score * 100).toFixed(0)}% 일치</span>
+                      <span className="similarity-label">
+                        {(movie.similarity_score * 100).toFixed(0)}% 일치
+                      </span>
                     </div>
+                    {/* 상세 점수 정보 (오케스트레이터 모드) */}
+                    {useOrchestrator && movie.final_score !== undefined && (
+                      <div className="score-details">
+                        <details>
+                          <summary className="score-summary">📊 점수 상세</summary>
+                          <div className="score-breakdown">
+                            <div className="score-item">
+                              <span className="score-label">최종 점수:</span>
+                              <span className="score-value">{(movie.final_score * 100).toFixed(1)}%</span>
+                            </div>
+                            {movie.keyword_score !== undefined && movie.keyword_score > 0 && (
+                              <div className="score-item">
+                                <span className="score-label">└ 키워드:</span>
+                                <span className="score-value">{(movie.keyword_score * 100).toFixed(1)}%</span>
+                              </div>
+                            )}
+                            {movie.emotion_score !== undefined && movie.emotion_score > 0 && (
+                              <div className="score-item">
+                                <span className="score-label">└ 감성:</span>
+                                <span className="score-value">{(movie.emotion_score * 100).toFixed(1)}%</span>
+                              </div>
+                            )}
+                            {movie.sources && movie.sources.length > 0 && (
+                              <div className="score-item">
+                                <span className="score-label">검색 소스:</span>
+                                <span className="score-value">
+                                  {movie.sources.map(s => s === 'keyword' ? '🔍' : '🎭').join(' ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

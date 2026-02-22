@@ -18,7 +18,12 @@ export interface Movie {
   title: string;
   genres: string[];
   release_year: number;
-  similarity_score: number;
+  similarity_score: number;  // 프론트 호환성 (final_score와 동일)
+  final_score?: number;  // 최종 점수 (가중치 + 보너스)
+  weighted_score?: number;  // 가중치 적용 점수
+  keyword_score?: number;  // 키워드 점수
+  emotion_score?: number;  // 감성 점수
+  sources?: string[];  // 검색 소스 (keyword, vector)
   detail_url: string;
   poster_url?: string;
   rating?: number;

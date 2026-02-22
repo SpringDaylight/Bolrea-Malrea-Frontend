@@ -392,3 +392,55 @@
   border-radius: 4px;
   line-height: 1.4;
 }
+
+/* 점수 상세 정보 */
+.score-details {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.score-summary {
+  cursor: pointer;
+  color: #667eea;
+  font-weight: 600;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.score-summary:hover {
+  background-color: #e9ecef;
+}
+
+.score-breakdown {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+.score-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.score-value {
+  color: #333;
+  font-weight: 600;
+}
+
+.similarity-label {
+  font-size: 0.85rem;
+  color: #27ae60;
+  font-weight: 600;
+}

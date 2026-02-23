@@ -50,7 +50,7 @@ export default function LLMRecommendPage() {
           setInput(state.input);
           setRecommendations(state.recommendations);
           setExplanation(state.explanation);
-          setUseOrchestrator(state.useOrchestrator);
+          // useOrchestrator는 항상 true이므로 복원하지 않음
           setKeywordCandidates(state.keywordCandidates || []);
           setVectorCandidates(state.vectorCandidates || []);
           setKeywordWeight(state.keywordWeight || 0);

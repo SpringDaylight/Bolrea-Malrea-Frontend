@@ -53,12 +53,10 @@ export default function GroupPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
-  const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
-  const [expandedMovies, setExpandedMovies] = useState<Record<number, boolean>>({});
   const currentUserId =
     getLocalStorageItem("mw_user_id") ||
     getLocalStorageItem("mw_user_pk") ||
@@ -357,13 +355,6 @@ export default function GroupPage() {
     }
   };
 
-  const toggleMovieExpand = (movieId: number) => {
-    setExpandedMovies(prev => ({
-      ...prev,
-      [movieId]: !prev[movieId]
-    }));
-  };
-
   return (
     <MainLayout>
       <main className="container group-page">
@@ -489,7 +480,7 @@ export default function GroupPage() {
           <section className="section">
             <h2>추천 영화 ({recommendedMovies.length}개)</h2>
             <div className="group-result-grid">
-              {recommendedMovies.map((movie, index) => (
+              {recommendedMovies.map((movie) => (
                 <article key={movie.movie_id} className="card">
                   <div className="movie-info">
                     <h3>{movie.title}</h3>

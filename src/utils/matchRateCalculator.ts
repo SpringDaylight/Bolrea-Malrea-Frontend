@@ -2,7 +2,6 @@
  * 영화 적합도 계산 유틸리티
  * HomePage와 MovieDetailPage에서 동일한 로직 사용
  */
-import { analyzePreference, predictSatisfaction, vectorizeMovie } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
 import type { Movie } from "../api/A2_movies";
 import type { SatisfactionPrediction } from "../api/ml";
@@ -18,16 +17,6 @@ const getCacheKey = (movieId: number, userTasteText: string): string => {
   const hash = userTasteText.substring(0, 50);
   return `${CACHE_KEY_PREFIX}${movieId}_${hash}`;
 };
-
-/**
- * 캐시에서 가져오기
- */
-const getFromCache = (cacheKey: string): SatisfactionPrediction | null => {
-  try {
-    const cached = sessionStorage.getItem(cacheKey);
-    if (!cached) return null;
-    
-    const parsed = JSON.parse(cached);
     if (!parsed.data || !parsed.timestamp) return null;
     
     // 캐시 만료 확인
@@ -128,7 +117,7 @@ export const calculateMovieMatchRate = async (
   movie: Movie
 ): Promise<SatisfactionPrediction | null> => {
   const tasteData = await getUserTasteData();
-  const { userTasteText, userProfile, fromDatabase } = tasteData;
+  const { userTasteText, userProfile } = tasteData;
 
   if (!userTasteText.trim() && !userProfile) {
     return null;

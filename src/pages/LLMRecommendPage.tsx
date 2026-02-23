@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { recommendMovies, type Movie } from '../api/llmRecommend';
+import { recommendMovies, explainRecommendation, type Movie } from '../api/llmRecommend';
 import '../styles/LLMRecommendPage.css';
 
 // localStorage 키
@@ -31,6 +31,8 @@ export default function LLMRecommendPage() {
   const [vectorCandidates, setVectorCandidates] = useState<Movie[]>([]);
   const [keywordWeight, setKeywordWeight] = useState<number>(0);
   const [emotionWeight, setEmotionWeight] = useState<number>(0);
+  const [expandedExplanations, setExpandedExplanations] = useState<Record<number, string>>({});
+  const [loadingExplanations, setLoadingExplanations] = useState<Record<number, boolean>>({});
 
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
@@ -134,6 +136,51 @@ export default function LLMRecommendPage() {
 
   const handleMovieClick = (movie: Movie) => {
     navigate(movie.detail_url);
+  };
+
+  const handleExplainClick = async (movie: Movie, e: React.MouseEvent) => {
+    e.stopPropagation(); // 영화 카드 클릭 이벤트 방지
+    
+    // 이미 로딩 중이면 무시
+    if (loadingExplanations[movie.movie_id]) return;
+    
+    // 이미 설명이 있으면 토글
+    if (expandedExplanations[movie.movie_id]) {
+      setExpandedExplanations(prev => {
+        const next = { ...prev };
+        delete next[movie.movie_id];
+        return next;
+      });
+      return;
+    }
+    
+    // LLM 설명 요청
+    setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: true }));
+    
+    try {
+      const response = await explainRecommendation({
+        user_input: input,
+        movie_title: movie.title,
+        movie_synopsis: movie.synopsis,
+        genres: movie.genres,
+        keyword_score: movie.keyword_score,
+        emotion_score: movie.emotion_score,
+        final_score: movie.final_score
+      });
+      
+      setExpandedExplanations(prev => ({
+        ...prev,
+        [movie.movie_id]: response.explanation
+      }));
+    } catch (err) {
+      console.error('Explanation error:', err);
+      setExpandedExplanations(prev => ({
+        ...prev,
+        [movie.movie_id]: '설명을 생성하는 중 오류가 발생했습니다.'
+      }));
+    } finally {
+      setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: false }));
+    }
   };
 
   const renderCandidateCard = (movie: Movie, index: number) => (
@@ -274,45 +321,50 @@ export default function LLMRecommendPage() {
             <h2>🎬 추천 영화 ({recommendations.length}개)</h2>
             <div className="movie-grid">
               {recommendations.map((movie) => (
-                <div 
-                  key={movie.movie_id} 
-                  className="movie-card"
-                  onClick={() => handleMovieClick(movie)}
-                >
-                  {movie.poster_url ? (
-                    <img 
-                      src={movie.poster_url} 
-                      alt={movie.title}
-                      className="movie-poster"
-                    />
-                  ) : (
-                    <div className="movie-poster-placeholder">
-                      🎬
-                    </div>
-                  )}
-                  <div className="movie-info">
-                    <h3>{movie.title}</h3>
-                    <p className="movie-genres">{movie.genres.join(', ')}</p>
-                    <p className="movie-year">📅 {movie.release_year}</p>
-                    {movie.rating && (
-                      <p className="movie-rating">⭐ {movie.rating.toFixed(1)}</p>
-                    )}
-                    {movie.reason && (
-                      <p className="movie-reason">💡 {movie.reason}</p>
-                    )}
-                    <div className="movie-similarity">
-                      <div className="similarity-bar">
-                        <div 
-                          className="similarity-fill"
-                          style={{ width: `${movie.similarity_score * 100}%` }}
-                        ></div>
+                <div key={movie.movie_id} className="movie-container">
+                  {/* 영화 카드 (클릭 시 상세 페이지) */}
+                  <div 
+                    className="movie-card"
+                    onClick={() => handleMovieClick(movie)}
+                  >
+                    {movie.poster_url ? (
+                      <img 
+                        src={movie.poster_url} 
+                        alt={movie.title}
+                        className="movie-poster"
+                      />
+                    ) : (
+                      <div className="movie-poster-placeholder">
+                        🎬
                       </div>
-                      <span className="similarity-label">
-                        {(movie.similarity_score * 100).toFixed(0)}% 일치
-                      </span>
+                    )}
+                    <div className="movie-info">
+                      <h3>{movie.title}</h3>
+                      <p className="movie-genres">{movie.genres.join(', ')}</p>
+                      <p className="movie-year">📅 {movie.release_year}</p>
+                      {movie.rating && (
+                        <p className="movie-rating">⭐ {movie.rating.toFixed(1)}</p>
+                      )}
+                      {movie.reason && (
+                        <p className="movie-reason">💡 {movie.reason}</p>
+                      )}
+                      <div className="movie-similarity">
+                        <div className="similarity-bar">
+                          <div 
+                            className="similarity-fill"
+                            style={{ width: `${movie.similarity_score * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="similarity-label">
+                          {(movie.similarity_score * 100).toFixed(0)}% 일치
+                        </span>
+                      </div>
                     </div>
-                    {/* 상세 점수 정보 (오케스트레이터 모드) */}
-                    {useOrchestrator && movie.final_score !== undefined && (
+                  </div>
+
+                  {/* 상세 점수 카드 (클릭 방지) */}
+                  {useOrchestrator && movie.final_score !== undefined && (
+                    <div className="score-card" onClick={(e) => e.stopPropagation()}>
                       <div className="score-details">
                         <div className="score-breakdown">
                           <div className="score-item">
@@ -340,9 +392,31 @@ export default function LLMRecommendPage() {
                             </div>
                           )}
                         </div>
+                        
+                        {/* LLM 설명 버튼 */}
+                        <button 
+                          className="explain-btn"
+                          onClick={(e) => handleExplainClick(movie, e)}
+                          disabled={loadingExplanations[movie.movie_id]}
+                        >
+                          {loadingExplanations[movie.movie_id] ? (
+                            <>⏳ 생성 중...</>
+                          ) : expandedExplanations[movie.movie_id] ? (
+                            <>📖 설명 닫기</>
+                          ) : (
+                            <>🤖 AI 상세 설명</>
+                          )}
+                        </button>
+                        
+                        {/* LLM 설명 내용 */}
+                        {expandedExplanations[movie.movie_id] && (
+                          <div className="llm-explanation">
+                            <p>{expandedExplanations[movie.movie_id]}</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -224,6 +224,12 @@
   gap: 1.5rem;
 }
 
+.movie-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .movie-card {
   background: #fafafa;
   border-radius: 12px;
@@ -419,8 +425,15 @@
 }
 
 /* 점수 상세 정보 */
+.score-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+}
+
 .score-details {
-  margin-top: 0.75rem;
   font-size: 0.85rem;
 }
 
@@ -429,6 +442,7 @@
   background-color: #f8f9fa;
   border-radius: 6px;
   border-left: 3px solid #667eea;
+  margin-bottom: 0.75rem;
 }
 
 .score-item {
@@ -453,6 +467,44 @@
 .score-value {
   color: #333;
   font-weight: 600;
+}
+
+.explain-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.explain-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.explain-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.llm-explanation {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: #f0f7ff;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.llm-explanation p {
+  margin: 0;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-wrap;
 }
 
 .similarity-label {

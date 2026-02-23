@@ -27,6 +27,7 @@ export interface Movie {
   detail_url: string;
   poster_url?: string;
   rating?: number;
+  synopsis?: string;  // 시놉시스
   reason?: string; // 개별 추천 이유 (오케스트레이터 모드)
   is_selected?: boolean;  // 최종 선택 여부
   not_selected_reason?: string;  // 선택되지 않은 이유
@@ -47,6 +48,21 @@ export interface RecommendResponse {
   emotion_weight?: number;  // 감성 가중치
 }
 
+export interface ExplainRequest {
+  user_input: string;
+  movie_title: string;
+  movie_synopsis?: string;
+  genres?: string[];
+  keyword_score?: number;
+  emotion_score?: number;
+  final_score?: number;
+}
+
+export interface ExplainResponse {
+  explanation: string;
+  movie_title: string;
+}
+
 /**
  * LLM 기반 영화 추천
  */
@@ -54,4 +70,13 @@ export async function recommendMovies(
   request: RecommendRequest
 ): Promise<RecommendResponse> {
   return post<RecommendResponse>('/api/llm/recommend', request);
+}
+
+/**
+ * 특정 영화 추천 이유 상세 설명
+ */
+export async function explainRecommendation(
+  request: ExplainRequest
+): Promise<ExplainResponse> {
+  return post<ExplainResponse>('/api/llm/explain', request);
 }

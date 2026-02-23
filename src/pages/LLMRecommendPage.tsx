@@ -27,7 +27,7 @@ export default function LLMRecommendPage() {
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [explanation, setExplanation] = useState('');
   const [error, setError] = useState('');
-  const [useOrchestrator, setUseOrchestrator] = useState(false);
+  const useOrchestrator = true;  // 항상 오케스트레이션 모드 사용
   const [keywordCandidates, setKeywordCandidates] = useState<Movie[]>([]);
   const [vectorCandidates, setVectorCandidates] = useState<Movie[]>([]);
   const [keywordWeight, setKeywordWeight] = useState<number>(0);
@@ -304,24 +304,6 @@ export default function LLMRecommendPage() {
               rows={3}
               disabled={isLoading}
             />
-            
-            {/* 오케스트레이터 옵션 */}
-            <div className="orchestrator-option">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={useOrchestrator}
-                  onChange={(e) => setUseOrchestrator(e.target.checked)}
-                  disabled={isLoading}
-                />
-                <span className="checkbox-text">
-                  🎯 고급 추천 모드 (오케스트레이터)
-                  <span className="option-hint">
-                    더 정확하지만 느림 (2-3배 시간 소요)
-                  </span>
-                </span>
-              </label>
-            </div>
             
             <button 
               onClick={handleRecommend} 

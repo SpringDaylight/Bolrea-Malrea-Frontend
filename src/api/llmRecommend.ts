@@ -63,6 +63,17 @@ export interface ExplainResponse {
   movie_title: string;
 }
 
+export interface SatisfactionRequest {
+  movie_id: number;
+  user_id?: number;
+}
+
+export interface SatisfactionResponse {
+  movie_id: number;
+  satisfaction_probability: number;
+  user_id?: number;
+}
+
 /**
  * LLM 기반 영화 추천
  */
@@ -79,4 +90,13 @@ export async function explainRecommendation(
   request: ExplainRequest
 ): Promise<ExplainResponse> {
   return post<ExplainResponse>('/api/llm/explain', request);
+}
+
+/**
+ * 사용자 취향과 영화 특성 간의 만족도 확률 계산
+ */
+export async function calculateSatisfaction(
+  request: SatisfactionRequest
+): Promise<SatisfactionResponse> {
+  return post<SatisfactionResponse>('/api/llm/satisfaction', request);
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { recommendMovies, explainRecommendation, type Movie } from '../api/llmRecommend';
+import { recommendMovies, explainRecommendation, calculateSatisfaction, type Movie } from '../api/llmRecommend';
+import MainLayout from '../components/layout/MainLayout';
 import '../styles/LLMRecommendPage.css';
 
 // localStorage 키
@@ -33,6 +34,8 @@ export default function LLMRecommendPage() {
   const [emotionWeight, setEmotionWeight] = useState<number>(0);
   const [expandedExplanations, setExpandedExplanations] = useState<Record<number, string>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<number, boolean>>({});
+  const [satisfactionScores, setSatisfactionScores] = useState<Record<number, number>>({});
+  const [loadingSatisfaction, setLoadingSatisfaction] = useState<Record<number, boolean>>({});
 
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
@@ -183,6 +186,55 @@ export default function LLMRecommendPage() {
     }
   };
 
+  const handleSatisfactionClick = async (movie: Movie, e: React.MouseEvent) => {
+    e.stopPropagation(); // 영화 카드 클릭 이벤트 방지
+    
+    // 이미 로딩 중이면 무시
+    if (loadingSatisfaction[movie.movie_id]) return;
+    
+    // 이미 점수가 있으면 토글
+    if (satisfactionScores[movie.movie_id] !== undefined) {
+      setSatisfactionScores(prev => {
+        const next = { ...prev };
+        delete next[movie.movie_id];
+        return next;
+      });
+      return;
+    }
+    
+    // 만족도 계산 요청
+    setLoadingSatisfaction(prev => ({ ...prev, [movie.movie_id]: true }));
+    
+    try {
+      // TODO: 실제 user_id는 로그인 정보에서 가져와야 함
+      const userId = localStorage.getItem('user_id');
+      
+      if (!userId) {
+        alert('로그인이 필요한 기능입니다.');
+        return;
+      }
+      
+      const response = await calculateSatisfaction({
+        movie_id: movie.movie_id,
+        user_id: parseInt(userId)
+      });
+      
+      setSatisfactionScores(prev => ({
+        ...prev,
+        [movie.movie_id]: response.satisfaction_probability
+      }));
+    } catch (err: any) {
+      console.error('Satisfaction error:', err);
+      if (err.message?.includes('로그인')) {
+        alert('로그인이 필요한 기능입니다.');
+      } else {
+        alert('만족도를 계산하는 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setLoadingSatisfaction(prev => ({ ...prev, [movie.movie_id]: false }));
+    }
+  };
+
   const renderCandidateCard = (movie: Movie, index: number) => (
     <div 
       key={`${movie.movie_id}-${index}`}
@@ -221,8 +273,9 @@ export default function LLMRecommendPage() {
   );
 
   return (
-    <div className="llm-recommend-page">
-      <div className="recommend-container">
+    <MainLayout>
+      <div className="llm-recommend-page">
+        <div className="recommend-container">
         <div className="recommend-header">
           <h1>🎬 AI 영화 추천</h1>
           <p>자연어로 원하는 영화를 설명하면 AI가 추천해드립니다</p>
@@ -362,61 +415,45 @@ export default function LLMRecommendPage() {
                     </div>
                   </div>
 
-                  {/* 상세 점수 카드 (클릭 방지) */}
-                  {useOrchestrator && movie.final_score !== undefined && (
-                    <div className="score-card" onClick={(e) => e.stopPropagation()}>
-                      <div className="score-details">
-                        <div className="score-breakdown">
-                          <div className="score-item">
-                            <span className="score-label">최종 점수:</span>
-                            <span className="score-value">{(movie.final_score * 100).toFixed(1)}%</span>
-                          </div>
-                          {movie.keyword_score !== undefined && movie.keyword_score > 0 && (
-                            <div className="score-item">
-                              <span className="score-label">└ 키워드:</span>
-                              <span className="score-value">{(movie.keyword_score * 100).toFixed(1)}%</span>
-                            </div>
-                          )}
-                          {movie.emotion_score !== undefined && movie.emotion_score > 0 && (
-                            <div className="score-item">
-                              <span className="score-label">└ 감성:</span>
-                              <span className="score-value">{(movie.emotion_score * 100).toFixed(1)}%</span>
-                            </div>
-                          )}
-                          {movie.sources && movie.sources.length > 0 && (
-                            <div className="score-item">
-                              <span className="score-label">검색 소스:</span>
-                              <span className="score-value">
-                                {movie.sources.map(s => s === 'keyword' ? '🔍' : '🎭').join(' ')}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* LLM 설명 버튼 */}
-                        <button 
-                          className="explain-btn"
-                          onClick={(e) => handleExplainClick(movie, e)}
-                          disabled={loadingExplanations[movie.movie_id]}
-                        >
-                          {loadingExplanations[movie.movie_id] ? (
-                            <>⏳ 생성 중...</>
-                          ) : expandedExplanations[movie.movie_id] ? (
-                            <>📖 설명 닫기</>
-                          ) : (
-                            <>🤖 AI 상세 설명</>
-                          )}
-                        </button>
-                        
-                        {/* LLM 설명 내용 */}
-                        {expandedExplanations[movie.movie_id] && (
-                          <div className="llm-explanation">
-                            <p>{expandedExplanations[movie.movie_id]}</p>
-                          </div>
-                        )}
+                  {/* 액션 버튼 카드 */}
+                  <div className="action-card" onClick={(e) => e.stopPropagation()}>
+                    {/* 만족도 확률 버튼 */}
+                    <button 
+                      className="satisfaction-btn"
+                      onClick={(e) => handleSatisfactionClick(movie, e)}
+                      disabled={loadingSatisfaction[movie.movie_id]}
+                    >
+                      {loadingSatisfaction[movie.movie_id] ? (
+                        <>⏳ 계산 중...</>
+                      ) : satisfactionScores[movie.movie_id] !== undefined ? (
+                        <>📊 만족도: {(satisfactionScores[movie.movie_id] * 100).toFixed(1)}%</>
+                      ) : (
+                        <>💝 내 취향 만족도</>
+                      )}
+                    </button>
+                    
+                    {/* LLM 설명 버튼 */}
+                    <button 
+                      className="explain-btn"
+                      onClick={(e) => handleExplainClick(movie, e)}
+                      disabled={loadingExplanations[movie.movie_id]}
+                    >
+                      {loadingExplanations[movie.movie_id] ? (
+                        <>⏳ 생성 중...</>
+                      ) : expandedExplanations[movie.movie_id] ? (
+                        <>📖 설명 닫기</>
+                      ) : (
+                        <>🤖 AI 상세 설명</>
+                      )}
+                    </button>
+                    
+                    {/* LLM 설명 내용 */}
+                    {expandedExplanations[movie.movie_id] && (
+                      <div className="llm-explanation">
+                        <p>{expandedExplanations[movie.movie_id]}</p>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -469,7 +506,8 @@ export default function LLMRecommendPage() {
             <p>위의 입력창에 원하는 영화의 분위기나 장르를 입력하세요</p>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </MainLayout>
   );
 }

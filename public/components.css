@@ -38,8 +38,9 @@
 }
 
 .primary-btn {
-  background: var(--accent);
-  color: white;
+  background: rgba(166, 168, 196, 0.2);
+  color: #4a4c6a;
+  border: 1px solid rgba(166, 168, 196, 0.8);
   box-shadow: 0 12px 22px rgba(111, 163, 200, 0.25);
 }
 
@@ -1108,8 +1109,8 @@
 }
 
 .review-rating-input:focus-visible {
-  outline: 2px solid rgba(95, 135, 170, 0.40);
-  outline-offset: 4px;
+  outline: none;
+  border: 1px solid #6FA3C8;
   border-radius: 8px;
 }
 

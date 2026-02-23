@@ -213,7 +213,7 @@ input:focus,
 input:focus-visible,
 textarea:focus,
 textarea:focus-visible {
-  border-color: #6FA3C8;
+  border-color: rgba(166, 168, 196, 0.8);
   outline: none;
   box-shadow: none;
 }

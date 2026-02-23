@@ -323,7 +323,8 @@ export default function MoviesPage() {
               );
               if (!range) return true;
               if (typeof range.min === "number" && year < range.min) return false;
-              if (typeof range.max === "number" && year > range.max) return false;
+              if ("max" in range && typeof range.max === "number" && year > range.max)
+                return false;
               return true;
             })
           : filteredByRuntime;

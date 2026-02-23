@@ -2,7 +2,7 @@
 import MainLayout from "../components/layout/MainLayout";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { getCurrentUser } from "../api/A7_profile";
-import { recommendGroupMovies, type RecommendedMovie, type UserDetail } from "../api/groupRecommend";
+import { recommendGroupMovies, type RecommendedMovie } from "../api/groupRecommend";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
@@ -35,14 +35,6 @@ const parseArrayFromStorage = (key: string): string[] => {
   } catch {
     return [];
   }
-};
-
-const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
-
-const resolveSatisfactionLevel = (score: number) => {
-  if (score >= 0.7) return "높음";
-  if (score >= 0.5) return "보통";
-  return "낮음";
 };
 
 export default function GroupPage() {

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
+import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
 import { recommendGroupMovies, type RecommendedMovie } from "../api/groupRecommend";
 
@@ -48,6 +49,7 @@ export default function GroupPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
+  const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
@@ -238,20 +240,75 @@ export default function GroupPage() {
       const likedGenres = parseArrayFromStorage("mw_taste_genres");
       const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
       const keywords = parseArrayFromStorage("mw_taste_keywords");
+      const vibe = (localStorage.getItem("mw_taste_vibe") || "").trim();
+      const context = (localStorage.getItem("mw_taste_context") || "").trim();
+      const origin = (localStorage.getItem("mw_taste_origin") || "").trim();
 
-      // 사용자 데이터 구성
-      const users = selectedMembers.map((memberId) => {
+      const tasteText = [
+        vibe,
+        context,
+        origin,
+        ...likedGenres,
+        ...keywords,
+      ]
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .join(" ");
+
+      const neutralProfile = {
+        emotion_scores: {},
+        narrative_traits: {},
+        ending_preference: { happy: 0.33, open: 0.33, bittersweet: 0.34 },
+      };
+
+      let baseProfile = neutralProfile;
+      try {
+        const analyzed = await analyzePreference({
+          text: tasteText || "기본 취향",
+          dislikes: avoidedGenres.join(", "),
+        });
+        baseProfile = {
+          emotion_scores: analyzed.emotion_scores,
+          narrative_traits: analyzed.narrative_traits,
+          ending_preference: analyzed.ending_preference,
+        };
+      } catch (analysisError) {
+        console.error("Failed to analyze preference, using neutral profile:", analysisError);
+      }
+
+      const membersPayload = selectedMembers.map((memberId) => {
         const isMe = currentUserId && memberId === currentUserId;
         const label =
           (isMe ? currentUserNickname : selectedMemberProfiles[memberId]?.nickname) ||
           memberId;
-        
         return {
-          user_id: memberId,
+          user_id: label,
+          profile: isMe ? baseProfile : neutralProfile,
+          likes: isMe ? likedGenres : [],
+          dislikes: isMe ? avoidedGenres : [],
+        };
+      });
+
+      const result = await simulateGroup({
+        members: membersPayload as any,
+        movie_profile: baseProfile as any,
+        strategy: "least_misery",
+      });
+
+      setGroupResult(result as GroupSimulationResult);
+
+      // 사용자 데이터 구성 (영화 추천용)
+      const users: GroupUser[] = selectedMembers.map((memberId) => {
+        const isMe = currentUserId && memberId === currentUserId;
+        const label =
+          (isMe ? currentUserNickname : selectedMemberProfiles[memberId]?.nickname) ||
+          memberId;
+        return {
+          user_id: label,
           name: label,
           text: isMe ? keywords.join(", ") : "",
           likes: isMe ? likedGenres : [],
-          dislikes: isMe ? avoidedGenres : []
+          dislikes: isMe ? avoidedGenres : [],
         };
       });
 
@@ -424,6 +481,55 @@ export default function GroupPage() {
           </div>
         </section>
 
+        {groupResult && (
+          <section className="section">
+            <div className="group-result-grid">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article className="card" key={`group-result-${index}`}>
+                  <div className="movie-info">
+                    <h3>추천 결과 {index + 1}</h3>
+                    <p className="probability">
+                      그룹 만족 확률 {Math.round(groupResult.group_score * 100)}%
+                    </p>
+                    <p className="muted">{groupResult.comment}</p>
+                  </div>
+
+                  <div className="section" style={{ marginTop: 16 }}>
+                    <h3>멤버별 예상 반응</h3>
+                    <ul className="list">
+                      {groupResult.members.map((member) => (
+                        <li key={member.user_id}>
+                          {member.user_id}: {member.level} ({Math.round(member.probability * 100)}%)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="section" style={{ marginTop: 16 }}>
+                    <h3>추천 의견</h3>
+                    <p className="muted">{groupResult.recommendation}</p>
+                  </div>
+
+                  <div className="section" style={{ marginTop: 16 }}>
+                    <h3>통계</h3>
+                    <ul className="list">
+                      <li>
+                        최소 만족도: {Math.round(groupResult.statistics.min_satisfaction * 100)}%
+                      </li>
+                      <li>
+                        최대 만족도: {Math.round(groupResult.statistics.max_satisfaction * 100)}%
+                      </li>
+                      <li>
+                        평균 만족도: {Math.round(groupResult.statistics.avg_satisfaction * 100)}%
+                      </li>
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
         {recommendedMovies.length > 0 && (
           <section className="section">
             <h2>추천 영화 ({recommendedMovies.length}개)</h2>
@@ -438,7 +544,7 @@ export default function GroupPage() {
                     <p className="probability">
                       그룹 만족도: {Math.round(movie.group_score * 100)}%
                     </p>
-                    
+
                     {movie.per_user_detail && movie.per_user_detail.length > 0 && (
                       <>
                         <button
@@ -448,12 +554,19 @@ export default function GroupPage() {
                         >
                           {expandedMovies[movie.movie_id] ? "멤버별 반응 접기" : "멤버별 반응 보기"}
                         </button>
-                        
+
                         {expandedMovies[movie.movie_id] && (
                           <div className="section" style={{ marginTop: 16 }}>
                             <h4>멤버별 예상 반응</h4>
                             {movie.per_user_detail.map((detail) => (
-                              <div key={detail.user_id} style={{ marginTop: 12, paddingLeft: 12, borderLeft: "3px solid #ddd" }}>
+                              <div
+                                key={detail.user_id}
+                                style={{
+                                  marginTop: 12,
+                                  paddingLeft: 12,
+                                  borderLeft: "3px solid #ddd",
+                                }}
+                              >
                                 <p>
                                   <strong>{detail.name}</strong>: {Math.round(detail.probability * 100)}%
                                 </p>

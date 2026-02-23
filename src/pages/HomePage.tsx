@@ -332,8 +332,8 @@ export default function HomePage() {
               searchResults.length > 0 && (
                 <div className="movie-grid">
                   {searchResults.map((movie) => (
-                    <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                      <article className="card movie-tile">
+                    // <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                      <article className="card movie-tile" key={movie.id}>
                         <img
                           className="poster"
                           src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
@@ -350,10 +350,10 @@ export default function HomePage() {
                                 (movie.synopsis.length > 60 ? "..." : "")
                               : "줄거리 정보가 없습니다."}
                           </p>
-                          <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                          {/* <span className="ghost-btn movie-detail-btn">자세히 보기</span> */}
                         </div>
                       </article>
-                    </Link>
+                    // </Link>
                   ))}
                 </div>
               )}
@@ -448,8 +448,8 @@ export default function HomePage() {
               {!loading && recommendedMovies.length > 0 && (
                 <div className="movie-grid">
                   {visibleRecommended.map((movie) => (
-                    <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                      <article className="card movie-tile">
+                    // <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                      <article className="card movie-tile" key={movie.id}>
                         <img
                           className="poster"
                           src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
@@ -465,10 +465,10 @@ export default function HomePage() {
                               ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
                               : '줄거리 정보가 없습니다.'}
                           </p>
-                          <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                          {/* <span className="ghost-btn movie-detail-btn">자세히 보기</span> */}
                         </div>
                       </article>
-                    </Link>
+                    // </Link>
                   ))}
                 </div>
               )}

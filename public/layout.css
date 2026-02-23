@@ -15,7 +15,7 @@ body {
   background: var(--bg);
   backdrop-filter: none;
   border-bottom: 1px solid var(--line);
-  color: #373850;
+  color: #4A4C6A;
 }
 
 .top-bar-inner {
@@ -59,14 +59,14 @@ body {
 
 .brand-sub {
   font-size: 0.85rem;
-  color: #373850;
+  color: #4A4C6A;
 }
 
 .top-nav {
   display: flex;
   gap: 14px;
   font-size: 0.95rem;
-  color: #373850;
+  color: #4A4C6A;
 }
 
 .top-nav a {

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
+import ChatPage from "./pages/ChatPage";
 import MoviesPage from "./pages/MoviesPage";
 import MovieDetailPage from "./pages/MovieDetailPage";
 import GroupPage from "./pages/GroupPage";
@@ -27,6 +28,7 @@ export default function App() {
       <Routes>
         {/* React 기준 정상 라우트 */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="/movies" element={<MoviesPage />} />
         <Route path="/movies/:movieId" element={<MovieDetailPage />} />
         <Route path="/group" element={<GroupPage />} />
@@ -47,6 +49,7 @@ export default function App() {
 
         {/* 레거시 HTML 경로 대응 (전환기 안전장치) */}
         <Route path="/home.html" element={<Navigate to="/" replace />} />
+        <Route path="/chat.html" element={<Navigate to="/chat" replace />} />
         <Route path="/movies.html" element={<Navigate to="/movies" replace />} />
         <Route
           path="/movie-detail.html"

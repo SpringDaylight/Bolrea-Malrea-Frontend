@@ -82,6 +82,13 @@ export default function Header() {
             영화
           </NavLink>
           <NavLink
+            to="/chat"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/chat")}
+          >
+            대화
+          </NavLink>
+          <NavLink
             to="/group"
             className={navClass}
             onClick={handleHeaderLinkClick("/group")}

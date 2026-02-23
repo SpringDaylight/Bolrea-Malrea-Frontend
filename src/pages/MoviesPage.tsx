@@ -65,13 +65,13 @@ const runtimeFilters = [
 
 const yearRangeFilters = [
   { value: "pre1950", label: "1950년 이전", min: 0, max: 1949 },
-  { value: "1950s", label: "1950년-1960년", min: 1950, max: 1959 },
-  { value: "1960s", label: "1960년-1970년", min: 1960, max: 1969 },
-  { value: "1970s", label: "1970년-1980년", min: 1970, max: 1979 },
-  { value: "1980s", label: "1980년-1990년", min: 1980, max: 1989 },
-  { value: "1990s", label: "1990년-2000년", min: 1990, max: 1999 },
-  { value: "2000s", label: "2000년-2010년", min: 2000, max: 2009 },
-  { value: "2010s", label: "2010년-2020년", min: 2010, max: 2019 },
+  { value: "1950s", label: "1950년-1959년", min: 1950, max: 1959 },
+  { value: "1960s", label: "1960년-1969년", min: 1960, max: 1969 },
+  { value: "1970s", label: "1970년-1979년", min: 1970, max: 1979 },
+  { value: "1980s", label: "1980년-1989년", min: 1980, max: 1989 },
+  { value: "1990s", label: "1990년-1999년", min: 1990, max: 1999 },
+  { value: "2000s", label: "2000년-2009년", min: 2000, max: 2009 },
+  { value: "2010s", label: "2010년-2019년", min: 2010, max: 2019 },
   { value: "2020plus", label: "2020년 이후", min: 2020 },
 ] as const;
 

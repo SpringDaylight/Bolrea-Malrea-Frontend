@@ -177,19 +177,19 @@ export default function MovieDetailPage() {
     );
   }, [reviewsForDisplay, personalReview?.id, currentUserPk]);
 
-  const averageRating = useMemo(() => {
-    if (movie?.avg_rating !== null && movie?.avg_rating !== undefined) {
-      return movie.avg_rating;
-    }
-    if (!reviews.length) return null;
-    const sum = reviews.reduce((acc, review) => acc + (review.rating ?? 0), 0);
-    return sum / reviews.length;
-  }, [movie?.avg_rating, reviews]);
+  // const averageRating = useMemo(() => {
+  //   if (movie?.avg_rating !== null && movie?.avg_rating !== undefined) {
+  //     return movie.avg_rating;
+  //   }
+  //   if (!reviews.length) return null;
+  //   const sum = reviews.reduce((acc, review) => acc + (review.rating ?? 0), 0);
+  //   return sum / reviews.length;
+  // }, [movie?.avg_rating, reviews]);
 
-  const averageRatingPercent = useMemo(() => {
-    if (averageRating === null) return 0;
-    return Math.min(100, Math.max(0, (averageRating / 5) * 100));
-  }, [averageRating]);
+  // const averageRatingPercent = useMemo(() => {
+  //   if (averageRating === null) return 0;
+  //   return Math.min(100, Math.max(0, (averageRating / 5) * 100));
+  // }, [averageRating]);
 
   const normalizeText = (value?: string | null) =>
     typeof value === "string" ? value.normalize("NFC") : "";
@@ -1087,7 +1087,7 @@ export default function MovieDetailPage() {
 
         <section className="section">
           <article className="movie-detail-main-card">
-            {averageRating !== null && (
+            {/* {averageRating !== null && (
               <div className="movie-detail-rating">
                 <span className="movie-detail-rating-label">평균 평점</span>
                 <span className="movie-detail-rating-stars" aria-label={`평점 ${averageRating.toFixed(1)}`}>
@@ -1102,7 +1102,7 @@ export default function MovieDetailPage() {
                 </span>
                 <span className="movie-detail-rating-value">{averageRating.toFixed(1)}</span>
               </div>
-            )}
+            )} */}
             <div className="movie-tile">
               <img
                 className="poster"
@@ -1208,9 +1208,9 @@ export default function MovieDetailPage() {
         </section>
 
         <section className="section" id="my-review">
-          {/* <div className="section-header">
+          <div className="section-header">
             <h2>내 리뷰</h2>
-          </div> */}
+          </div>
           {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
             <div className="review-item">
               <article className="card review-card">

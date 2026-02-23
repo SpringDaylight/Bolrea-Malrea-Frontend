@@ -2,6 +2,7 @@
 import MainLayout from "../components/layout/MainLayout";
 import { type GroupSimulationResult } from "../api/ml";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
+import { analyzePreference, simulateGroup } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
@@ -239,81 +240,62 @@ export default function GroupPage() {
       const likedGenres = parseArrayFromStorage("mw_taste_genres");
       const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
       const keywords = parseArrayFromStorage("mw_taste_keywords");
+      const vibe = (localStorage.getItem("mw_taste_vibe") || "").trim();
+      const context = (localStorage.getItem("mw_taste_context") || "").trim();
+      const origin = (localStorage.getItem("mw_taste_origin") || "").trim();
 
-      const computeScoreFromTaste = () => {
-        let score = 0.5;
+      const tasteText = [
+        vibe,
+        context,
+        origin,
+        ...likedGenres,
+        ...keywords,
+      ]
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .join(" ");
 
-        if (likedGenres.length > 0) {
-          score += Math.min(0.3, likedGenres.length * 0.03);
-        }
-
-        if (avoidedGenres.length > 0) {
-          score -= Math.min(0.2, avoidedGenres.length * 0.02);
-        }
-
-        if (keywords.length > 0) {
-          score += Math.min(0.15, keywords.length * 0.02);
-        }
-
-        return clamp01(score);
+      const neutralProfile = {
+        emotion_scores: {},
+        narrative_traits: {},
+        ending_preference: { happy: 0.33, open: 0.33, bittersweet: 0.34 },
       };
 
-      const members = selectedMembers.map((memberId) => {
+      let baseProfile = neutralProfile;
+      try {
+        const analyzed = await analyzePreference({
+          text: tasteText || "기본 취향",
+          dislikes: avoidedGenres.join(", "),
+        });
+        baseProfile = {
+          emotion_scores: analyzed.emotion_scores,
+          narrative_traits: analyzed.narrative_traits,
+          ending_preference: analyzed.ending_preference,
+        };
+      } catch (analysisError) {
+        console.error("Failed to analyze preference, using neutral profile:", analysisError);
+      }
+
+      const membersPayload = selectedMembers.map((memberId) => {
         const isMe = currentUserId && memberId === currentUserId;
         const label =
           (isMe ? currentUserNickname : selectedMemberProfiles[memberId]?.nickname) ||
           memberId;
-        const probability = isMe ? computeScoreFromTaste() : 0.5;
         return {
           user_id: label,
-          probability,
-          confidence: isMe ? 0.6 : 0.4,
-          level: resolveSatisfactionLevel(probability),
+          profile: isMe ? baseProfile : neutralProfile,
+          likes: isMe ? likedGenres : [],
+          dislikes: isMe ? avoidedGenres : [],
         };
       });
 
-      const probabilities = members.map((member) => member.probability);
-      const avg =
-        probabilities.length > 0
-          ? probabilities.reduce((sum, value) => sum + value, 0) / probabilities.length
-          : 0.5;
-      const min = probabilities.length > 0 ? Math.min(...probabilities) : avg;
-      const max = probabilities.length > 0 ? Math.max(...probabilities) : avg;
-      const variance =
-        probabilities.length > 0
-          ? probabilities.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) /
-            probabilities.length
-          : 0;
+      const result = await simulateGroup({
+        members: membersPayload as any,
+        movie_profile: baseProfile as any,
+        strategy: "least_misery",
+      });
 
-      const scorePercent = Math.round(avg * 100);
-      const comment =
-        scorePercent >= 70
-          ? "대체로 만족도가 높을 것 같아요."
-          : scorePercent >= 50
-          ? "호불호가 갈릴 수 있어요."
-          : "만족도가 낮을 수 있어요.";
-      const recommendation =
-        scorePercent >= 70
-          ? "다 같이 보기 좋은 선택입니다."
-          : scorePercent >= 50
-          ? "함께 보기 전에 취향을 한번 더 확인해보세요."
-          : "다른 영화를 추천해요.";
-
-      const result: GroupSimulationResult = {
-        group_score: avg,
-        strategy: "local",
-        members,
-        comment,
-        recommendation,
-        statistics: {
-          min_satisfaction: min,
-          max_satisfaction: max,
-          avg_satisfaction: avg,
-          variance,
-        },
-      };
-
-      setGroupResult(result);
+      setGroupResult(result as GroupSimulationResult);
     } catch (err) {
       console.error("Failed to analyze group:", err);
       showError("그룹 분석에 실패했습니다.");

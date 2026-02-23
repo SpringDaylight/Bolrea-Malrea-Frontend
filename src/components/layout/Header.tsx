@@ -17,12 +17,14 @@ export default function Header() {
     };
   const [profileHref, setProfileHref] = useState("/login");
   const [profileLabel, setProfileLabel] = useState("로그인");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const syncProfile = useCallback(() => {
     const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
     const userId = localStorage.getItem("mw_user_pk");
 
     if (isLoggedIn && userId) {
+      setIsLoggedIn(true);
       setProfileHref("/mypage");
       setProfileLabel("DS");
       getCurrentUser(userId)
@@ -39,6 +41,7 @@ export default function Header() {
           setProfileLabel("DS");
         });
     } else {
+      setIsLoggedIn(false);
       setProfileHref("/login");
       setProfileLabel("로그인");
     }
@@ -105,6 +108,11 @@ export default function Header() {
           <Link className="profile-chip" to={profileHref} onClick={handleHeaderLinkClick(profileHref)}>
             {profileLabel}
           </Link>
+          {!isLoggedIn && (
+            <Link className="profile-chip" to="/signup" onClick={handleHeaderLinkClick("/signup")}>
+              회원가입
+            </Link>
+          )}
         </div>
       </div>
     </header>

@@ -275,10 +275,9 @@ export default function HomePage() {
             <section className="landing-hero">
               <div className="landing-hero-text">
                 <span className="landing-badge">Movie Match</span>
-                <h1>오늘의 취향, 한 번에 찾아보기</h1>
+                <h1>오늘의 영화, 한 번에 찾아보기</h1>
                 <p>
-                  대화로 추천 받고, 마음에 들면 바로 탐색하세요. 간단하지만 확실한 추천
-                  흐름을 제공합니다.
+                  대화로 추천 받고, 마음에 들면 바로 탐색하세요. 간단하지만 확실한 추천 흐름을 제공합니다.
                 </p>
                 <div className="landing-actions">
                   <Link className="primary-btn" to="/chat">
@@ -306,22 +305,22 @@ export default function HomePage() {
 
             <section className="landing-grid">
               <article className="landing-card">
-                <h2>대화형 추천</h2>
-                <p>지금 기분이나 보고 싶은 분위기를 말해보세요.</p>
+                <h2>대화로 추천받기</h2>
+                <p>지금의 기분이나 보고싶은 영화 분위기를 말해보세요.</p>
               </article>
               <article className="landing-card">
-                <h2>취향 기반 탐색</h2>
-                <p>선호 장르, 길이, 분위기를 쉽게 조합할 수 있어요.</p>
+                <h2>영화 둘러보기</h2>
+                <p>선호하는 장르, 개봉시기, 상영시간을 조합하여 영화를 검색할 수 있어요.</p>
               </article>
               <article className="landing-card">
-                <h2>다함께 추천</h2>
-                <p>모임 멤버들의 취향을 모아 모두 만족하는 영화를 찾습니다.</p>
+                <h2>다함께 추천받기</h2>
+                <p>다른 멤버들의 취향을 모아 모두가 만족하는 영화를 찾을 수 있어요.</p>
               </article>
             </section>
 
             <section className="landing-strip">
               <div className="strip-head">
-                <h2>이런 흐름으로 추천돼요</h2>
+                <h2>이런 흐름으로 추천해요</h2>
                 <p>복잡하지 않고 직관적인 단계로 구성했어요.</p>
               </div>
               <div className="strip-steps">
@@ -570,7 +569,6 @@ export default function HomePage() {
         )}
         {showTasteSurveyModal && (
           <TasteSurveyModal
-            isOpen={showTasteSurveyModal}
             onClose={() => setShowTasteSurveyModal(false)}
             onComplete={() => {
               setShowTasteSurveyModal(false);

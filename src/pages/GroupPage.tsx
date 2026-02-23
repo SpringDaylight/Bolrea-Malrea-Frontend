@@ -470,10 +470,6 @@ export default function GroupPage() {
                 {userRequiredError}
               </p>
             )}
-
-            <button className="primary-btn" onClick={handleAnalyze} disabled={analyzing}>
-              {analyzing ? "추천 받는 중... (최대 30초 소요)" : "추천받기"}
-            </button>
             
             {analyzing && (
               <p className="muted" style={{ marginTop: 8, fontSize: "0.9em" }}>

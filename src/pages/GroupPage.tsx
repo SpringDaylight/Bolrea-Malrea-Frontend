@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
-import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
+import { analyzePreference, simulateGroup } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
 
@@ -291,13 +291,11 @@ export default function GroupPage() {
         };
       });
 
-      const result = await simulateGroup({
+      await simulateGroup({
         members: membersPayload as any,
         movie_profile: baseProfile as any,
         strategy: "least_misery",
       });
-
-      setGroupResult(result as GroupSimulationResult);
 
       // 사용자 데이터 구성 (영화 추천용)
       const users: GroupUser[] = selectedMembers.map((memberId) => {

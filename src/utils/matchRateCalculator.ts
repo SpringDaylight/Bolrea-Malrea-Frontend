@@ -7,7 +7,6 @@ import type { Movie } from "../api/A2_movies";
 import type { SatisfactionPrediction } from "../api/ml";
 
 const CACHE_KEY_PREFIX = "mw_match_rate_cache_";
-const CACHE_DURATION = 1000 * 60 * 30; // 30분
 
 /**
  * 캐시 키 생성
@@ -153,15 +152,15 @@ export const calculateMovieMatchRate = async (
       confidence: response.confidence || 0,
       raw_score: 0, // breakdown에서 계산 가능
       match_rate: response.satisfaction_probability * 100,
-      breakdown: response.breakdown || {
-        emotion_similarity: 0,
-        narrative_similarity: 0,
-        direction_similarity: 0,
-        character_similarity: 0,
-        ending_similarity: 0,
-        boost_score: 0,
-        dislike_penalty: 0,
-        top_factors: []
+      breakdown: {
+        emotion_similarity: response.breakdown?.emotion_similarity || 0,
+        narrative_similarity: response.breakdown?.narrative_similarity || 0,
+        direction_similarity: 0, // Not provided by /api/llm/satisfaction
+        character_similarity: 0, // Not provided by /api/llm/satisfaction
+        ending_similarity: response.breakdown?.ending_similarity || 0,
+        boost_score: response.breakdown?.boost_score || 0,
+        dislike_penalty: response.breakdown?.dislike_penalty || 0,
+        top_factors: response.breakdown?.top_factors || []
       }
     };
     

@@ -202,21 +202,22 @@ export default function LLMRecommendPage() {
       return;
     }
     
+    // 로그인 확인
+    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+    const userPk = localStorage.getItem("mw_user_pk");
+    
+    if (!isLoggedIn || !userPk) {
+      alert('로그인이 필요한 기능입니다.');
+      return;
+    }
+    
     // 만족도 계산 요청
     setLoadingSatisfaction(prev => ({ ...prev, [movie.movie_id]: true }));
     
     try {
-      // TODO: 실제 user_id는 로그인 정보에서 가져와야 함
-      const userId = localStorage.getItem('user_id');
-      
-      if (!userId) {
-        alert('로그인이 필요한 기능입니다.');
-        return;
-      }
-      
       const response = await calculateSatisfaction({
         movie_id: movie.movie_id,
-        user_id: parseInt(userId)
+        user_id: parseInt(userPk)
       });
       
       setSatisfactionScores(prev => ({
@@ -225,8 +226,10 @@ export default function LLMRecommendPage() {
       }));
     } catch (err: any) {
       console.error('Satisfaction error:', err);
-      if (err.message?.includes('로그인')) {
+      if (err.message?.includes('로그인') || err.message?.includes('401')) {
         alert('로그인이 필요한 기능입니다.');
+      } else if (err.message?.includes('404')) {
+        alert('사용자 선호도 정보를 찾을 수 없습니다. 영화를 평가하거나 리뷰를 작성해주세요.');
       } else {
         alert('만족도를 계산하는 중 오류가 발생했습니다.');
       }

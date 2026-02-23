@@ -71,6 +71,15 @@ export interface SatisfactionRequest {
 export interface SatisfactionResponse {
   movie_id: number;
   satisfaction_probability: number;
+  confidence?: number;
+  breakdown?: {
+    emotion_similarity: number;
+    narrative_similarity: number;
+    ending_similarity: number;
+    boost_score: number;
+    dislike_penalty: number;
+    top_factors: string[];
+  };
   user_id?: number;
 }
 

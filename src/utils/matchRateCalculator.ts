@@ -17,19 +17,6 @@ const getCacheKey = (movieId: number, userTasteText: string): string => {
   const hash = userTasteText.substring(0, 50);
   return `${CACHE_KEY_PREFIX}${movieId}_${hash}`;
 };
-    if (!parsed.data || !parsed.timestamp) return null;
-    
-    // 캐시 만료 확인
-    if (Date.now() - parsed.timestamp > CACHE_DURATION) {
-      sessionStorage.removeItem(cacheKey);
-      return null;
-    }
-    
-    return parsed.data;
-  } catch {
-    return null;
-  }
-};
 
 /**
  * 캐시에 저장

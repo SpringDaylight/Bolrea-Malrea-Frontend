@@ -15,6 +15,7 @@ import FindPasswordPage from "./pages/FindPasswordPage";
 // import KakaoCallbackPage from "./pages/KakaoCallbackPage";
 import SupportPage from "./pages/SupportPage";
 import MoviemongPage from "./pages/MoviemongPage";
+import LLMRecommendPage from "./pages/LLMRecommendPage";
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/taste-analysis" element={<TasteAnalysisPage />} />
         <Route path="/log" element={<CommentPage />} />
         <Route path="/moviemong" element={<MoviemongPage />} />
+        <Route path="/llm-recommend" element={<LLMRecommendPage />} />
         {/* <Route path="/profile" element={<ProfilePage />} /> */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />

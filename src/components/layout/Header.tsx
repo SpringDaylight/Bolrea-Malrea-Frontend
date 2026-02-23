@@ -93,6 +93,13 @@ export default function Header() {
             무비몽
           </NavLink>
           <NavLink
+            to="/llm-recommend"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/llm-recommend")}
+          >
+            🎯 AI 추천
+          </NavLink>
+          <NavLink
             to="/mypage"
             className={navClass}
             onClick={handleHeaderLinkClick("/mypage")}

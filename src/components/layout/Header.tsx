@@ -24,6 +24,7 @@ export default function Header() {
     const isLoggedIn = Boolean(getAccessToken());
 
     if (isLoggedIn) {
+      setIsLoggedIn(true);
       setProfileHref("/mypage");
       setProfileLabel("DS");
       getCurrentUser()

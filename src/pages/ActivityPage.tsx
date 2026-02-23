@@ -83,7 +83,7 @@ const defaultProfile: ProfileState = {
 };
 
 const WATCHED_PAGE_SIZE = 30;
-const REVIEWS_PAGE_SIZE = 8;
+const REVIEWS_PAGE_SIZE = 12;
 
 const normalizeLegacyProfileGender = (value: string | null): string | null => {
   if (!value) return value;
@@ -131,6 +131,7 @@ export default function ActivityPage() {
   const [topWatchedGenres, setTopWatchedGenres] = useState<string[]>([]);
   const [watchedPage, setWatchedPage] = useState(1);
   const [reviewPage, setReviewPage] = useState(1);
+  const [watchedSearch, setWatchedSearch] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -162,6 +163,13 @@ export default function ActivityPage() {
       })),
     [savedWatchedMovies]
   );
+  const normalizedWatchedSearch = watchedSearch.trim().toLowerCase();
+  const filteredPosterItems = useMemo(() => {
+    if (!normalizedWatchedSearch) return posterItems;
+    return posterItems.filter((item) =>
+      item.title.toLowerCase().includes(normalizedWatchedSearch)
+    );
+  }, [posterItems, normalizedWatchedSearch]);
   const mergedReviewItems = useMemo(() => {
     const seen = new Set<number>();
     return savedReviews.filter((item) => {
@@ -177,11 +185,11 @@ export default function ActivityPage() {
 
   const watchedTotalPages = Math.max(
     1,
-    Math.ceil(posterItems.length / WATCHED_PAGE_SIZE)
+    Math.ceil(filteredPosterItems.length / WATCHED_PAGE_SIZE)
   );
   const safeWatchedPage = Math.min(watchedPage, watchedTotalPages);
   const watchedSliceStart = (safeWatchedPage - 1) * WATCHED_PAGE_SIZE;
-  const visiblePosters = posterItems.slice(
+  const visiblePosters = filteredPosterItems.slice(
     watchedSliceStart,
     watchedSliceStart + WATCHED_PAGE_SIZE
   );
@@ -402,6 +410,9 @@ export default function ActivityPage() {
   useEffect(() => {
     setWatchedPage(1);
   }, [savedWatchedMovies.length]);
+  useEffect(() => {
+    setWatchedPage(1);
+  }, [normalizedWatchedSearch]);
   useEffect(() => {
     setReviewPage(1);
   }, [mergedReviewItems.length]);
@@ -799,7 +810,7 @@ export default function ActivityPage() {
               </div> */}
             </div>
           </div>
-          {/* <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p> */}
+          <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
         </section>
 
           <section className="section card taste-preview-section activity-top-card">
@@ -857,18 +868,18 @@ export default function ActivityPage() {
             <p>내가 본 영화와 남긴 리뷰를 관리해요.</p>
             {/* <p>시청/리뷰/컬렉션 현황</p> */}
           </div>  
-          <div className="activity-stats taste-preview-grid">
+          <div className="activity-stats taste-preview-grid" id="activity-stats">
             <div
               className="stat taste-preview-main clickable hoverable"
               role="button"
               tabIndex={0}
               onClick={() => {
-                requestScrollToSection("posters-section", "posters");
+                requestScrollToSection("activity-stats", "posters");
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  requestScrollToSection("posters-section", "posters");
+                  requestScrollToSection("activity-stats", "posters");
                 }
               }}
             >
@@ -880,12 +891,12 @@ export default function ActivityPage() {
               role="button"
               tabIndex={0}
               onClick={() => {
-                requestScrollToSection("reviews-section", "reviews");
+                requestScrollToSection("activity-stats", "reviews");
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  requestScrollToSection("reviews-section", "reviews");
+                  requestScrollToSection("activity-stats", "reviews");
                 }
               }}
             >
@@ -893,59 +904,55 @@ export default function ActivityPage() {
               <span>리뷰</span>
             </div>
           </div>
-          <section className="section">
-          {view === "posters" && <div className="section-header" id="posters-header" />}
-          {/* <div className="view-toggle" role="tablist" aria-label="내 영화 보기">
-            <button
-              className={`filter-chip ${view === "posters" ? "active" : ""}`}
-              id="tab-posters"
-              data-view="posters"
-              role="tab"
-              aria-selected={view === "posters"}
-              type="button"
-              onClick={() => setView("posters")}
-            >
-              포스터 그리드
-            </button>
-            <button
-              className={`filter-chip ${view === "reviews" ? "active" : ""}`}
-              id="tab-reviews"
-              data-view="reviews"
-              role="tab"
-              aria-selected={view === "reviews"}
-              type="button"
-              onClick={() => setView("reviews")}
-            >
-              리뷰 목록
-            </button>
-          </div> */}
-          </section>
-
           {view === "posters" && (
             <article className="section view-section" data-view="posters" id="posters-section">
-              <div className="poster-grid poster-grid-10">
-                {visiblePosters.map((poster) => (
-                  <div key={poster.id} className="poster-card">
-                    <Link to={poster.to}>
-                      <img src={poster.src} alt={poster.alt} />
-                    </Link>
-                    <p className="poster-title">{poster.title}</p>
-                    <button
-                      className="poster-remove-btn"
-                      type="button"
-                      aria-label={`${poster.alt} 제거`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleRemoveWatchedMovie(poster.movieId);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+              <div className="poster-search input-with-clear" style={{ marginLeft: "auto" }}>
+                <input
+                  className="search-input"
+                  type="search"
+                  placeholder="시청함에서 영화 검색"
+                  value={watchedSearch}
+                  onChange={(event) => setWatchedSearch(event.target.value)}
+                  aria-label="시청함 영화 검색"
+                />
+                {watchedSearch && (
+                  <button
+                    className="input-clear-btn"
+                    type="button"
+                    aria-label="검색어 지우기"
+                    onClick={() => setWatchedSearch("")}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              {posterItems.length > WATCHED_PAGE_SIZE && (
+              {filteredPosterItems.length === 0 ? (
+                <p className="search-empty">검색 결과가 없어요.</p>
+              ) : (
+                <div className="poster-grid poster-grid-10">
+                  {visiblePosters.map((poster) => (
+                    <div key={poster.id} className="poster-card">
+                      <Link to={poster.to}>
+                        <img src={poster.src} alt={poster.alt} />
+                      </Link>
+                      <p className="poster-title">{poster.title}</p>
+                      <button
+                        className="poster-remove-btn"
+                        type="button"
+                        aria-label={`${poster.alt} 제거`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleRemoveWatchedMovie(poster.movieId);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {filteredPosterItems.length > WATCHED_PAGE_SIZE && (
                 <div className="poster-pagination">
                   <button
                     className="icon-btn page-arrow-btn"
@@ -984,6 +991,7 @@ export default function ActivityPage() {
             <div className="review-list activity-review-grid">
                 {visibleReviews.map((review) => {
                   const visibilityMeta = getReviewVisibilityMeta(review.visibility);
+                  const reviewText = review.content ?? "";
                   return (
                   <div className="review-item" key={review.id}>
                     <article
@@ -998,6 +1006,13 @@ export default function ActivityPage() {
                         }
                       }}
                     >
+                      <Link
+                        className="review-detail-link"
+                        to={`/movies/${review.movieId}#my-review`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        자세히보기
+                      </Link>
                       <div className="movie-tile">
                         <div className="review-poster-block">
                           <img
@@ -1021,7 +1036,7 @@ export default function ActivityPage() {
                         </div>
                       </div>
                       <p className="muted review-summary-text review-summary-full">
-                        "{review.content}"
+                        {reviewText}
                       </p>
                     </article>
                 </div>
@@ -1523,6 +1538,8 @@ const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
   visibility === "private"
     ? { className: "is-private", label: "비공개 리뷰" }
     : { className: "is-public", label: "공개 리뷰" };
+
+
 
 
 

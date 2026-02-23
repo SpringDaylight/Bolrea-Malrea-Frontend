@@ -306,7 +306,7 @@ export default function HomePage() {
               )}
               {isEmotionalSearch && emotionTags.length > 0 && (
                 <div style={{ marginTop: "0.5rem" }}>
-                  <p style={{ fontSize: "0.9rem", color: "#666" }}>
+                  <p style={{ fontSize: "0.9rem", color: "#373850" }}>
                     🎭 감성 태그: {emotionTags.join(", ")}
                   </p>
                 </div>
@@ -332,8 +332,8 @@ export default function HomePage() {
               searchResults.length > 0 && (
                 <div className="movie-grid">
                   {searchResults.map((movie) => (
-                    <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                      <article className="card movie-tile">
+                    // <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                      <article className="card movie-tile" key={movie.id}>
                         <img
                           className="poster"
                           src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
@@ -344,16 +344,16 @@ export default function HomePage() {
                           <p className="probability home-match-probability">
                             종합 매칭 {searchMatchRates[movie.id] ?? 83}%
                           </p>
-                          <p className="muted">
+                          <p className="muted synopsis-clamp">
                             {movie.synopsis
                               ? movie.synopsis.substring(0, 60) +
                                 (movie.synopsis.length > 60 ? "..." : "")
                               : "줄거리 정보가 없습니다."}
                           </p>
-                          <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                          {/* <span className="ghost-btn movie-detail-btn">자세히 보기</span> */}
                         </div>
                       </article>
-                    </Link>
+                    // </Link>
                   ))}
                 </div>
               )}
@@ -403,7 +403,7 @@ export default function HomePage() {
               <p style={{ 
                 fontSize: "1.2rem", 
                 marginBottom: "1.5rem",
-                color: "#495057"
+                color: "#373850"
               }}>
                 로그인하고 나만을 위한 맞춤 추천을 받아보세요!
               </p>
@@ -423,14 +423,14 @@ export default function HomePage() {
               <p style={{ 
                 fontSize: "1.2rem", 
                 marginBottom: "1rem",
-                color: "#856404"
+                color: "#373850"
               }}>
                 취향 설정이 필요합니다
               </p>
               <p style={{ 
                 fontSize: "1rem", 
                 marginBottom: "1.5rem",
-                color: "#856404"
+                color: "#373850"
               }}>
                 나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
               </p>
@@ -448,8 +448,8 @@ export default function HomePage() {
               {!loading && recommendedMovies.length > 0 && (
                 <div className="movie-grid">
                   {visibleRecommended.map((movie) => (
-                    <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                      <article className="card movie-tile">
+                    // <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                      <article className="card movie-tile" key={movie.id}>
                         <img
                           className="poster"
                           src={movie.poster_url || 'https://via.placeholder.com/500x750?text=No+Image'}
@@ -460,15 +460,15 @@ export default function HomePage() {
                           <p className="probability home-match-probability">
                             적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
                           </p>
-                          <p className="muted">
+                          <p className="muted synopsis-clamp">
                             {movie.synopsis 
                               ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
                               : '줄거리 정보가 없습니다.'}
                           </p>
-                          <span className="ghost-btn movie-detail-btn">자세히 보기</span>
+                          {/* <span className="ghost-btn movie-detail-btn">자세히 보기</span> */}
                         </div>
                       </article>
-                    </Link>
+                    // </Link>
                   ))}
                 </div>
               )}

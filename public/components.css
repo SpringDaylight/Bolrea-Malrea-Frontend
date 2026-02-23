@@ -26,6 +26,7 @@
   background: #ffffff;
 }
 
+
 .primary-btn,
 .secondary-btn,
 .ghost-btn {
@@ -55,6 +56,59 @@
 }
 
 .tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filter-table {
+  display: grid;
+  gap: 0;
+}
+
+.filter-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.filter-box-title {
+  font-size: 1rem;
+}
+
+.filter-box-icon {
+  width: 18px;
+  height: 18px;
+  background-color: var(--text-subtle);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='4' y1='6' x2='20' y2='6'/><circle cx='9' cy='6' r='2'/><line x1='4' y1='12' x2='20' y2='12'/><circle cx='15' cy='12' r='2'/><line x1='4' y1='18' x2='20' y2='18'/><circle cx='8' cy='18' r='2'/></svg>") no-repeat center / contain;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='4' y1='6' x2='20' y2='6'/><circle cx='9' cy='6' r='2'/><line x1='4' y1='12' x2='20' y2='12'/><circle cx='15' cy='12' r='2'/><line x1='4' y1='18' x2='20' y2='18'/><circle cx='8' cy='18' r='2'/></svg>") no-repeat center / contain;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.filter-row:first-child {
+  border-top: none;
+}
+
+.filter-row .filter-title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.filter-options {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -695,6 +749,10 @@
   line-height: 1.4;
   font-size: 0.72rem;
   word-break: keep-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .review-summary-text.review-summary-full {
@@ -709,11 +767,41 @@
 
 .review-card-toggle {
   cursor: pointer;
+  position: relative;
 }
 
 .review-card-toggle:focus-visible {
   outline: 2px solid rgba(95, 135, 170, 0.40);
   outline-offset: 4px;
+}
+
+.review-detail-link {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.72rem;
+  color: #4A4C6A;
+  text-decoration: none;
+}
+
+.review-detail-link:hover,
+.review-detail-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.review-more-link {
+  margin-left: 6px;
+  font-size: 0.72rem;
+  color: #4A4C6A;
+  text-decoration: none;
+}
+
+
+.review-more-link:hover,
+.review-more-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .poster-grid a {
@@ -1155,6 +1243,13 @@
   gap: 8px;
  }
 
+.comment-reactions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
 .word-cloud {
   display: flex;
   flex-wrap: wrap;
@@ -1233,12 +1328,10 @@
 
 
 .comment-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: flex;
   gap: 6px;
-  z-index: 4;
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 
 .comment-edit-btn,
@@ -1250,6 +1343,10 @@
 .comment-actions .comment-delete-btn {
   position: static;
   margin-left: 0;
+}
+
+.comment-reactions {
+  margin-left: auto;
 }
 
 .comment-edit-form {

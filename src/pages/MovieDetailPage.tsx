@@ -18,6 +18,7 @@ import {
   getReviewComments,
   updateReview,
   toggleReviewLike,
+  toggleCommentLike,
   type Comment as ReviewComment,
 } from "../api/A6_reviews";
 import { getCurrentUser, getCurrentUserReviews, getUser } from "../api/A7_profile";
@@ -84,6 +85,12 @@ export default function MovieDetailPage() {
   const [myReviewReactions, setMyReviewReactions] = useState<
     Record<number, ReviewReaction | null>
   >({});
+  const [commentReactions, setCommentReactions] = useState<
+    Record<number, { likes: number; dislikes: number }>
+  >({});
+  const [myCommentReactions, setMyCommentReactions] = useState<
+    Record<number, ReviewReaction | null>
+  >({});
   const [myReviewOpen, setMyReviewOpen] = useState(false);
   const [isEditingMyReview, setIsEditingMyReview] = useState(false);
   const [myReviewContent, setMyReviewContent] = useState("");
@@ -138,8 +145,6 @@ export default function MovieDetailPage() {
   const personalReviewDate = personalReview?.created_at
     ? formatDateTime(personalReview.created_at)
     : formatDateTime();
-  const isPersonalReviewPrivate =
-    personalReview && toReviewVisibility(personalReview.is_public) === "private";
   const reviewsForDisplay = useMemo(() => {
     if (!personalReview || !movie || personalReview.movie_id !== movie.id) {
       return reviews;
@@ -163,23 +168,28 @@ export default function MovieDetailPage() {
   ]);
 
   const otherReviewsForDisplay = useMemo(() => {
-    if (!personalReview) return reviewsForDisplay;
-    return reviewsForDisplay.filter((review) => review.id !== personalReview.id);
-  }, [reviewsForDisplay, personalReview?.id]);
+    const filtered = personalReview
+      ? reviewsForDisplay.filter((review) => review.id !== personalReview.id)
+      : reviewsForDisplay;
+    if (!currentUserPk) return filtered;
+    return filtered.filter(
+      (review) => String(review.user_id) !== String(currentUserPk)
+    );
+  }, [reviewsForDisplay, personalReview?.id, currentUserPk]);
 
-  const averageRating = useMemo(() => {
-    if (movie?.avg_rating !== null && movie?.avg_rating !== undefined) {
-      return movie.avg_rating;
-    }
-    if (!reviews.length) return null;
-    const sum = reviews.reduce((acc, review) => acc + (review.rating ?? 0), 0);
-    return sum / reviews.length;
-  }, [movie?.avg_rating, reviews]);
+  // const averageRating = useMemo(() => {
+  //   if (movie?.avg_rating !== null && movie?.avg_rating !== undefined) {
+  //     return movie.avg_rating;
+  //   }
+  //   if (!reviews.length) return null;
+  //   const sum = reviews.reduce((acc, review) => acc + (review.rating ?? 0), 0);
+  //   return sum / reviews.length;
+  // }, [movie?.avg_rating, reviews]);
 
-  const averageRatingPercent = useMemo(() => {
-    if (averageRating === null) return 0;
-    return Math.min(100, Math.max(0, (averageRating / 5) * 100));
-  }, [averageRating]);
+  // const averageRatingPercent = useMemo(() => {
+  //   if (averageRating === null) return 0;
+  //   return Math.min(100, Math.max(0, (averageRating / 5) * 100));
+  // }, [averageRating]);
 
   const normalizeText = (value?: string | null) =>
     typeof value === "string" ? value.normalize("NFC") : "";
@@ -459,6 +469,11 @@ export default function MovieDetailPage() {
       if (review.user_id) authorIds.add(review.user_id);
     });
     if (personalReview?.user_id) authorIds.add(personalReview.user_id);
+    Object.values(reviewComments).forEach((commentList) => {
+      commentList.forEach((comment) => {
+        if (comment.user_id) authorIds.add(comment.user_id);
+      });
+    });
 
     const unresolvedIds = Array.from(authorIds).filter((authorId) => {
       if (currentUserPk && authorId === currentUserPk) return false;
@@ -499,7 +514,13 @@ export default function MovieDetailPage() {
     return () => {
       isCancelled = true;
     };
-  }, [reviews, personalReview?.user_id, currentUserPk, reviewAuthorNames]);
+  }, [
+    reviews,
+    personalReview?.user_id,
+    currentUserPk,
+    reviewAuthorNames,
+    reviewComments,
+  ]);
 
   const handleToggleReaction = async (reviewId: number, type: ReviewReaction) => {
     if (!isLoggedIn) {
@@ -530,6 +551,48 @@ export default function MovieDetailPage() {
       }));
     } catch (err) {
       console.error("Failed to toggle review reaction:", err);
+    }
+  };
+
+  const handleToggleCommentReaction = async (
+    reviewId: number,
+    commentId: number,
+    type: ReviewReaction
+  ) => {
+    if (!isLoggedIn) {
+      setCommentErrors((prev) => ({
+        ...prev,
+        [reviewId]: "로그인 후 좋아요/싫어요를 눌러주세요.",
+      }));
+      return;
+    }
+    if (!currentUserPk) return;
+
+    const currentReaction = myCommentReactions[commentId] ?? null;
+    if (currentReaction && currentReaction !== type) {
+      return;
+    }
+
+    try {
+      const response = await toggleCommentLike(
+        commentId,
+        currentUserPk,
+        type === "like"
+      );
+      const nextReaction = currentReaction === type ? null : type;
+      setCommentReactions((prev) => ({
+        ...prev,
+        [commentId]: {
+          likes: response.likes_count,
+          dislikes: response.dislikes_count,
+        },
+      }));
+      setMyCommentReactions((prev) => ({
+        ...prev,
+        [commentId]: nextReaction,
+      }));
+    } catch (err) {
+      console.error("Failed to toggle comment reaction:", err);
     }
   };
 
@@ -792,6 +855,16 @@ export default function MovieDetailPage() {
         user_id: currentUserPk || undefined,
       });
       setReviewComments((prev) => ({ ...prev, [reviewId]: apiComments }));
+      setCommentReactions((prev) => {
+        const next = { ...prev };
+        apiComments.forEach((comment) => {
+          next[comment.id] = {
+            likes: comment.likes_count ?? 0,
+            dislikes: comment.dislikes_count ?? 0,
+          };
+        });
+        return next;
+      });
     } catch (err) {
       console.error("Failed to fetch review comments:", err);
       setCommentErrors((prev) => ({
@@ -841,6 +914,13 @@ export default function MovieDetailPage() {
         ...prev,
         [reviewId]: [...(prev[reviewId] || []), createdComment],
       }));
+      setCommentReactions((prev) => ({
+        ...prev,
+        [createdComment.id]: {
+          likes: createdComment.likes_count ?? 0,
+          dislikes: createdComment.dislikes_count ?? 0,
+        },
+      }));
       setCommentOpen((prev) => ({ ...prev, [reviewId]: true }));
     } catch (err) {
       console.error("Failed to save comment to API:", err);
@@ -862,6 +942,16 @@ export default function MovieDetailPage() {
         ...prev,
         [reviewId]: (prev[reviewId] || []).filter((comment) => comment.id != commentId),
       }));
+      setCommentReactions((prev) => {
+        const next = { ...prev };
+        delete next[commentId];
+        return next;
+      });
+      setMyCommentReactions((prev) => {
+        const next = { ...prev };
+        delete next[commentId];
+        return next;
+      });
     } catch (err) {
       console.error("Failed to delete comment:", err);
       setCommentErrors((prev) => ({
@@ -997,7 +1087,7 @@ export default function MovieDetailPage() {
 
         <section className="section">
           <article className="movie-detail-main-card">
-            {averageRating !== null && (
+            {/* {averageRating !== null && (
               <div className="movie-detail-rating">
                 <span className="movie-detail-rating-label">평균 평점</span>
                 <span className="movie-detail-rating-stars" aria-label={`평점 ${averageRating.toFixed(1)}`}>
@@ -1012,7 +1102,7 @@ export default function MovieDetailPage() {
                 </span>
                 <span className="movie-detail-rating-value">{averageRating.toFixed(1)}</span>
               </div>
-            )}
+            )} */}
             <div className="movie-tile">
               <img
                 className="poster"
@@ -1118,9 +1208,9 @@ export default function MovieDetailPage() {
         </section>
 
         <section className="section" id="my-review">
-          {/* <div className="section-header">
+          <div className="section-header">
             <h2>내 리뷰</h2>
-          </div> */}
+          </div>
           {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
             <div className="review-item">
               <article className="card review-card">
@@ -1145,11 +1235,38 @@ export default function MovieDetailPage() {
                     </p>
                   </div>
                 </div>
+                <div className="review-actions">
+                  <button
+                    className="ghost-btn review-reaction-btn"
+                    type="button"
+                    aria-label="좋아요"
+                    aria-pressed={false}
+                    disabled
+                  >
+                    <span className="review-reaction-icon" aria-hidden="true" />
+                    {reactions[personalReview.id]?.likes ??
+                      personalReview.likes_count ??
+                      0}
+                  </button>
+                  <button
+                    className="ghost-btn review-reaction-btn"
+                    type="button"
+                    aria-label="싫어요"
+                    aria-pressed={false}
+                    disabled
+                  >
+                    <span
+                      className="review-reaction-icon is-dislike"
+                      aria-hidden="true"
+                    />
+                    {reactions[personalReview.id]?.dislikes ??
+                      personalReview.dislikes_count ??
+                      0}
+                  </button>
+                </div>
               </div>
                 <p className="review-text">
-                  {isPersonalReviewPrivate
-                    ? "비공개로 설정한 리뷰입니다"
-                    : personalReview.content || "리뷰 코멘트가 없습니다."}
+                  {personalReview.content || "리뷰 코멘트가 없습니다."}
                 </p>
               <div className="review-link-row">
                 <span className="muted">
@@ -1195,24 +1312,68 @@ export default function MovieDetailPage() {
                           <span className="muted">
                             {formatDateTime(comment.created_at)}
                           </span>
-                          {currentUserPk && String(comment.user_id) === String(currentUserPk) && (
-                            <div className="comment-actions">
-                              <button
-                                className="ghost-btn comment-edit-btn"
-                                type="button"
-                                onClick={() => handleCommentEditOpen(comment.id, comment.content)}
-                              >
-                                댓글 수정
-                              </button>
-                              <button
-                                className="ghost-btn comment-delete-btn"
-                                type="button"
-                                onClick={() => handleCommentDelete(personalReview.id, comment.id)}
-                              >
-                                댓글 삭제
-                              </button>
-                            </div>
-                          )}
+                          <div className="comment-reactions">
+                            {(() => {
+                              const reaction = myCommentReactions[comment.id] ?? null;
+                              const likeActive = reaction === "like";
+                              const dislikeActive = reaction === "dislike";
+                              const isOwnComment =
+                                Boolean(currentUserPk) &&
+                                String(comment.user_id) === String(currentUserPk);
+                              return (
+                                <>
+                                  <button
+                                    className={`ghost-btn review-reaction-btn ${
+                                      likeActive ? "is-active" : ""
+                                    }`}
+                                    type="button"
+                                    aria-label="좋아요"
+                                    aria-pressed={likeActive}
+                                    disabled={dislikeActive || isOwnComment}
+                                    onClick={() =>
+                                      handleToggleCommentReaction(
+                                        personalReview.id,
+                                        comment.id,
+                                        "like"
+                                      )
+                                    }
+                                  >
+                                    <span
+                                      className="review-reaction-icon"
+                                      aria-hidden="true"
+                                    />
+                                    {commentReactions[comment.id]?.likes ??
+                                      comment.likes_count ??
+                                      0}
+                                  </button>
+                                  <button
+                                    className={`ghost-btn review-reaction-btn ${
+                                      dislikeActive ? "is-active" : ""
+                                    }`}
+                                    type="button"
+                                    aria-label="싫어요"
+                                    aria-pressed={dislikeActive}
+                                    disabled={likeActive || isOwnComment}
+                                    onClick={() =>
+                                      handleToggleCommentReaction(
+                                        personalReview.id,
+                                        comment.id,
+                                        "dislike"
+                                      )
+                                    }
+                                  >
+                                    <span
+                                      className="review-reaction-icon is-dislike"
+                                      aria-hidden="true"
+                                    />
+                                    {commentReactions[comment.id]?.dislikes ??
+                                      comment.dislikes_count ??
+                                      0}
+                                  </button>
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                         {commentEditing[comment.id] ? (
                           <div className="comment-edit-form">
@@ -1241,7 +1402,32 @@ export default function MovieDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <p className="review-text">{comment.content}</p>
+                          <>
+                            <p className="review-text">{comment.content}</p>
+                            {currentUserPk &&
+                              String(comment.user_id) === String(currentUserPk) && (
+                                <div className="comment-actions">
+                                  <button
+                                    className="ghost-btn comment-edit-btn"
+                                    type="button"
+                                    onClick={() =>
+                                      handleCommentEditOpen(comment.id, comment.content)
+                                    }
+                                  >
+                                    댓글 수정
+                                  </button>
+                                  <button
+                                    className="ghost-btn comment-delete-btn"
+                                    type="button"
+                                    onClick={() =>
+                                      handleCommentDelete(personalReview.id, comment.id)
+                                    }
+                                  >
+                                    댓글 삭제
+                                  </button>
+                                </div>
+                              )}
+                          </>
                         )}
                       </div>
                     ))
@@ -1593,24 +1779,68 @@ export default function MovieDetailPage() {
                           <span className="muted">
                             {formatDateTime(comment.created_at)}
                           </span>
-                          {currentUserPk && String(comment.user_id) === String(currentUserPk) && (
-                            <div className="comment-actions">
-                              <button
-                                className="ghost-btn comment-edit-btn"
-                                type="button"
-                                onClick={() => handleCommentEditOpen(comment.id, comment.content)}
-                              >
-                                댓글 수정
-                              </button>
-                              <button
-                                className="ghost-btn comment-delete-btn"
-                                type="button"
-                                onClick={() => handleCommentDelete(review.id, comment.id)}
-                              >
-                                댓글 삭제
-                              </button>
-                            </div>
-                          )}
+                          <div className="comment-reactions">
+                            {(() => {
+                              const reaction = myCommentReactions[comment.id] ?? null;
+                              const likeActive = reaction === "like";
+                              const dislikeActive = reaction === "dislike";
+                              const isOwnComment =
+                                Boolean(currentUserPk) &&
+                                String(comment.user_id) === String(currentUserPk);
+                              return (
+                                <>
+                                  <button
+                                    className={`ghost-btn review-reaction-btn ${
+                                      likeActive ? "is-active" : ""
+                                    }`}
+                                    type="button"
+                                    aria-label="좋아요"
+                                    aria-pressed={likeActive}
+                                    disabled={dislikeActive || isOwnComment}
+                                    onClick={() =>
+                                      handleToggleCommentReaction(
+                                        review.id,
+                                        comment.id,
+                                        "like"
+                                      )
+                                    }
+                                  >
+                                    <span
+                                      className="review-reaction-icon"
+                                      aria-hidden="true"
+                                    />
+                                    {commentReactions[comment.id]?.likes ??
+                                      comment.likes_count ??
+                                      0}
+                                  </button>
+                                  <button
+                                    className={`ghost-btn review-reaction-btn ${
+                                      dislikeActive ? "is-active" : ""
+                                    }`}
+                                    type="button"
+                                    aria-label="싫어요"
+                                    aria-pressed={dislikeActive}
+                                    disabled={likeActive || isOwnComment}
+                                    onClick={() =>
+                                      handleToggleCommentReaction(
+                                        review.id,
+                                        comment.id,
+                                        "dislike"
+                                      )
+                                    }
+                                  >
+                                    <span
+                                      className="review-reaction-icon is-dislike"
+                                      aria-hidden="true"
+                                    />
+                                    {commentReactions[comment.id]?.dislikes ??
+                                      comment.dislikes_count ??
+                                      0}
+                                  </button>
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
                         {commentEditing[comment.id] ? (
                           <div className="comment-edit-form">
@@ -1639,7 +1869,30 @@ export default function MovieDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <p className="review-text">{comment.content}</p>
+                          <>
+                            <p className="review-text">{comment.content}</p>
+                            {currentUserPk &&
+                              String(comment.user_id) === String(currentUserPk) && (
+                                <div className="comment-actions">
+                                  <button
+                                    className="ghost-btn comment-edit-btn"
+                                    type="button"
+                                    onClick={() =>
+                                      handleCommentEditOpen(comment.id, comment.content)
+                                    }
+                                  >
+                                    댓글 수정
+                                  </button>
+                                  <button
+                                    className="ghost-btn comment-delete-btn"
+                                    type="button"
+                                    onClick={() => handleCommentDelete(review.id, comment.id)}
+                                  >
+                                    댓글 삭제
+                                  </button>
+                                </div>
+                              )}
+                          </>
                         )}
                           </div>
                         ))

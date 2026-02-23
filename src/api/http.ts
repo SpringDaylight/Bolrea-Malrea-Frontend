@@ -50,22 +50,66 @@ function extractErrorDetail(payload: unknown, fallback: string): string {
 /**
  * HTTP request wrapper with error handling
  */
+async function tryRefreshToken(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      setAccessToken(null);
+      return false;
+    }
+    const payload = await response.json();
+    if (payload && payload.access_token) {
+      setAccessToken(payload.access_token);
+      return true;
+    }
+    setAccessToken(null);
+    return false;
+  } catch (error) {
+    console.error('Failed to refresh token:', error);
+    setAccessToken(null);
+    return false;
+  }
+}
+
 export async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  allowRetry = true
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
+  const accessToken = getAccessToken();
   const config: RequestInit = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
+    credentials: 'include',
   };
 
   try {
     const response = await fetch(url, config);
+
+    if (
+      response.status === 401 &&
+      allowRetry &&
+      !endpoint.startsWith('/api/auth/login') &&
+      !endpoint.startsWith('/api/auth/refresh') &&
+      !endpoint.startsWith('/api/auth/signup')
+    ) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        return request<T>(endpoint, options, false);
+      }
+    }
 
     if (!response.ok) {
       const fallbackMessage = `HTTP ${response.status}: ${response.statusText}`;

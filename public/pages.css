@@ -53,7 +53,20 @@
   gap: 8px;
 }
 
-.group-page .error,
+.group-page .error {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(166, 168, 196, 0.8);
+  border-left: 4px solid rgba(166, 168, 196, 0.8);
+  background: rgba(166, 168, 196, 0.2);
+  color: #4a4c6a;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.35;
+  animation: warnPop 0.28s ease-out, warnShake 0.42s ease-out 0.08s;
+}
+
 .movie-detail-page .error {
   margin: 4px 0 0;
   padding: 10px 12px;

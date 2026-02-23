@@ -522,7 +522,7 @@ export default function MoviesPage() {
               </div>
             </div>
             <div className="filter-row">
-              <p className="filter-title">개봉연도</p>
+              <p className="filter-title">개봉년도</p>
               <div className="filter-options">
                 {yearRangeFilters.map((filter) => (
                   <button

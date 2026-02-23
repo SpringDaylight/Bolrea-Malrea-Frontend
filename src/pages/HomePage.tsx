@@ -84,16 +84,26 @@ export default function HomePage() {
   }, [recommendedMovies.length]);
 
   const handleSearch = async () => {
-    const trimmedQuery = searchQuery.trim();
-    
-    if (!trimmedQuery) {
-      setSearchResults(null);
-      setSearchError(null);
+    if (!isLoggedIn) {
+      setSearchResults([]);
+      setSearchError("로그인 후 이용해주세요");
       setActiveSearchLabel("");
       setSearchMatchRates({});
       setIsEmotionalSearch(false);
       setEmotionTags([]);
-      await fetchRecommendations({ sort: "popular" });
+      setSearchLoading(false);
+      return;
+    }
+    const trimmedQuery = searchQuery.trim();
+    
+    if (!trimmedQuery) {
+      setSearchResults([]);
+      setSearchError("검색어를 입력해주세요");
+      setActiveSearchLabel("");
+      setSearchMatchRates({});
+      setIsEmotionalSearch(false);
+      setEmotionTags([]);
+      setSearchLoading(false);
       return;
     }
     
@@ -107,6 +117,7 @@ export default function HomePage() {
     
     setSearchLoading(true);
     setSearchError(null);
+    setSearchResults(null);
     
     // 자연어 검색 시도
     if (isNaturalLanguage && trimmedQuery.length > 3) {
@@ -309,18 +320,8 @@ export default function HomePage() {
           </div>
           
           {!isLoggedIn ? (
-            <div style={{ 
-              textAlign: "center", 
-              padding: "3rem 1rem",
-              backgroundColor: "#f8f9fa",
-              borderRadius: "8px",
-              margin: "1rem 0"
-            }}>
-              <p style={{ 
-                fontSize: "1.2rem", 
-                marginBottom: "1.5rem",
-                color: "#373850"
-              }}>
+            <div style={{ textAlign: "center", margin: "1rem 0" }}>
+              <p style={{ fontSize: "1.2rem", marginBottom: "1.5rem", color: "#373850" }}>
                 로그인하고 나만을 위한 맞춤 추천을 받아보세요!
               </p>
               <Link to="/login">
@@ -408,7 +409,9 @@ export default function HomePage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
-              <button className="primary-btn" onClick={handleSearch}>맞춤 추천 받기</button>
+              <button className="primary-btn" type="button" onClick={handleSearch}>
+                맞춤 추천 받기
+              </button>
             </div>
           </div>
         </section>

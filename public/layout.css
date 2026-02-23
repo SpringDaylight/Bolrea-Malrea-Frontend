@@ -15,7 +15,7 @@ body {
   background: var(--bg);
   backdrop-filter: none;
   border-bottom: 1px solid var(--line);
-  color: #4A4C6A;
+  color: var(--text);
 }
 
 .top-bar-inner {
@@ -59,14 +59,14 @@ body {
 
 .brand-sub {
   font-size: 0.85rem;
-  color: #4A4C6A;
+  color: var(--text);
 }
 
 .top-nav {
   display: flex;
   gap: 14px;
   font-size: 0.95rem;
-  color: #4A4C6A;
+  color: var(--text);
 }
 
 .top-nav a {
@@ -79,7 +79,7 @@ body {
 .top-nav a.active,
 .top-nav a:hover {
   background: var(--accent-soft);
-  color: #373850;
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -209,3 +209,4 @@ body {
   color: var(--accent);
   font-weight: 600;
 }
+

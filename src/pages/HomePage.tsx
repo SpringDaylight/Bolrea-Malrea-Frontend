@@ -442,7 +442,7 @@ export default function HomePage() {
                     style={{
                       fontSize: "1.2rem",
                       marginBottom: "1rem",
-                      color: "#4A4C6A",
+                    color: "var(--text)",
                     }}
                   >
                     취향 설정이 필요합니다
@@ -451,7 +451,7 @@ export default function HomePage() {
                     style={{
                       fontSize: "1rem",
                       marginBottom: "1.5rem",
-                      color: "#4A4C6A",
+                    color: "var(--text)",
                     }}
                   >
                     나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
@@ -522,7 +522,7 @@ export default function HomePage() {
                   {activeSearchLabel && <p className="muted">"{activeSearchLabel}"</p>}
                   {isEmotionalSearch && emotionTags.length > 0 && (
                     <div style={{ marginTop: "0.5rem" }}>
-                      <p style={{ fontSize: "0.9rem", color: "#4A4C6A" }}>
+                      <p style={{ fontSize: "0.9rem", color: "var(--text)" }}>
                         🎭 감성 태그: {emotionTags.join(", ")}
                       </p>
                     </div>

@@ -1,13 +1,13 @@
-ï»¿@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css");
 
 :root {
   --bg: #F3F6F8;
   --bg-soft: #ffffff;
-  --text: #111111;
-  --text-subtle: #5d5d66;
-  --line: #e5e5ea;
-  --accent: #6FA3C8;
-  --accent-soft: rgba(111, 163, 200, 0.12);
+  --text: var(--text);
+  --text-subtle: var(--text-subtle);
+  --line: rgba(166, 168, 196, 0.8);
+  --accent: var(--accent);
+  --accent-soft: rgba(166, 168, 196, 0.2);
   --shadow: 0 12px 30px rgba(23, 23, 28, 0.08);
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -228,7 +228,7 @@ textarea {
   flex-wrap: wrap;
   gap: 30px;
   margin: 24px 0 0;
-  justify-content: center;   /* â­ ê°€ë¡œ ê°€ìš´ë° ì •ë ¬ */
+  justify-content: center;   /* ? °¡·Î °¡¿îµ¥ Á¤·Ä */
   list-style: none;
   padding: 0;
 }
@@ -249,22 +249,22 @@ textarea {
 .social-login-buttons {
   display: flex;
   gap: 12px;
-  justify-content: center; /* ì•„ì´ì½˜ì´ë©´ ì¤‘ì•™ ì •ë ¬ ì¶”ì²œ */
+  justify-content: center; /* ¾ÆÀÌÄÜÀÌ¸é Áß¾Ó Á¤·Ä ÃßÃµ */
   flex-wrap: wrap;
 }
 
 .social-btn {
-  all: unset;                 /* â­ ë²„íŠ¼ ê¸°ë³¸ ìŠ¤íƒ€ì¼ ì œê±° */
+  all: unset;                 /* ? ¹öÆ° ±âº» ½ºÅ¸ÀÏ Á¦°Å */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  width: 44px;                /* í„°ì¹˜ ìµœì†Œ ì˜ì—­ */
+  width: 44px;                /* ÅÍÄ¡ ÃÖ¼Ò ¿µ¿ª */
   height: 44px;
 }
 
-/* ì•„ì´ì½˜ í¬ê¸° */
+/* ¾ÆÀÌÄÜ Å©±â */
 .social-btn img {
   width: 44px;
   height: 44px;
@@ -273,13 +273,13 @@ textarea {
   display: block;
 }
 
-/* í‚¤ë³´ë“œ ì ‘ê·¼ì„± */
+/* Å°º¸µå Á¢±Ù¼º */
 .social-btn:focus-visible {
   outline: 2px solid #000;
   outline-offset: 4px;
 }
 
-/* ì„ íƒ: ì‚´ì§ ë°˜ì‘ */
+/* ¼±ÅÃ: »ìÂ¦ ¹İÀÀ */
 .social-btn:hover { opacity: 0.9; }
 .social-btn:active { transform: scale(0.95); }
 
@@ -503,7 +503,7 @@ textarea {
 
 .danger {
   color: #d92d43;
-  /* ê²½ê³  ìƒ‰ìƒ(ë¸”ë£¨ë¡œ í†µì¼í•  ê²½ìš° ì‚¬ìš©)
+  /* °æ°í »ö»ó(ºí·ç·Î ÅëÀÏÇÒ °æ¿ì »ç¿ë)
   color: #4E789B; */
 }
 .toggle {
@@ -778,3 +778,4 @@ textarea {
     transform: translateY(0);
   }
 }
+

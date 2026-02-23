@@ -206,6 +206,14 @@ export default function LLMRecommendPage() {
     const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
     const userPk = localStorage.getItem("mw_user_pk");
     
+    // 디버깅 로그
+    console.log('🔍 만족도 계산 시도:', {
+      isLoggedIn,
+      userPk,
+      mw_logged_in_raw: localStorage.getItem("mw_logged_in"),
+      mw_user_pk_raw: localStorage.getItem("mw_user_pk")
+    });
+    
     if (!isLoggedIn || !userPk) {
       alert('로그인이 필요한 기능입니다.');
       return;
@@ -217,15 +225,17 @@ export default function LLMRecommendPage() {
     try {
       const response = await calculateSatisfaction({
         movie_id: movie.movie_id,
-        user_id: parseInt(userPk)
+        user_id: userPk  // ✅ 문자열 그대로 전달 (parseInt 제거)
       });
+      
+      console.log('✅ 만족도 계산 성공:', response);
       
       setSatisfactionScores(prev => ({
         ...prev,
         [movie.movie_id]: response.satisfaction_probability
       }));
     } catch (err: any) {
-      console.error('Satisfaction error:', err);
+      console.error('❌ 만족도 계산 실패:', err);
       if (err.message?.includes('로그인') || err.message?.includes('401')) {
         alert('로그인이 필요한 기능입니다.');
       } else if (err.message?.includes('404')) {

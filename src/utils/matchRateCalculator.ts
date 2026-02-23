@@ -165,7 +165,12 @@ export const calculateMovieMatchRate = async (
   });
 
   // 3. 만족도 예측
+  // user_id가 있으면 백엔드에서 DB 조회하도록 전달
+  const userPk = localStorage.getItem("mw_user_pk");
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  
   const prediction = await predictSatisfaction({
+    user_id: (isLoggedIn && userPk) ? parseInt(userPk) : undefined,  // ✅ user_id 전달
     user_profile: finalUserProfile,
     movie_profile: movieProfile,
     dislike_tags: finalUserProfile.dislike_tags,

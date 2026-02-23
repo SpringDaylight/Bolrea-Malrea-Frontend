@@ -65,7 +65,7 @@ export interface ExplainResponse {
 
 export interface SatisfactionRequest {
   movie_id: number;
-  user_id?: number;
+  user_id?: string;  // ✅ 문자열 UUID
 }
 
 export interface SatisfactionResponse {

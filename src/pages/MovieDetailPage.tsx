@@ -33,6 +33,7 @@ import {
 } from "../api/ml";
 import { calculateMovieMatchRate } from "../utils/matchRateCalculator";
 import { syncAfterReview } from "../utils/preferenceSync";
+import { getAccessToken } from "../api/http";
 
 const REVIEW_CONTENT_MAX_LENGTH = 500;
 
@@ -136,7 +137,7 @@ export default function MovieDetailPage() {
   const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const isLoggedIn = Boolean(getAccessToken());
   const currentUserPk = localStorage.getItem("mw_user_pk");
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const personalReview = isPersonalReviewDeleted
@@ -236,7 +237,7 @@ export default function MovieDetailPage() {
     }
 
     let isCancelled = false;
-    getCurrentUser(currentUserPk)
+    getCurrentUser()
       .then((user) => {
         if (isCancelled) return;
         const name = normalizeText(
@@ -284,26 +285,17 @@ export default function MovieDetailPage() {
       return;
     }
 
-    const userId = currentUserPk;
-    if (!userId) {
-      setLocalPersonalReview(null);
-      return;
-    }
-
     let isCancelled = false;
 
     const fetchPersonalReview = async () => {
       try {
-        const myReviews = await getCurrentUserReviews(userId, {
+        const myReviews = await getCurrentUserReviews({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
 
-        const scopedReviews = myReviews.reviews.filter(
-          (item) => String(item.user_id) === String(userId)
-        );
-        const match = scopedReviews.find(
+        const match = myReviews.reviews.find(
           (item) => String(item.movie_id) === String(movieId)
         );
         setLocalPersonalReview(match ?? null);
@@ -337,17 +329,14 @@ export default function MovieDetailPage() {
 
     const fetchWatchedState = async () => {
       try {
-        const watched = await getCurrentUserWatchedMovies(currentUserPk, {
+        const watched = await getCurrentUserWatchedMovies({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
-        const scopedWatched = watched.items.filter(
-          (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
-        );
         const movieIdNumber = Number(movieId);
         setIsMovieWatched(
-          scopedWatched.some((item) => Number(item.movie_id) === movieIdNumber)
+          watched.items.some((item) => Number(item.movie_id) === movieIdNumber)
         );
       } catch (err) {
         if (isCancelled) return;
@@ -374,7 +363,6 @@ export default function MovieDetailPage() {
         
         const reviewsData = await getMovieReviews(Number(movieId), {
           page_size: 10,
-          user_id: currentUserPk || undefined,
         });
           const fetchedReviews = reviewsData.reviews;
 
@@ -536,7 +524,7 @@ export default function MovieDetailPage() {
     }
 
     try {
-      const response = await toggleReviewLike(reviewId, currentUserPk, type === "like");
+      const response = await toggleReviewLike(reviewId, type === "like");
       const nextReaction = currentReaction === type ? null : type;
       setReactions((prev) => ({
         ...prev,
@@ -566,19 +554,13 @@ export default function MovieDetailPage() {
       }));
       return;
     }
-    if (!currentUserPk) return;
-
     const currentReaction = myCommentReactions[commentId] ?? null;
     if (currentReaction && currentReaction !== type) {
       return;
     }
 
     try {
-      const response = await toggleCommentLike(
-        commentId,
-        currentUserPk,
-        type === "like"
-      );
+      const response = await toggleCommentLike(commentId, type === "like");
       const nextReaction = currentReaction === type ? null : type;
       setCommentReactions((prev) => ({
         ...prev,
@@ -655,15 +637,15 @@ export default function MovieDetailPage() {
       if (personalReview?.id) {
         nextReview = await updateReview(personalReview.id, reviewPayload);
       } else {
-        nextReview = await createReview(userId, {
+        nextReview = await createReview({
           movie_id: movie.id,
           ...reviewPayload,
         });
       }
       await applySavedPersonalReview(nextReview);
-      if (currentUserPk && movie?.id) {
+      if (movie?.id) {
         try {
-          await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
+          await saveCurrentUserWatchedMovie({ movie_id: movie.id });
         } catch (watchErr) {
           console.warn("Failed to sync watched movie after review:", watchErr);
         }
@@ -696,14 +678,11 @@ export default function MovieDetailPage() {
         message.toLowerCase().includes("already reviewed")
       ) {
         try {
-          const myReviews = await getCurrentUserReviews(userId, {
+          const myReviews = await getCurrentUserReviews({
             page: 1,
             page_size: 100,
           });
-          const scopedReviews = myReviews.reviews.filter(
-            (item) => String(item.user_id) === String(userId)
-          );
-          const existingReview = scopedReviews.find(
+          const existingReview = myReviews.reviews.find(
             (item) => item.movie_id === movie.id
           );
           if (existingReview) {
@@ -776,7 +755,7 @@ export default function MovieDetailPage() {
     if (!currentUserPk) return;
 
     try {
-      await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
+      await saveCurrentUserWatchedMovie({ movie_id: movie.id });
       setIsMovieWatched(true);
     } catch (err) {
       console.error("Failed to save watched movie:", err);
@@ -851,9 +830,7 @@ export default function MovieDetailPage() {
     setCommentLoading((prev) => ({ ...prev, [reviewId]: true }));
     setCommentErrors((prev) => ({ ...prev, [reviewId]: null }));
     try {
-      const apiComments = await getReviewComments(reviewId, {
-        user_id: currentUserPk || undefined,
-      });
+      const apiComments = await getReviewComments(reviewId);
       setReviewComments((prev) => ({ ...prev, [reviewId]: apiComments }));
       setCommentReactions((prev) => {
         const next = { ...prev };
@@ -896,7 +873,7 @@ export default function MovieDetailPage() {
   const handleReplySubmit = async (reviewId: number) => {
     const nextValue = (replyDrafts[reviewId] || "").trim();
     if (!nextValue) return;
-    if (!currentUserPk) {
+    if (!isLoggedIn) {
       setCommentErrors((prev) => ({
         ...prev,
         [reviewId]: "로그인 후 댓글을 작성해주세요.",
@@ -907,7 +884,7 @@ export default function MovieDetailPage() {
     setReplyOpen((prev) => ({ ...prev, [reviewId]: false }));
 
     try {
-      const createdComment = await createReviewComment(reviewId, currentUserPk, {
+      const createdComment = await createReviewComment(reviewId, {
         content: nextValue,
       });
       setReviewComments((prev) => ({
@@ -934,10 +911,10 @@ export default function MovieDetailPage() {
 
 
   const handleCommentDelete = async (reviewId: number, commentId: number) => {
-    if (!currentUserPk) return;
+    if (!isLoggedIn) return;
 
     try {
-      await deleteReviewComment(commentId, currentUserPk);
+      await deleteReviewComment(commentId);
       setReviewComments((prev) => ({
         ...prev,
         [reviewId]: (prev[reviewId] || []).filter((comment) => comment.id != commentId),
@@ -989,7 +966,7 @@ export default function MovieDetailPage() {
   };
 
   const handleCommentEditSave = async (reviewId: number, commentId: number) => {
-    if (!currentUserPk) return;
+    if (!isLoggedIn) return;
     const nextValue = (commentEditDrafts[commentId] || "").trim();
     if (!nextValue) {
       setCommentErrors((prev) => ({
@@ -1000,7 +977,7 @@ export default function MovieDetailPage() {
     }
 
     try {
-      const updated = await updateReviewComment(commentId, currentUserPk, {
+      const updated = await updateReviewComment(commentId, {
         content: nextValue,
       });
       setReviewComments((prev) => ({

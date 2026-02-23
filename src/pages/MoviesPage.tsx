@@ -6,6 +6,7 @@ import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
 } from "../api/A8_watched";
+import { getAccessToken } from "../api/http";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
 
@@ -104,8 +105,7 @@ export default function MoviesPage() {
   const navigate = useNavigate();
   const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-  const currentUserPk = localStorage.getItem("mw_user_pk");
+  const isLoggedIn = Boolean(getAccessToken());
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +130,7 @@ export default function MoviesPage() {
   const shouldSkipSearchParamInitRef = useRef(false);
 
   useEffect(() => {
-    if (!isLoggedIn || !currentUserPk) {
+    if (!isLoggedIn) {
       setWatchedMovieIds(new Set());
       return;
     }
@@ -139,18 +139,14 @@ export default function MoviesPage() {
 
     const fetchWatchedMovies = async () => {
       try {
-        const response = await getCurrentUserWatchedMovies(currentUserPk, {
+        const response = await getCurrentUserWatchedMovies({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
-        const scopedWatched = response.items.filter(
-          (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
-        );
-
         setWatchedMovieIds(
           new Set(
-            scopedWatched.map((item) => Number(item.movie_id)).filter(
+            response.items.map((item) => Number(item.movie_id)).filter(
               (id) => Number.isFinite(id)
             )
           )
@@ -166,7 +162,7 @@ export default function MoviesPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isLoggedIn, currentUserPk]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     try {
@@ -415,10 +411,9 @@ export default function MoviesPage() {
       navigate("/login");
       return;
     }
-    if (!currentUserPk) return;
 
     try {
-      await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
+      await saveCurrentUserWatchedMovie({ movie_id: movie.id });
       setWatchedMovieIds((prev) => {
         const next = new Set(prev);
         next.add(movie.id);

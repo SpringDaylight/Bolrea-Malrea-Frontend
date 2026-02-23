@@ -2,6 +2,7 @@
 import { Link, NavLink } from "react-router-dom";
 import logoToggle from "../../assets/logo-ticket-ver2.png";
 import { getCurrentUser } from "../../api/A7_profile";
+import { getAccessToken } from "../../api/http";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -19,13 +20,12 @@ export default function Header() {
   const [profileLabel, setProfileLabel] = useState("로그인");
 
   const syncProfile = useCallback(() => {
-    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-    const userId = localStorage.getItem("mw_user_pk");
+    const isLoggedIn = Boolean(getAccessToken());
 
-    if (isLoggedIn && userId) {
+    if (isLoggedIn) {
       setProfileHref("/mypage");
       setProfileLabel("DS");
-      getCurrentUser(userId)
+      getCurrentUser()
         .then((user) => {
           const name =
             user.nickname?.trim() ||

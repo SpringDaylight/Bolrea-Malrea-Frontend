@@ -5,6 +5,22 @@
 // API Base URL - 환경변수로 관리 가능
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+const ACCESS_TOKEN_KEY = 'mw_access_token';
+
+export function setAccessToken(token: string | null) {
+  if (!token) {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem("mw_user_pk");
+    localStorage.removeItem("mw_user_id");
+    return;
+  }
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+}
+
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
 function extractErrorDetail(payload: unknown, fallback: string): string {
   if (payload && typeof payload === 'object' && 'detail' in payload) {
     const detail = (payload as { detail?: unknown }).detail;

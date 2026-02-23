@@ -70,10 +70,9 @@ export interface CommentLikeToggleResponse {
  * MW-API-004
  */
 export function createReview(
-  userId: string,
   data: CreateReviewRequest
 ): Promise<Review> {
-  return post<Review>('/api/reviews', data, { user_id: userId });
+  return post<Review>('/api/reviews', data);
 }
 
 /**
@@ -108,13 +107,12 @@ export function deleteReview(reviewId: number): Promise<MessageResponse> {
  */
 export function toggleReviewLike(
   reviewId: number,
-  userId: string,
   isLike = true
 ): Promise<LikeToggleResponse> {
   return post<LikeToggleResponse>(
     `/api/reviews/${reviewId}/likes`,
     undefined,
-    { user_id: userId, is_like: isLike }
+    { is_like: isLike }
   );
 }
 
@@ -123,13 +121,12 @@ export function toggleReviewLike(
  */
 export function toggleCommentLike(
   commentId: number,
-  userId: string,
   isLike = true
 ): Promise<CommentLikeToggleResponse> {
   return post<CommentLikeToggleResponse>(
     `/api/reviews/comments/${commentId}/likes`,
     undefined,
-    { user_id: userId, is_like: isLike }
+    { is_like: isLike }
   );
 }
 
@@ -142,7 +139,6 @@ export function getReviewComments(
   params?: {
     skip?: number;
     limit?: number;
-    user_id?: string;
   }
 ): Promise<Comment[]> {
   return get<Comment[]>(`/api/reviews/${reviewId}/comments`, params);
@@ -154,14 +150,12 @@ export function getReviewComments(
  */
 export function createReviewComment(
   reviewId: number,
-  userId: string,
   data: CreateCommentRequest
 ): Promise<Comment> {
   const payload = { is_public: true, ...data, review_id: reviewId };
   return post<Comment>(
     `/api/reviews/${reviewId}/comments`,
-    payload,
-    { user_id: userId }
+    payload
   );
 }
 
@@ -170,12 +164,9 @@ export function createReviewComment(
  * Delete a comment
  */
 export function deleteReviewComment(
-  commentId: number,
-  userId: string
+  commentId: number
 ): Promise<MessageResponse> {
-  return del<MessageResponse>(
-    `/api/reviews/comments/${commentId}?user_id=${encodeURIComponent(userId)}`
-  );
+  return del<MessageResponse>(`/api/reviews/comments/${commentId}`);
 }
 
 
@@ -184,25 +175,21 @@ export function deleteReviewComment(
  */
 export function updateReviewComment(
   commentId: number,
-  userId: string,
   data: { content: string }
 ): Promise<Comment> {
-  return put<Comment>(
-    `/api/reviews/comments/${commentId}?user_id=${encodeURIComponent(userId)}`,
-    data
-  );
+  return put<Comment>(`/api/reviews/comments/${commentId}`, data);
 }
 
 /**
  * Like a review (shorthand)
  */
-export function likeReview(reviewId: number, userId: string): Promise<LikeToggleResponse> {
-  return toggleReviewLike(reviewId, userId, true);
+export function likeReview(reviewId: number): Promise<LikeToggleResponse> {
+  return toggleReviewLike(reviewId, true);
 }
 
 /**
  * Dislike a review (shorthand)
  */
-export function dislikeReview(reviewId: number, userId: string): Promise<LikeToggleResponse> {
-  return toggleReviewLike(reviewId, userId, false);
+export function dislikeReview(reviewId: number): Promise<LikeToggleResponse> {
+  return toggleReviewLike(reviewId, false);
 }

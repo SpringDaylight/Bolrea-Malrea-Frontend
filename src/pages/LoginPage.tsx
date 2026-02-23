@@ -33,7 +33,6 @@ export default function LoginPage() {
         "mw_user_id",
         loggedInUser.user_id || userIdValue
       );
-      localStorage.setItem("mw_logged_in", "true");
       window.dispatchEvent(new Event("mw_auth_change"));
       navigate("/mypage");
     } catch (error) {

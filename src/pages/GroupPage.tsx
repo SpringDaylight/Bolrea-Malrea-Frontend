@@ -4,6 +4,7 @@ import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
+import { getAccessToken } from "../api/http";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
@@ -60,6 +61,7 @@ export default function GroupPage() {
     getLocalStorageItem("mw_user_pk") ||
     "";
   const currentUserPk = getLocalStorageItem("mw_user_pk") || "";
+  const isLoggedIn = Boolean(getAccessToken());
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
 
@@ -69,12 +71,9 @@ export default function GroupPage() {
   };
 
   useEffect(() => {
-    if (!currentUserPk) return;
-    const isLoggedIn = getLocalStorageItem("mw_logged_in") === "true";
     if (!isLoggedIn) return;
-
     let isCancelled = false;
-    getCurrentUser(currentUserPk)
+    getCurrentUser()
       .then((user) => {
         if (isCancelled) return;
         const name =
@@ -92,7 +91,7 @@ export default function GroupPage() {
     return () => {
       isCancelled = true;
     };
-  }, [currentUserPk]);
+  }, [isLoggedIn]);
 
   const userRequiredError = error === userRequiredMessage ? error : null;
   const formError =
@@ -116,7 +115,7 @@ export default function GroupPage() {
   });
 
   useEffect(() => {
-    if (!currentUserId || hasAutoSelectedRef.current) return;
+    if (!isLoggedIn || !currentUserId || hasAutoSelectedRef.current) return;
     setSelectedMembers((prev) => {
       if (prev.includes(currentUserId)) return prev;
       return [currentUserId, ...prev];
@@ -129,7 +128,7 @@ export default function GroupPage() {
       },
     }));
     hasAutoSelectedRef.current = true;
-  }, [currentUserId, currentUserNickname]);
+  }, [currentUserId, currentUserNickname, isLoggedIn]);
 
   const handleMemberToggle = (userId: string, profile?: { nickname: string; name: string }) => {
     const alreadySelected = selectedMembers.includes(userId);

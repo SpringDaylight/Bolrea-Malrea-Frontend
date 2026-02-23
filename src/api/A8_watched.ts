@@ -93,36 +93,28 @@ export function removeLocalWatchedMovie(userId: string, movieId: number): Watche
  * Get current user's watched movies
  */
 export function getCurrentUserWatchedMovies(
-  userId: string,
   params?: {
     page?: number;
     page_size?: number;
   }
 ): Promise<WatchedMovieListResponse> {
-  return get<WatchedMovieListResponse>("/api/users/me/watched", {
-    user_id: userId,
-    ...params,
-  });
+  return get<WatchedMovieListResponse>("/api/users/me/watched", params);
 }
 
 /**
  * Save watched movie for current user
  */
 export function saveCurrentUserWatchedMovie(
-  userId: string,
   data: SaveWatchedMovieRequest
 ): Promise<WatchedMovie> {
-  return post<WatchedMovie>("/api/users/me/watched", data, { user_id: userId });
+  return post<WatchedMovie>("/api/users/me/watched", data);
 }
 
 /**
  * Delete watched movie for current user
  */
 export function deleteCurrentUserWatchedMovie(
-  userId: string,
   movieId: number
 ): Promise<{ message: string }> {
-  return del<{ message: string }>(
-    `/api/users/me/watched/${movieId}?user_id=${encodeURIComponent(userId)}`
-  );
+  return del<{ message: string }>(`/api/users/me/watched/${movieId}`);
 }

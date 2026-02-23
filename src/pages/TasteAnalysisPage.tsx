@@ -7,6 +7,7 @@ import { getCurrentUserReviews } from "../api/A7_profile";
 import { getCurrentUserWatchedMovies } from "../api/A8_watched";
 import { getTasteMap, type UserProfile } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
+import { getAccessToken } from "../api/http";
 
 type WordCloudItem = {
   word: string;
@@ -96,10 +97,7 @@ export default function TasteAnalysisPage() {
   >([]);
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
   const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
-  const isLoggedIn = useMemo(
-    () => getLocalStorageItem("mw_logged_in") === "true",
-    []
-  );
+  const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
 
   const handleSurveyOpen = () => setIsSurveyOpen(true);
   const handleSurveyClose = () => setIsSurveyOpen(false);
@@ -173,27 +171,19 @@ export default function TasteAnalysisPage() {
       return;
     }
 
-    const userId = getLocalStorageItem("mw_user_pk");
-    if (!userId) {
-      setRecentHighRated([]);
-      return;
-    }
-
     let isCancelled = false;
 
     const fetchHighRated = async () => {
       setReviewsLoading(true);
       try {
-        const reviewResponse = await getCurrentUserReviews(userId, {
+        const reviewResponse = await getCurrentUserReviews({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
 
         const reviews = Array.isArray(reviewResponse?.reviews)
-          ? reviewResponse.reviews.filter(
-              (review) => String(review.user_id) === String(userId)
-            )
+          ? reviewResponse.reviews
           : [];
         const sorted = [...reviews].sort(
           (a, b) =>
@@ -256,12 +246,6 @@ export default function TasteAnalysisPage() {
       return;
     }
 
-    const userId = getLocalStorageItem("mw_user_pk");
-    if (!userId) {
-      setWatchedGenreStats([]);
-      return;
-    }
-
     let isCancelled = false;
 
     const fetchWatchedGenreStats = async () => {
@@ -271,14 +255,12 @@ export default function TasteAnalysisPage() {
         genres?: string[] | null;
       }> = [];
       try {
-        const response = await getCurrentUserWatchedMovies(userId, {
+        const response = await getCurrentUserWatchedMovies({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
-        apiItems = response.items.filter(
-          (item) => !item.user_id || String(item.user_id) === String(userId)
-        );
+        apiItems = response.items;
       } catch (err) {
         console.error("Failed to fetch watched movies from API:", err);
       }

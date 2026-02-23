@@ -5,6 +5,7 @@ import { getMovies, type Movie } from "../api/A2_movies";
 import { emotionalSearch } from "../api/A5_emotional_search";
 import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
 import TasteSurveyModal from "../components/TasteSurveyModal";
+import { getAccessToken } from "../api/http";
 
 export default function HomePage() {
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
@@ -24,7 +25,7 @@ export default function HomePage() {
   const [needsTasteSetup, setNeedsTasteSetup] = useState(false);
   const [showTasteSurveyModal, setShowTasteSurveyModal] = useState(false);
   
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const isLoggedIn = Boolean(getAccessToken());
 
   const RECOMMENDED_PAGE_SIZE = 4;
   const RECOMMENDED_TOTAL = 12;

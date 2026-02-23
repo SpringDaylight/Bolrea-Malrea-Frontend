@@ -65,8 +65,8 @@ export interface UpdateUserRequest {
  * Get current user info
  * MW-API-009
  */
-export function getCurrentUser(userId: string): Promise<User> {
-  return get<User>('/api/users/me', { user_id: userId });
+export function getCurrentUser(): Promise<User> {
+  return get<User>('/api/users/me');
 }
 
 /**
@@ -80,18 +80,17 @@ export function createUser(data: CreateUserRequest): Promise<User> {
  * Update current user
  */
 export function updateCurrentUser(
-  userId: string,
   data: UpdateUserRequest
 ): Promise<User> {
-  return put<User>(`/api/users/me?user_id=${encodeURIComponent(userId)}`, data);
+  return put<User>('/api/users/me', data);
 }
 
 /**
  * Delete current user account
  * MW-API-??? (users/me delete)
  */
-export function deleteCurrentUser(userId: string): Promise<{ message: string }> {
-  return del(`/api/users/me?user_id=${encodeURIComponent(userId)}`);
+export function deleteCurrentUser(): Promise<{ message: string }> {
+  return del('/api/users/me');
 }
 
 /**
@@ -99,24 +98,20 @@ export function deleteCurrentUser(userId: string): Promise<{ message: string }> 
  * MW-API-010
  */
 export function getCurrentUserReviews(
-  userId: string,
   params?: {
     page?: number;
     page_size?: number;
   }
 ): Promise<ReviewListResponse> {
-  return get<ReviewListResponse>('/api/users/me/reviews', {
-    user_id: userId,
-    ...params,
-  });
+  return get<ReviewListResponse>('/api/users/me/reviews', params);
 }
 
 /**
  * Get user's taste analysis
  * MW-API-011
  */
-export function getUserTasteAnalysis(userId: string): Promise<TasteAnalysis> {
-  return get<TasteAnalysis>('/api/users/me/taste-analysis', { user_id: userId });
+export function getUserTasteAnalysis(): Promise<TasteAnalysis> {
+  return get<TasteAnalysis>('/api/users/me/taste-analysis');
 }
 
 /**

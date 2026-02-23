@@ -95,7 +95,7 @@ export function signup(data: SignupRequest): Promise<AuthUserResponse> {
 /**
  * Local login
  */
-export function login(data: LoginRequest): Promise<AuthTokenResponse> {
+export function login(data: LoginRequest): Promise<AuthUserResponse> {
   return post<AuthTokenResponse>('/api/auth/login', data);
 }
 

@@ -145,8 +145,6 @@ export default function MovieDetailPage() {
   const personalReviewDate = personalReview?.created_at
     ? formatDateTime(personalReview.created_at)
     : formatDateTime();
-  const isPersonalReviewPrivate =
-    personalReview && toReviewVisibility(personalReview.is_public) === "private";
   const reviewsForDisplay = useMemo(() => {
     if (!personalReview || !movie || personalReview.movie_id !== movie.id) {
       return reviews;
@@ -471,6 +469,11 @@ export default function MovieDetailPage() {
       if (review.user_id) authorIds.add(review.user_id);
     });
     if (personalReview?.user_id) authorIds.add(personalReview.user_id);
+    Object.values(reviewComments).forEach((commentList) => {
+      commentList.forEach((comment) => {
+        if (comment.user_id) authorIds.add(comment.user_id);
+      });
+    });
 
     const unresolvedIds = Array.from(authorIds).filter((authorId) => {
       if (currentUserPk && authorId === currentUserPk) return false;
@@ -511,7 +514,13 @@ export default function MovieDetailPage() {
     return () => {
       isCancelled = true;
     };
-  }, [reviews, personalReview?.user_id, currentUserPk, reviewAuthorNames]);
+  }, [
+    reviews,
+    personalReview?.user_id,
+    currentUserPk,
+    reviewAuthorNames,
+    reviewComments,
+  ]);
 
   const handleToggleReaction = async (reviewId: number, type: ReviewReaction) => {
     if (!isLoggedIn) {

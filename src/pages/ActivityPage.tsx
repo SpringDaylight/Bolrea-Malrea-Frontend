@@ -142,11 +142,6 @@ export default function ActivityPage() {
   const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const pendingScrollTarget = useRef<string | null>(null);
-  const reviewSummaryRefs = useRef<Record<number, HTMLSpanElement | null>>({});
-  const reviewMeasureRefs = useRef<Record<number, HTMLSpanElement | null>>({});
-  const [overflowedReviewIds, setOverflowedReviewIds] = useState<
-    Record<number, boolean>
-  >({});
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -722,27 +717,6 @@ export default function ActivityPage() {
     });
   }, [view]);
 
-  useEffect(() => {
-    let rafId = 0;
-    const measure = () => {
-      const next: Record<number, boolean> = {};
-      visibleReviews.forEach((review) => {
-        const body = reviewSummaryRefs.current[review.id];
-        const measure = reviewMeasureRefs.current[review.id];
-        if (!body || !measure) return;
-        next[review.id] = measure.scrollHeight > body.clientHeight + 1;
-      });
-      setOverflowedReviewIds(next);
-    };
-    rafId = window.requestAnimationFrame(measure);
-    const handleResize = () => measure();
-    window.addEventListener("resize", handleResize);
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [visibleReviews]);
-
   if (!isLoggedIn) {
     return (
       <MainLayout>
@@ -836,7 +810,7 @@ export default function ActivityPage() {
               </div> */}
             </div>
           </div>
-          {/* <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p> */}
+          <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
         </section>
 
           <section className="section card taste-preview-section activity-top-card">
@@ -1062,7 +1036,7 @@ export default function ActivityPage() {
                         </div>
                       </div>
                       <p className="muted review-summary-text review-summary-full">
-                        "{reviewText}"
+                        {reviewText}
                       </p>
                     </article>
                 </div>

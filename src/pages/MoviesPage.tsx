@@ -13,8 +13,10 @@ type MoviesPageSnapshot = {
   searchQuery: string;
   selectedSorts: string[];
   selectedGenres: string[];
+  selectedRuntime: string | null;
   appliedSorts: string[];
   appliedGenres: string[];
+  appliedRuntime: string | null;
   appliedQuery: string;
   currentPage: number;
   scrollY: number;
@@ -52,6 +54,13 @@ const genreFilters = [
   { value: "역사/다큐", label: "역사/다큐", queryGenres: ["역사", "다큐멘터리"] },
 ] as const satisfies GenreFilter[];
 
+const runtimeFilters = [
+  { value: "under-100", label: "100분 이내" },
+  { value: "between-100-120", label: "100~120분 이내" },
+  { value: "between-120-140", label: "120~140분 이내" },
+  { value: "over-140", label: "140분 이상" },
+] as const;
+
 const resolveFilterToGenres = (values: string[]) => {
   return Array.from(
     new Set(
@@ -81,8 +90,10 @@ export default function MoviesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSorts, setSelectedSorts] = useState<string[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [selectedRuntime, setSelectedRuntime] = useState<string | null>(null);
   const [appliedSorts, setAppliedSorts] = useState<string[]>([]);
   const [appliedGenres, setAppliedGenres] = useState<string[]>([]);
+  const [appliedRuntime, setAppliedRuntime] = useState<string | null>(null);
   const [appliedQuery, setAppliedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -153,8 +164,14 @@ export default function MoviesPage() {
       setSearchQuery(typeof parsed.searchQuery === "string" ? parsed.searchQuery : "");
       setSelectedSorts(toStringArray(parsed.selectedSorts));
       setSelectedGenres(toStringArray(parsed.selectedGenres));
+      setSelectedRuntime(
+        typeof parsed.selectedRuntime === "string" ? parsed.selectedRuntime : null
+      );
       setAppliedSorts(toStringArray(parsed.appliedSorts));
       setAppliedGenres(toStringArray(parsed.appliedGenres));
+      setAppliedRuntime(
+        typeof parsed.appliedRuntime === "string" ? parsed.appliedRuntime : null
+      );
       setAppliedQuery(typeof parsed.appliedQuery === "string" ? parsed.appliedQuery : "");
       setCurrentPage(
         Number.isFinite(parsed.currentPage) && parsed.currentPage > 0
@@ -243,15 +260,41 @@ export default function MoviesPage() {
                 (movie.title ?? "").toLowerCase().includes(normalizedQuery)
               )
             : response.movies;
+        const filteredByRuntime =
+          appliedRuntime === "under-100"
+            ? filteredByTitle.filter(
+                (movie) => typeof movie.runtime === "number" && movie.runtime <= 100
+              )
+            : appliedRuntime === "between-100-120"
+              ? filteredByTitle.filter(
+                  (movie) =>
+                    typeof movie.runtime === "number" &&
+                    movie.runtime >= 100 &&
+                    movie.runtime <= 120
+                )
+              : appliedRuntime === "between-120-140"
+                ? filteredByTitle.filter(
+                    (movie) =>
+                      typeof movie.runtime === "number" &&
+                      movie.runtime >= 120 &&
+                      movie.runtime <= 140
+                  )
+                : appliedRuntime === "over-140"
+                  ? filteredByTitle.filter(
+                      (movie) => typeof movie.runtime === "number" && movie.runtime > 140
+                    )
+                  : filteredByTitle;
         const nextMovies =
           sortKey === "title"
-            ? [...filteredByTitle].sort((a, b) =>
+            ? [...filteredByRuntime].sort((a, b) =>
                 (a.title ?? "").localeCompare(b.title ?? "", "ko")
               )
-            : filteredByTitle;
+            : filteredByRuntime;
         setMovies(nextMovies);
         const totalSource =
-          normalizedQuery.length > 0 ? filteredByTitle.length : response.total;
+          normalizedQuery.length > 0 || appliedRuntime
+            ? filteredByRuntime.length
+            : response.total;
         const nextTotalPages = Math.max(
           1,
           Math.ceil(totalSource / response.page_size)
@@ -271,7 +314,7 @@ export default function MoviesPage() {
     return () => {
       isCancelled = true;
     };
-  }, [appliedSorts, appliedGenres, appliedQuery, currentPage]);
+  }, [appliedSorts, appliedGenres, appliedQuery, appliedRuntime, currentPage]);
 
   const handleSortSelect = (value: string) => {
     setSelectedSorts((prev) => {
@@ -288,6 +331,15 @@ export default function MoviesPage() {
         ? prev.filter((item) => item !== value)
         : [...prev, value];
       setAppliedGenres(resolveFilterToGenres(nextSelected));
+      setCurrentPage(1);
+      return nextSelected;
+    });
+  };
+
+  const handleRuntimeToggle = (value: string) => {
+    setSelectedRuntime((prev) => {
+      const nextSelected = prev === value ? null : value;
+      setAppliedRuntime(nextSelected);
       setCurrentPage(1);
       return nextSelected;
     });
@@ -322,8 +374,10 @@ export default function MoviesPage() {
       searchQuery,
       selectedSorts,
       selectedGenres,
+      selectedRuntime,
       appliedSorts,
       appliedGenres,
+      appliedRuntime,
       appliedQuery,
       currentPage,
       scrollY: window.scrollY,
@@ -356,9 +410,9 @@ export default function MoviesPage() {
   return (
     <MainLayout>
       <main className="container movies-page">
-        <section className="page-title">
+        {/* <section className="page-title">
           <h1>영화 검색하기</h1>
-        </section>
+        </section> */}
 
         <section className="section card">
           {/* <div className="section-header">
@@ -372,7 +426,6 @@ export default function MoviesPage() {
                 placeholder="영화 제목을 검색해보세요"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && handleApplyFilters()}
               />
               <button
                 className="primary-btn"
@@ -396,6 +449,23 @@ export default function MoviesPage() {
                     }`}
                     type="button"
                     onClick={() => handleGenreToggle(filter.value)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="filter-title">상영시간</p>
+              <div className="tag-list">
+                {runtimeFilters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    className={`filter-chip ${
+                      selectedRuntime === filter.value ? "active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => handleRuntimeToggle(filter.value)}
                   >
                     {filter.label}
                   </button>
@@ -482,18 +552,15 @@ export default function MoviesPage() {
                         : "정보 없음"}{" "}
                       ({movie.reviews_count ?? movie.review_count ?? 0})
                     </p>
-                    <p className="muted">
-                      {movie.synopsis
-                        ? movie.synopsis.substring(0, 60) +
-                          (movie.synopsis.length > 60 ? "..." : "")
-                        : "줄거리 정보가 없습니다."}
+                    <p className="muted synopsis-clamp">
+                      {movie.synopsis || "줄거리 정보가 없습니다."}
                     </p>
-                    <div className="meta-list">
+                    {/* <div className="meta-list">
                       {movie.genres.slice(0, 3).map((genre) => (
                         <span key={genre}>{genre}</span>
                       ))}
                       {movie.runtime && <span>{movie.runtime}분</span>}
-                    </div>
+                    </div> */}
                   </div>
                 </article>
               ))}

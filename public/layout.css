@@ -15,6 +15,7 @@ body {
   background: var(--bg);
   backdrop-filter: none;
   border-bottom: 1px solid var(--line);
+  color: #373850;
 }
 
 .top-bar-inner {
@@ -58,26 +59,27 @@ body {
 
 .brand-sub {
   font-size: 0.85rem;
-  color: var(--text-subtle);
+  color: #373850;
 }
 
 .top-nav {
   display: flex;
   gap: 14px;
   font-size: 0.95rem;
-  color: var(--text-subtle);
+  color: #373850;
 }
 
 .top-nav a {
   padding: 8px 12px;
   border-radius: 999px;
   transition: all 0.2s ease;
+  color: inherit;
 }
 
 .top-nav a.active,
 .top-nav a:hover {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: #373850;
   font-weight: 600;
 }
 

@@ -695,6 +695,10 @@
   line-height: 1.4;
   font-size: 0.72rem;
   word-break: keep-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .review-summary-text.review-summary-full {

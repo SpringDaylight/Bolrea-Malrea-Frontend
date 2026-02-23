@@ -5,6 +5,8 @@ import { getCurrentUser } from "../api/A7_profile";
 import { recommendGroupMovies, type RecommendedMovie, type UserDetail } from "../api/groupRecommend";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
+const maxMembers = 10;
+const maxMembersMessage = `최대 ${maxMembers}명까지 선택할 수 있어요.`;
 
 const getUserId = (user: GroupUserSearchItem) => user.user_id ?? user.id;
 const getUserDisplayName = (user: GroupUserSearchItem) =>
@@ -144,6 +146,11 @@ export default function GroupPage() {
         delete next[userId];
         return next;
       });
+      return;
+    }
+
+    if (selectedMembers.length >= maxMembers) {
+      showError(maxMembersMessage);
       return;
     }
 
@@ -324,54 +331,64 @@ export default function GroupPage() {
               <div className="group-search-field">
                 <label>영화 같이 볼 회원 검색하기
                   (최대 10명까지 검색 가능해요)</label>
-                <div className="group-search-input" ref={userSearchRef}>
-                  <input
-                    type="text"
-                    placeholder="이름/닉네임/아이디로 검색해서 찾을 수 있어요"
-                    value={userQuery}
-                    onClick={() => setIsUserSearchOpen(true)}
-                    onFocus={() => setIsUserSearchOpen(true)}
-                    onChange={(event) => setUserQuery(event.target.value)}
-                  />
-                  {isUserSearchOpen && (
-                    <div className="search-results group-user-results">
-                      {userSearchLoading && (
-                        <div className="search-empty">사용자를 조회하는 중입니다.</div>
-                      )}
-                      {!userSearchLoading && userSearchError && (
-                        <div className="search-empty">{userSearchError}</div>
-                      )}
-                      {!userSearchLoading &&
-                        !userSearchError &&
-                        userResults.length === 0 && (
-                          <div className="search-empty">검색 결과가 없습니다.</div>
+                <div className="group-search-row">
+                  <div className="group-search-input" ref={userSearchRef}>
+                    <input
+                      type="text"
+                      placeholder="이름/닉네임/아이디로 검색하세요"
+                      value={userQuery}
+                      onClick={() => setIsUserSearchOpen(true)}
+                      onFocus={() => setIsUserSearchOpen(true)}
+                      onChange={(event) => setUserQuery(event.target.value)}
+                    />
+                    {isUserSearchOpen && (
+                      <div className="search-results group-user-results">
+                        {userSearchLoading && (
+                          <div className="search-empty">사용자를 조회하는 중입니다.</div>
                         )}
-                      {userResults.map((user) => {
-                        const userId = getUserId(user);
-                        const nickname = getUserDisplayName(user);
-                        const secondary = getUserSecondaryLabel(user);
-                        return (
-                          <button
-                            className={`search-item ${
-                              selectedMembers.includes(userId) ? "active" : ""
-                            }`}
-                            type="button"
-                            key={userId}
-                            onClick={() =>
-                              handleMemberToggle(userId, {
-                                nickname,
-                                name: secondary || nickname,
-                              })
-                            }
-                          >
-                            <strong>{nickname}</strong>
-                            <span>{secondary}</span>
-                            {selectedMembers.includes(userId) && <span>✓</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                        {!userSearchLoading && userSearchError && (
+                          <div className="search-empty">{userSearchError}</div>
+                        )}
+                        {!userSearchLoading &&
+                          !userSearchError &&
+                          userResults.length === 0 && (
+                            <div className="search-empty">검색 결과가 없습니다.</div>
+                          )}
+                        {userResults.map((user) => {
+                          const userId = getUserId(user);
+                          const nickname = getUserDisplayName(user);
+                          const secondary = getUserSecondaryLabel(user);
+                          return (
+                            <button
+                              className={`search-item ${
+                                selectedMembers.includes(userId) ? "active" : ""
+                              }`}
+                              type="button"
+                              key={userId}
+                              onClick={() =>
+                                handleMemberToggle(userId, {
+                                  nickname,
+                                  name: secondary || nickname,
+                                })
+                              }
+                            >
+                              <strong>{nickname}</strong>
+                              <span>{secondary}</span>
+                              {selectedMembers.includes(userId) && <span>✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="primary-btn group-analyze-btn"
+                    onClick={handleAnalyze}
+                    disabled={analyzing}
+                    type="button"
+                  >
+                    {analyzing ? "추천 받는 중..." : "추천받기"}
+                  </button>
                 </div>
               </div>
 

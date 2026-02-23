@@ -4,6 +4,7 @@ import MainLayout from "../components/layout/MainLayout";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
 import { signup as signupApi } from "../api/auth";
+import { getAccessToken } from "../api/http";
 
 const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -214,7 +215,6 @@ export default function SignupPage() {
         "mw_user_id",
         createdUser.user_id || payload.user_id
       );
-      localStorage.setItem("mw_logged_in", "true");
       window.dispatchEvent(new Event("mw_auth_change"));
 
       setSignupStep(0);
@@ -260,7 +260,7 @@ export default function SignupPage() {
     await handleCompleteSurvey();
     
     // 일반 회원가입 사용자도 DB에 저장
-    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+    const isLoggedIn = Boolean(getAccessToken());
     const userPk = localStorage.getItem("mw_user_pk");
     const userProfileStr = localStorage.getItem("mw_user_profile");
       

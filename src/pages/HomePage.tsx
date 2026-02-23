@@ -5,9 +5,7 @@ import { getMovies, type Movie } from "../api/A2_movies";
 import { emotionalSearch } from "../api/A5_emotional_search";
 import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
 import TasteSurveyModal from "../components/TasteSurveyModal";
-
-const RECOMMENDED_PAGE_SIZE = 4;
-const RECOMMENDED_TOTAL = 12;
+import { getAccessToken } from "../api/http";
 
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -27,8 +25,11 @@ export default function HomePage() {
   const [recommendedPage, setRecommendedPage] = useState(1);
   const [needsTasteSetup, setNeedsTasteSetup] = useState(false);
   const [showTasteSurveyModal, setShowTasteSurveyModal] = useState(false);
+  
+  const isLoggedIn = Boolean(getAccessToken());
 
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const RECOMMENDED_PAGE_SIZE = 4;
+  const RECOMMENDED_TOTAL = 12;
 
   const computeMovieMatchRates = async (movies: Movie[]) => {
     try {

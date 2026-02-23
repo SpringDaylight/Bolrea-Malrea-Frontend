@@ -4,6 +4,7 @@ import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
+import { getAccessToken } from "../api/http";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
@@ -60,7 +61,7 @@ export default function GroupPage() {
     getLocalStorageItem("mw_user_pk") ||
     "";
   const currentUserPk = getLocalStorageItem("mw_user_pk") || "";
-  const isLoggedIn = getLocalStorageItem("mw_logged_in") === "true";
+  const isLoggedIn = Boolean(getAccessToken());
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
 
@@ -70,12 +71,9 @@ export default function GroupPage() {
   };
 
   useEffect(() => {
-    if (!currentUserPk) return;
-    const isLoggedIn = getLocalStorageItem("mw_logged_in") === "true";
     if (!isLoggedIn) return;
-
     let isCancelled = false;
-    getCurrentUser(currentUserPk)
+    getCurrentUser()
       .then((user) => {
         if (isCancelled) return;
         const name =
@@ -93,7 +91,7 @@ export default function GroupPage() {
     return () => {
       isCancelled = true;
     };
-  }, [currentUserPk]);
+  }, [isLoggedIn]);
 
   const userRequiredError = error === userRequiredMessage ? error : null;
   const formError =
@@ -117,7 +115,7 @@ export default function GroupPage() {
   });
 
   useEffect(() => {
-    if (!currentUserId || hasAutoSelectedRef.current) return;
+    if (!isLoggedIn || !currentUserId || hasAutoSelectedRef.current) return;
     setSelectedMembers((prev) => {
       if (prev.includes(currentUserId)) return prev;
       return [currentUserId, ...prev];
@@ -130,7 +128,7 @@ export default function GroupPage() {
       },
     }));
     hasAutoSelectedRef.current = true;
-  }, [currentUserId, currentUserNickname]);
+  }, [currentUserId, currentUserNickname, isLoggedIn]);
 
   const handleMemberToggle = (userId: string, profile?: { nickname: string; name: string }) => {
     const alreadySelected = selectedMembers.includes(userId);
@@ -184,12 +182,6 @@ export default function GroupPage() {
       setUserSearchLoading(false);
       return;
     }
-    if (!isLoggedIn) {
-      setUserSearchResults([]);
-      setUserSearchError("로그인 후 이용해주세요.");
-      setUserSearchLoading(false);
-      return;
-    }
     if (!userQuery.trim()) {
       setUserSearchResults([]);
       setUserSearchError(null);
@@ -226,13 +218,9 @@ export default function GroupPage() {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [isUserSearchOpen, userQuery, isLoggedIn]);
+  }, [isUserSearchOpen, userQuery]);
 
   const handleAnalyze = async () => {
-    if (!isLoggedIn) {
-      showError("로그인 후 이용해주세요");
-      return;
-    }
     if (selectedMembers.length === 0) {
       showError(userRequiredMessage);
       return;
@@ -381,6 +369,12 @@ export default function GroupPage() {
 
         <section className="section card">
           <div className="form-grid">
+            {formError && (
+              <p className="error" key={`form-error-${errorTick}`}>
+                {formError}
+              </p>
+            )}
+
             <div className="group-search-column">
               <div className="group-search-field">
                 <label>영화 같이 볼 회원 검색하기
@@ -393,30 +387,22 @@ export default function GroupPage() {
                       value={userQuery}
                       onClick={() => setIsUserSearchOpen(true)}
                       onFocus={() => setIsUserSearchOpen(true)}
-                      onChange={(event) => {
-                        if (!isLoggedIn) return;
-                        setUserQuery(event.target.value);
-                      }}
-                      readOnly={!isLoggedIn}
+                      onChange={(event) => setUserQuery(event.target.value)}
                     />
                     {isUserSearchOpen && (
                       <div className="search-results group-user-results">
-                        {!isLoggedIn && (
-                          <div className="search-empty">로그인 후 이용해주세요.</div>
-                        )}
-                        {isLoggedIn && userSearchLoading && (
+                        {userSearchLoading && (
                           <div className="search-empty">사용자를 조회하는 중입니다.</div>
                         )}
-                        {isLoggedIn && !userSearchLoading && userSearchError && (
+                        {!userSearchLoading && userSearchError && (
                           <div className="search-empty">{userSearchError}</div>
                         )}
-                        {isLoggedIn &&
-                          !userSearchLoading &&
+                        {!userSearchLoading &&
                           !userSearchError &&
                           userResults.length === 0 && (
                             <div className="search-empty">검색 결과가 없습니다.</div>
                           )}
-                        {isLoggedIn && userResults.map((user) => {
+                        {userResults.map((user) => {
                           const userId = getUserId(user);
                           const nickname = getUserDisplayName(user);
                           const secondary = getUserSecondaryLabel(user);
@@ -454,12 +440,6 @@ export default function GroupPage() {
                 </div>
               </div>
 
-              {(formError || userRequiredError) && (
-                <p className="error" key={`form-error-${errorTick}`}>
-                  {formError || userRequiredError}
-                </p>
-              )}
-
               {selectedMembers.length > 0 && (
                 <div className="group-selected-members is-inline">
                   <div className="tag-list">
@@ -481,6 +461,16 @@ export default function GroupPage() {
                 </div>
               )}
             </div>
+
+            {userRequiredError && (
+              <p className="error" key={`user-error-${errorTick}`}>
+                {userRequiredError}
+              </p>
+            )}
+
+            <button className="primary-btn" onClick={handleAnalyze} disabled={analyzing}>
+              {analyzing ? "추천 받는 중... (최대 30초 소요)" : "추천받기"}
+            </button>
             
             {analyzing && (
               <p className="muted" style={{ marginTop: 8, fontSize: "0.9em" }}>

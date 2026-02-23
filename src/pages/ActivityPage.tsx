@@ -15,6 +15,7 @@ import {
   deleteCurrentUserWatchedMovie,
   getCurrentUserWatchedMovies,
 } from "../api/A8_watched";
+import { getAccessToken, setAccessToken } from "../api/http";
 
 type ViewMode = "posters" | "reviews";
 type ProfileState = {
@@ -144,10 +145,7 @@ export default function ActivityPage() {
   const pendingScrollTarget = useRef<string | null>(null);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
-  const isLoggedIn = useMemo(
-    () => localStorage.getItem("mw_logged_in") === "true",
-    []
-  );
+  const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
 
   const posterItems = useMemo(
     () =>
@@ -212,19 +210,11 @@ export default function ActivityPage() {
       return;
     }
 
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) {
-      setProfile(defaultProfile);
-      setEditDraft(defaultProfile);
-      setBirthDate(null);
-      return;
-    }
-
     let isCancelled = false;
 
     const fetchProfile = async () => {
       try {
-        const user = await getCurrentUser(userId);
+        const user = await getCurrentUser();
         if (isCancelled) return;
 
         const calculatedAge = getAgeLabelFromBirthdate(user.birth_date ?? null);
@@ -264,26 +254,16 @@ export default function ActivityPage() {
       return;
     }
 
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) {
-      setSavedReviews([]);
-      return;
-    }
-
     let isCancelled = false;
 
     const fetchSavedReviews = async () => {
       try {
-        const reviewResponse = await getCurrentUserReviews(userId, {
+        const reviewResponse = await getCurrentUserReviews({
           page: 1,
           page_size: 100,
         });
-        const scopedReviews = reviewResponse.reviews.filter(
-          (review) => String(review.user_id) === String(userId)
-        );
-
         const normalizedReviews = await Promise.all(
-          scopedReviews.map(async (review): Promise<ReviewItem> => {
+          reviewResponse.reviews.map(async (review): Promise<ReviewItem> => {
             try {
               const movie = await getMovie(review.movie_id);
               return {
@@ -351,28 +331,17 @@ export default function ActivityPage() {
       return;
     }
 
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) {
-      setSavedWatchedMovies([]);
-      setTopWatchedGenres([]);
-      setWatchedPage(1);
-      return;
-    }
-
     let isCancelled = false;
 
     const fetchWatchedMovies = async () => {
       try {
-        const response = await getCurrentUserWatchedMovies(userId, {
+        const response = await getCurrentUserWatchedMovies({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
 
-        const scopedWatched = response.items.filter(
-          (item) => !item.user_id || String(item.user_id) === String(userId)
-        );
-        const normalizedApi = scopedWatched.map((item) => ({
+        const normalizedApi = response.items.map((item) => ({
           movieId: Number(item.movie_id),
           title: item.title || `영화 #${item.movie_id}`,
           poster:
@@ -510,19 +479,16 @@ export default function ActivityPage() {
       bio: editDraft.bio.trim() || defaultProfile.bio,
     };
 
-    const userId = localStorage.getItem("mw_user_pk");
-    if (userId) {
-      try {
-        await updateCurrentUser(userId, {
-          name: nextProfile.realname,
-          nickname: nextProfile.nickname,
-          email: nextProfile.email,
-          gender: nextProfile.gender,
-          birth_date: birthDate ?? undefined,
-        });
-      } catch (err) {
-        console.error("Failed to update user profile:", err);
-      }
+    try {
+      await updateCurrentUser({
+        name: nextProfile.realname,
+        nickname: nextProfile.nickname,
+        email: nextProfile.email,
+        gender: nextProfile.gender,
+        birth_date: birthDate ?? undefined,
+      });
+    } catch (err) {
+      console.error("Failed to update user profile:", err);
     }
 
     setProfile(nextProfile);
@@ -582,7 +548,7 @@ export default function ActivityPage() {
   };
 
   const handleLogout = () => {
-    localStorage.setItem("mw_logged_in", "false");
+    setAccessToken(null);
     localStorage.removeItem("mw_user_pk");
     localStorage.removeItem("mw_user_id");
     window.dispatchEvent(new Event("mw_auth_change"));
@@ -600,21 +566,9 @@ export default function ActivityPage() {
   const handleDelete = async () => {
     if (isDeletingAccount) return;
     setIsDeletingAccount(true);
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) {
-      localStorage.removeItem("mw_logged_in");
-      localStorage.removeItem("mw_user_pk");
-      localStorage.removeItem("mw_user_id");
-      window.dispatchEvent(new Event("mw_auth_change"));
-      setDeleteConfirmVisible(false);
-      setDeleteSuccessVisible(true);
-      setIsDeletingAccount(false);
-      return;
-    }
-
     try {
-      await deleteCurrentUser(userId);
-      localStorage.removeItem("mw_logged_in");
+      await deleteCurrentUser();
+      setAccessToken(null);
       localStorage.removeItem("mw_user_pk");
       localStorage.removeItem("mw_user_id");
       window.dispatchEvent(new Event("mw_auth_change"));
@@ -629,11 +583,8 @@ export default function ActivityPage() {
   };
 
   const handleRemoveWatchedMovie = async (movieId: number) => {
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) return;
-
     try {
-      await deleteCurrentUserWatchedMovie(userId, movieId);
+      await deleteCurrentUserWatchedMovie(movieId);
       setSavedWatchedMovies((prev) => {
         const next = prev.filter((item) => item.movieId !== movieId);
         void (async () => {

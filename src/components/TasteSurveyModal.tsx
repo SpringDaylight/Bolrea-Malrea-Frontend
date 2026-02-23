@@ -4,6 +4,7 @@
  */
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
+import { getAccessToken } from "../api/http";
 
 const genreLikeOptions = [
   "💕 로맨스 / 로코",
@@ -196,7 +197,7 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
       localStorage.setItem("mw_user_profile", JSON.stringify(userProfile));
 
       // 로그인한 사용자라면 DB에도 저장
-      const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+      const isLoggedIn = Boolean(getAccessToken());
       const userPk = localStorage.getItem("mw_user_pk");
 
       if (isLoggedIn && userPk) {

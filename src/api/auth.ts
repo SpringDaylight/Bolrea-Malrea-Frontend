@@ -63,6 +63,12 @@ export interface AuthUserResponse {
   created_at: string;
 }
 
+export interface AuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUserResponse;
+}
+
 /*
  * Kakao OAuth (unused)
  *
@@ -89,8 +95,8 @@ export function signup(data: SignupRequest): Promise<AuthUserResponse> {
 /**
  * Local login
  */
-export function login(data: LoginRequest): Promise<AuthUserResponse> {
-  return post<AuthUserResponse>('/api/auth/login', data);
+export function login(data: LoginRequest): Promise<AuthTokenResponse> {
+  return post<AuthTokenResponse>('/api/auth/login', data);
 }
 
 /**

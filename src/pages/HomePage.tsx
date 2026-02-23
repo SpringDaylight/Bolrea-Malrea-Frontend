@@ -276,90 +276,6 @@ export default function HomePage() {
   return (
     <MainLayout>
       <main className="container home-page">
-        <section className="hero">
-          <div>
-            {/* <p className="eyebrow">Discover</p> */}
-            <h1>지금 기분에 맞는 영화를 찾아보세요</h1>
-            <p>
-              취향 데이터와 상황 맥락을 결합해 만족 가능성까지 한 번에 알려드려요.
-            </p>
-            <div className="hero-actions">
-              <input
-                className="search-input"
-                type="text"
-                placeholder="'감동적인 영화 추천해줘' 같은 자연어로 검색해보세요"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-              <button className="primary-btn" onClick={handleSearch}>맞춤 추천 받기</button>
-            </div>
-          </div>
-        </section>
-
-        {(searchLoading || searchResults !== null || searchError) && (
-          <section className="section">
-            <div className="section-header">
-              <h2>검색 결과</h2>
-              {activeSearchLabel && (
-                <p className="muted">"{activeSearchLabel}"</p>
-              )}
-              {isEmotionalSearch && emotionTags.length > 0 && (
-                <div style={{ marginTop: "0.5rem" }}>
-                  <p style={{ fontSize: "0.9rem", color: "#373850" }}>
-                    🎭 감성 태그: {emotionTags.join(", ")}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {searchLoading && <p>로딩 중...</p>}
-
-            {!searchLoading && searchError && (
-              <p className="muted">{searchError}</p>
-            )}
-
-            {!searchLoading &&
-              !searchError &&
-              searchResults &&
-              searchResults.length === 0 && (
-                <p className="muted">검색 결과가 없습니다.</p>
-              )}
-
-            {!searchLoading &&
-              !searchError &&
-              searchResults &&
-              searchResults.length > 0 && (
-                <div className="movie-grid">
-                  {searchResults.map((movie) => (
-                    // <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                      <article className="card movie-tile" key={movie.id}>
-                        <img
-                          className="poster"
-                          src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
-                          alt={`${movie.title} 포스터`}
-                        />
-                        <div className="movie-info">
-                          <h3>{movie.title}</h3>
-                          <p className="probability home-match-probability">
-                            종합 매칭 {searchMatchRates[movie.id] ?? 83}%
-                          </p>
-                          <p className="muted synopsis-clamp">
-                            {movie.synopsis
-                              ? movie.synopsis.substring(0, 60) +
-                                (movie.synopsis.length > 60 ? "..." : "")
-                              : "줄거리 정보가 없습니다."}
-                          </p>
-                          {/* <span className="ghost-btn movie-detail-btn">자세히 보기</span> */}
-                        </div>
-                      </article>
-                    // </Link>
-                  ))}
-                </div>
-              )}
-          </section>
-        )}
-
         <section className="section">
           <div className="section-header">
             <h2>나를 위한 추천</h2>
@@ -475,6 +391,90 @@ export default function HomePage() {
             </>
           )}
         </section>
+
+        <section className="hero">
+          <div>
+            {/* <p className="eyebrow">Discover</p> */}
+            <h1>지금 기분에 맞는 영화를 찾아보세요</h1>
+            <p>
+              취향 데이터와 상황 맥락을 결합해 만족 가능성까지 한 번에 알려드려요.
+            </p>
+            <div className="hero-actions">
+              <input
+                className="search-input"
+                type="text"
+                placeholder="'감동적인 영화 추천해줘' 같은 자연어로 검색해보세요"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button className="primary-btn" onClick={handleSearch}>맞춤 추천 받기</button>
+            </div>
+          </div>
+        </section>
+
+        {(searchLoading || searchResults !== null || searchError) && (
+          <section className="section">
+            <div className="section-header">
+              <h2>검색 결과</h2>
+              {activeSearchLabel && (
+                <p className="muted">"{activeSearchLabel}"</p>
+              )}
+              {isEmotionalSearch && emotionTags.length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <p style={{ fontSize: "0.9rem", color: "#373850" }}>
+                    🎭 감성 태그: {emotionTags.join(", ")}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {searchLoading && <p>로딩 중...</p>}
+
+            {!searchLoading && searchError && (
+              <p className="muted">{searchError}</p>
+            )}
+
+            {!searchLoading &&
+              !searchError &&
+              searchResults &&
+              searchResults.length === 0 && (
+                <p className="muted">검색 결과가 없습니다.</p>
+              )}
+
+            {!searchLoading &&
+              !searchError &&
+              searchResults &&
+              searchResults.length > 0 && (
+                <div className="movie-grid">
+                  {searchResults.map((movie) => (
+                    // <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                    <article className="card movie-tile" key={movie.id}>
+                      <img
+                        className="poster"
+                        src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
+                        alt={`${movie.title} 포스터`}
+                      />
+                      <div className="movie-info">
+                        <h3>{movie.title}</h3>
+                        <p className="probability home-match-probability">
+                          종합 매칭 {searchMatchRates[movie.id] ?? 83}%
+                        </p>
+                        <p className="muted synopsis-clamp">
+                          {movie.synopsis
+                            ? movie.synopsis.substring(0, 60) +
+                              (movie.synopsis.length > 60 ? "..." : "")
+                            : "줄거리 정보가 없습니다."}
+                        </p>
+                        {/* <span className="ghost-btn movie-detail-btn">자세히 보기</span> */}
+                      </div>
+                    </article>
+                    // </Link>
+                  ))}
+                </div>
+              )}
+          </section>
+        )}
       </main>
 
       {/* 취향 설문 모달 */}

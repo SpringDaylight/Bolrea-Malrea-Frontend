@@ -124,6 +124,7 @@ export default function ActivityPage() {
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
   const [editDraft, setEditDraft] = useState<ProfileState>(defaultProfile);
   const [birthDate, setBirthDate] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -232,12 +233,14 @@ export default function ActivityPage() {
         setProfile(nextProfile);
         setEditDraft(nextProfile);
         setBirthDate(user.birth_date ?? null);
+        setCurrentUserId(user.user_id ?? null);
       } catch (err) {
         console.error("Failed to load current user profile:", err);
         if (isCancelled) return;
         setProfile(defaultProfile);
         setEditDraft(defaultProfile);
         setBirthDate(null);
+        setCurrentUserId(null);
       }
     };
 
@@ -503,8 +506,7 @@ export default function ActivityPage() {
 
   const handlePasswordSave = async () => {
     if (isPasswordSaving) return;
-    const userId = localStorage.getItem("mw_user_id");
-    if (!userId) {
+    if (!currentUserId) {
       setPasswordError("세션 정보가 오래되었습니다. 다시 로그인해주세요.");
       return;
     }
@@ -521,7 +523,7 @@ export default function ActivityPage() {
     setPasswordError(null);
     try {
       await changePassword({
-        user_id: userId,
+        user_id: currentUserId,
         current_password: currentPassword,
         new_password: nextPassword,
         new_password_confirm: confirmPassword,
@@ -549,8 +551,6 @@ export default function ActivityPage() {
 
   const handleLogout = () => {
     setAccessToken(null);
-    localStorage.removeItem("mw_user_pk");
-    localStorage.removeItem("mw_user_id");
     window.dispatchEvent(new Event("mw_auth_change"));
     navigate("/login");
   };
@@ -569,8 +569,6 @@ export default function ActivityPage() {
     try {
       await deleteCurrentUser();
       setAccessToken(null);
-      localStorage.removeItem("mw_user_pk");
-      localStorage.removeItem("mw_user_id");
       window.dispatchEvent(new Event("mw_auth_change"));
       setDeleteConfirmVisible(false);
       setDeleteSuccessVisible(true);

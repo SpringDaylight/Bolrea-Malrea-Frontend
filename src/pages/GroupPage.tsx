@@ -56,11 +56,8 @@ export default function GroupPage() {
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const [expandedMovies, setExpandedMovies] = useState<Record<number, boolean>>({});
-  const currentUserId =
-    getLocalStorageItem("mw_user_id") ||
-    getLocalStorageItem("mw_user_pk") ||
-    "";
-  const currentUserPk = getLocalStorageItem("mw_user_pk") || "";
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentUserPk, setCurrentUserPk] = useState("");
   const isLoggedIn = Boolean(getAccessToken());
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
@@ -81,11 +78,17 @@ export default function GroupPage() {
           user.name?.trim() ||
           user.user_id?.trim() ||
           user.id;
+        setCurrentUserId(user.user_id ?? user.id);
+        setCurrentUserPk(user.id);
         setCurrentUserNickname(name || "나");
       })
       .catch((err) => {
         console.error("Failed to load current user:", err);
-        if (!isCancelled) setCurrentUserNickname("나");
+        if (!isCancelled) {
+          setCurrentUserId("");
+          setCurrentUserPk("");
+          setCurrentUserNickname("나");
+        }
       });
 
     return () => {

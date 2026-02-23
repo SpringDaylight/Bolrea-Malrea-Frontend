@@ -138,7 +138,7 @@ export default function MovieDetailPage() {
   const [mlLoading, setMlLoading] = useState(false);
   const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
   const isLoggedIn = Boolean(getAccessToken());
-  const currentUserPk = localStorage.getItem("mw_user_pk");
+  const [currentUserPk, setCurrentUserPk] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const personalReview = isPersonalReviewDeleted
     ? null
@@ -231,8 +231,9 @@ export default function MovieDetailPage() {
   }, [movieId, currentUserPk]);
 
   useEffect(() => {
-    if (!isLoggedIn || !currentUserPk) {
+    if (!isLoggedIn) {
       setCurrentUserNickname("나");
+      setCurrentUserPk(null);
       return;
     }
 
@@ -246,17 +247,21 @@ export default function MovieDetailPage() {
             user.user_id?.trim() ||
             user.id
         ).trim();
+        setCurrentUserPk(user.id);
         setCurrentUserNickname(name || "나");
       })
       .catch((error) => {
         console.error("Failed to load current user:", error);
-        if (!isCancelled) setCurrentUserNickname("나");
+        if (!isCancelled) {
+          setCurrentUserPk(null);
+          setCurrentUserNickname("나");
+        }
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [isLoggedIn, currentUserPk]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -614,8 +619,7 @@ export default function MovieDetailPage() {
       return;
     }
 
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) {
+    if (!currentUserPk) {
       setMyReviewErrorMessage(
         "세션 정보가 오래되었습니다. 로그아웃 후 다시 로그인해주세요."
       );
@@ -654,11 +658,10 @@ export default function MovieDetailPage() {
       
       // 리뷰 작성 후 취향 업데이트
       try {
-        const userPk = localStorage.getItem("mw_user_pk");
-        if (userPk && movie?.id) {
+        if (currentUserPk && movie?.id) {
           const { updatePreferenceFromReview } = await import("../api/userPreferences");
           await updatePreferenceFromReview(
-            userPk,
+            currentUserPk,
             movie.id,
             reviewPayload.rating,
             reviewPayload.content || undefined  // 리뷰 텍스트도 전달

@@ -4,6 +4,7 @@
  */
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
+import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
 
 const genreLikeOptions = [
@@ -198,13 +199,12 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
       // 로그인한 사용자라면 DB에도 저장
       const isLoggedIn = Boolean(getAccessToken());
-      const userPk = localStorage.getItem("mw_user_pk");
-
-      if (isLoggedIn && userPk) {
+      if (isLoggedIn) {
         const { saveUserPreference } = await import("../api/userPreferences");
+        const currentUser = await getCurrentUser();
 
         await saveUserPreference({
-          user_id: userPk,
+          user_id: currentUser.id,
           preference_vector_json: {
             emotion_scores: userProfile.emotion_scores,
             narrative_traits: userProfile.narrative_traits,

@@ -1,8 +1,8 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
-import { type GroupSimulationResult } from "../api/ml";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { getCurrentUser } from "../api/A7_profile";
+import { recommendGroupMovies, type RecommendedMovie, type UserDetail } from "../api/groupRecommend";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 
@@ -50,7 +50,7 @@ export default function GroupPage() {
     Record<string, { nickname: string; name: string }>
   >({});
   const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
-  const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
+  const [recommendedMovies, setRecommendedMovies] = useState<RecommendedMovie[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
@@ -58,6 +58,7 @@ export default function GroupPage() {
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
+  const [expandedMovies, setExpandedMovies] = useState<Record<number, boolean>>({});
   const currentUserId =
     getLocalStorageItem("mw_user_id") ||
     getLocalStorageItem("mw_user_pk") ||
@@ -225,6 +226,12 @@ export default function GroupPage() {
       return;
     }
 
+    console.log('[그룹 추천 시작]', {
+      memberCount: selectedMembers.length,
+      timestamp: new Date().toISOString()
+    });
+    const startTime = Date.now();
+
     setAnalyzing(true);
     setError(null);
 
@@ -233,86 +240,68 @@ export default function GroupPage() {
       const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
       const keywords = parseArrayFromStorage("mw_taste_keywords");
 
-      const computeScoreFromTaste = () => {
-        let score = 0.5;
-
-        if (likedGenres.length > 0) {
-          score += Math.min(0.3, likedGenres.length * 0.03);
-        }
-
-        if (avoidedGenres.length > 0) {
-          score -= Math.min(0.2, avoidedGenres.length * 0.02);
-        }
-
-        if (keywords.length > 0) {
-          score += Math.min(0.15, keywords.length * 0.02);
-        }
-
-        return clamp01(score);
-      };
-
-      const members = selectedMembers.map((memberId) => {
+      // 사용자 데이터 구성
+      const users = selectedMembers.map((memberId) => {
         const isMe = currentUserId && memberId === currentUserId;
         const label =
           (isMe ? currentUserNickname : selectedMemberProfiles[memberId]?.nickname) ||
           memberId;
-        const probability = isMe ? computeScoreFromTaste() : 0.5;
+        
         return {
-          user_id: label,
-          probability,
-          confidence: isMe ? 0.6 : 0.4,
-          level: resolveSatisfactionLevel(probability),
+          user_id: memberId,
+          name: label,
+          text: isMe ? keywords.join(", ") : "",
+          likes: isMe ? likedGenres : [],
+          dislikes: isMe ? avoidedGenres : []
         };
       });
 
-      const probabilities = members.map((member) => member.probability);
-      const avg =
-        probabilities.length > 0
-          ? probabilities.reduce((sum, value) => sum + value, 0) / probabilities.length
-          : 0.5;
-      const min = probabilities.length > 0 ? Math.min(...probabilities) : avg;
-      const max = probabilities.length > 0 ? Math.max(...probabilities) : avg;
-      const variance =
-        probabilities.length > 0
-          ? probabilities.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) /
-            probabilities.length
-          : 0;
+      console.log('[API 호출 시작]', {
+        users: users.length,
+        top_k: 10,
+        candidate_k: 200
+      });
 
-      const scorePercent = Math.round(avg * 100);
-      const comment =
-        scorePercent >= 70
-          ? "대체로 만족도가 높을 것 같아요."
-          : scorePercent >= 50
-          ? "호불호가 갈릴 수 있어요."
-          : "만족도가 낮을 수 있어요.";
-      const recommendation =
-        scorePercent >= 70
-          ? "다 같이 보기 좋은 선택입니다."
-          : scorePercent >= 50
-          ? "함께 보기 전에 취향을 한번 더 확인해보세요."
-          : "다른 영화를 추천해요.";
+      // 백엔드 API 호출
+      const response = await recommendGroupMovies({
+        users,
+        top_k: 10,
+        candidate_k: 200,
+        strategy: 'mean',
+        use_bedrock: true
+      });
 
-      const result: GroupSimulationResult = {
-        group_score: avg,
-        strategy: "local",
-        members,
-        comment,
-        recommendation,
-        statistics: {
-          min_satisfaction: min,
-          max_satisfaction: max,
-          avg_satisfaction: avg,
-          variance,
-        },
-      };
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log('[그룹 추천 완료]', {
+        movies: response.topk.length,
+        candidates: response.candidates_count,
+        elapsed: `${elapsed}초`
+      });
 
-      setGroupResult(result);
+      setRecommendedMovies(response.topk);
     } catch (err) {
-      console.error("Failed to analyze group:", err);
-      showError("그룹 분석에 실패했습니다.");
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.error('[그룹 추천 실패]', {
+        error: err,
+        elapsed: `${elapsed}초`
+      });
+      
+      let errorMessage = "그룹 분석에 실패했습니다.";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      showError(errorMessage);
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const toggleMovieExpand = (movieId: number) => {
+    setExpandedMovies(prev => ({
+      ...prev,
+      [movieId]: !prev[movieId]
+    }));
   };
 
   return (
@@ -415,47 +404,68 @@ export default function GroupPage() {
             )}
 
             <button className="primary-btn" onClick={handleAnalyze} disabled={analyzing}>
-              {analyzing ? "추천 받는 중..." : "추천받기"}
+              {analyzing ? "추천 받는 중... (최대 30초 소요)" : "추천받기"}
             </button>
+            
+            {analyzing && (
+              <p className="muted" style={{ marginTop: 8, fontSize: "0.9em" }}>
+                💡 영화 데이터를 분석하고 있습니다. 잠시만 기다려주세요.
+              </p>
+            )}
           </div>
         </section>
 
-        {groupResult && (
+        {recommendedMovies.length > 0 && (
           <section className="section">
-            <article className="card">
-              <div className="movie-info">
-                <h3>추천 결과</h3>
-                <p className="probability">
-                  그룹 만족 확률 {Math.round(groupResult.group_score * 100)}%
-                </p>
-                <p className="muted">{groupResult.comment}</p>
-              </div>
-
-              <div className="section" style={{ marginTop: 16 }}>
-                <h3>멤버별 예상 반응</h3>
-                <ul className="list">
-                  {groupResult.members.map((member) => (
-                    <li key={member.user_id}>
-                      {member.user_id}: {member.level} ({Math.round(member.probability * 100)}%)
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="section" style={{ marginTop: 16 }}>
-                <h3>추천 의견</h3>
-                <p className="muted">{groupResult.recommendation}</p>
-              </div>
-
-              <div className="section" style={{ marginTop: 16 }}>
-                <h3>통계</h3>
-                <ul className="list">
-                  <li>최소 만족도: {Math.round(groupResult.statistics.min_satisfaction * 100)}%</li>
-                  <li>최대 만족도: {Math.round(groupResult.statistics.max_satisfaction * 100)}%</li>
-                  <li>평균 만족도: {Math.round(groupResult.statistics.avg_satisfaction * 100)}%</li>
-                </ul>
-              </div>
-            </article>
+            <h2>추천 영화 ({recommendedMovies.length}개)</h2>
+            <div className="movie-list">
+              {recommendedMovies.map((movie) => (
+                <article key={movie.movie_id} className="card">
+                  <div className="movie-info">
+                    <h3>{movie.title}</h3>
+                    <p className="muted">
+                      {movie.release_year} · {movie.genres.join(", ")}
+                    </p>
+                    <p className="probability">
+                      그룹 만족도: {Math.round(movie.group_score * 100)}%
+                    </p>
+                    
+                    {movie.per_user_detail && movie.per_user_detail.length > 0 && (
+                      <>
+                        <button
+                          className="ghost-btn"
+                          onClick={() => toggleMovieExpand(movie.movie_id)}
+                          style={{ marginTop: 12 }}
+                        >
+                          {expandedMovies[movie.movie_id] ? "멤버별 반응 접기" : "멤버별 반응 보기"}
+                        </button>
+                        
+                        {expandedMovies[movie.movie_id] && (
+                          <div className="section" style={{ marginTop: 16 }}>
+                            <h4>멤버별 예상 반응</h4>
+                            {movie.per_user_detail.map((detail) => (
+                              <div key={detail.user_id} style={{ marginTop: 12, paddingLeft: 12, borderLeft: "3px solid #ddd" }}>
+                                <p>
+                                  <strong>{detail.name}</strong>: {Math.round(detail.probability * 100)}%
+                                </p>
+                                <p className="muted" style={{ marginTop: 4 }}>
+                                  {detail.explanation}
+                                </p>
+                                {detail.top_factors.length > 0 && (
+                                  <p className="muted" style={{ marginTop: 4, fontSize: "0.9em" }}>
+                                    주요 요인: {detail.top_factors.join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
           </section>
         )}
       </main>

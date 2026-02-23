@@ -7,6 +7,7 @@ import { getUserPreference } from "../api/userPreferences";
 import type { Movie } from "../api/A2_movies";
 import type { SatisfactionPrediction } from "../api/ml";
 import { getAccessToken } from "../api/http";
+import { getCurrentUser } from "../api/A7_profile";
 
 const CACHE_KEY_PREFIX = "mw_match_rate_cache_";
 const CACHE_DURATION = 1000 * 60 * 30; // 30분
@@ -64,8 +65,17 @@ const saveToCache = (cacheKey: string, data: SatisfactionPrediction): void => {
  */
 export const getUserTasteData = async () => {
   // user_preferences.user_id는 users.id를 참조하므로 mw_user_pk 사용
-  const userPk = localStorage.getItem("mw_user_pk");
   const isLoggedIn = Boolean(getAccessToken());
+  let userPk: string | null = null;
+  if (isLoggedIn) {
+    try {
+      const currentUser = await getCurrentUser();
+      userPk = currentUser.id;
+    } catch (error) {
+      console.warn("Failed to load current user for taste data:", error);
+      userPk = null;
+    }
+  }
   
   // 로그인한 사용자는 반드시 DB에서 가져와야 함
   if (isLoggedIn && userPk) {

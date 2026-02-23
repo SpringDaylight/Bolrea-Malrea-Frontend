@@ -30,12 +30,6 @@ export default function LoginPage() {
         password,
       });
       setAccessToken(authResponse.access_token);
-      const loggedInUser = authResponse.user;
-      localStorage.setItem("mw_user_pk", loggedInUser.id);
-      localStorage.setItem(
-        "mw_user_id",
-        loggedInUser.user_id || userIdValue
-      );
       window.dispatchEvent(new Event("mw_auth_change"));
       navigate("/mypage");
     } catch (error) {

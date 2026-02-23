@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
 import { getMovie } from "../api/A2_movies";
-import { getCurrentUserReviews } from "../api/A7_profile";
+import { getCurrentUser, getCurrentUserReviews } from "../api/A7_profile";
 import { getCurrentUserWatchedMovies } from "../api/A8_watched";
 import { getTasteMap, type UserProfile } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
@@ -110,9 +110,9 @@ export default function TasteAnalysisPage() {
     const loadTasteAnalysis = async () => {
       setLoading(true);
       try {
-        const userId = getLocalStorageItem("mw_user_pk");
-        if (isLoggedIn && userId) {
-          const preference = await getUserPreference(userId);
+        if (isLoggedIn) {
+          const currentUser = await getCurrentUser();
+          const preference = await getUserPreference(currentUser.id);
           const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 3)

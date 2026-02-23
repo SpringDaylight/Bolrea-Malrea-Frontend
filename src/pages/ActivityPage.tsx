@@ -1062,7 +1062,7 @@ export default function ActivityPage() {
                         </div>
                       </div>
                       <p className="muted review-summary-text review-summary-full">
-                        "{reviewText}"
+                        {reviewText}
                       </p>
                     </article>
                 </div>

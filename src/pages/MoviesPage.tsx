@@ -426,7 +426,6 @@ export default function MoviesPage() {
                 placeholder="영화 제목을 검색해보세요"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && handleApplyFilters()}
               />
               <button
                 className="primary-btn"
@@ -553,18 +552,15 @@ export default function MoviesPage() {
                         : "정보 없음"}{" "}
                       ({movie.reviews_count ?? movie.review_count ?? 0})
                     </p>
-                    <p className="muted">
-                      {movie.synopsis
-                        ? movie.synopsis.substring(0, 60) +
-                          (movie.synopsis.length > 60 ? "..." : "")
-                        : "줄거리 정보가 없습니다."}
+                    <p className="muted synopsis-clamp">
+                      {movie.synopsis || "줄거리 정보가 없습니다."}
                     </p>
-                    <div className="meta-list">
+                    {/* <div className="meta-list">
                       {movie.genres.slice(0, 3).map((genre) => (
                         <span key={genre}>{genre}</span>
                       ))}
                       {movie.runtime && <span>{movie.runtime}분</span>}
-                    </div>
+                    </div> */}
                   </div>
                 </article>
               ))}

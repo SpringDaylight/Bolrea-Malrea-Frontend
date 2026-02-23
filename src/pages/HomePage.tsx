@@ -344,7 +344,7 @@ export default function HomePage() {
                           <p className="probability home-match-probability">
                             종합 매칭 {searchMatchRates[movie.id] ?? 83}%
                           </p>
-                          <p className="muted">
+                          <p className="muted synopsis-clamp">
                             {movie.synopsis
                               ? movie.synopsis.substring(0, 60) +
                                 (movie.synopsis.length > 60 ? "..." : "")
@@ -460,7 +460,7 @@ export default function HomePage() {
                           <p className="probability home-match-probability">
                             적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
                           </p>
-                          <p className="muted">
+                          <p className="muted synopsis-clamp">
                             {movie.synopsis 
                               ? movie.synopsis.substring(0, 60) + (movie.synopsis.length > 60 ? '...' : '')
                               : '줄거리 정보가 없습니다.'}

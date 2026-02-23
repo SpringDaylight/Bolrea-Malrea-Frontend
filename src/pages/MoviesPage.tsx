@@ -14,9 +14,11 @@ type MoviesPageSnapshot = {
   selectedSorts: string[];
   selectedGenres: string[];
   selectedRuntime: string | null;
+  selectedYearRange: string | null;
   appliedSorts: string[];
   appliedGenres: string[];
   appliedRuntime: string | null;
+  appliedYearRange: string | null;
   appliedQuery: string;
   currentPage: number;
   scrollY: number;
@@ -61,6 +63,26 @@ const runtimeFilters = [
   { value: "over-140", label: "140분 이상" },
 ] as const;
 
+const yearRangeFilters = [
+  { value: "pre1950", label: "1950년 이전", min: 0, max: 1949 },
+  { value: "1950s", label: "1950년-1960년", min: 1950, max: 1959 },
+  { value: "1960s", label: "1960년-1970년", min: 1960, max: 1969 },
+  { value: "1970s", label: "1970년-1980년", min: 1970, max: 1979 },
+  { value: "1980s", label: "1980년-1990년", min: 1980, max: 1989 },
+  { value: "1990s", label: "1990년-2000년", min: 1990, max: 1999 },
+  { value: "2000s", label: "2000년-2010년", min: 2000, max: 2009 },
+  { value: "2010s", label: "2010년-2020년", min: 2010, max: 2019 },
+  { value: "2020plus", label: "2020년 이후", min: 2020 },
+] as const;
+
+const getReleaseYear = (release?: string | null) => {
+  if (!release) return null;
+  const match = /\d{4}/.exec(release);
+  if (!match) return null;
+  const year = Number(match[0]);
+  return Number.isFinite(year) ? year : null;
+};
+
 const resolveFilterToGenres = (values: string[]) => {
   return Array.from(
     new Set(
@@ -91,9 +113,11 @@ export default function MoviesPage() {
   const [selectedSorts, setSelectedSorts] = useState<string[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedRuntime, setSelectedRuntime] = useState<string | null>(null);
+  const [selectedYearRange, setSelectedYearRange] = useState<string | null>(null);
   const [appliedSorts, setAppliedSorts] = useState<string[]>([]);
   const [appliedGenres, setAppliedGenres] = useState<string[]>([]);
   const [appliedRuntime, setAppliedRuntime] = useState<string | null>(null);
+  const [appliedYearRange, setAppliedYearRange] = useState<string | null>(null);
   const [appliedQuery, setAppliedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -167,10 +191,16 @@ export default function MoviesPage() {
       setSelectedRuntime(
         typeof parsed.selectedRuntime === "string" ? parsed.selectedRuntime : null
       );
+      setSelectedYearRange(
+        typeof parsed.selectedYearRange === "string" ? parsed.selectedYearRange : null
+      );
       setAppliedSorts(toStringArray(parsed.appliedSorts));
       setAppliedGenres(toStringArray(parsed.appliedGenres));
       setAppliedRuntime(
         typeof parsed.appliedRuntime === "string" ? parsed.appliedRuntime : null
+      );
+      setAppliedYearRange(
+        typeof parsed.appliedYearRange === "string" ? parsed.appliedYearRange : null
       );
       setAppliedQuery(typeof parsed.appliedQuery === "string" ? parsed.appliedQuery : "");
       setCurrentPage(
@@ -284,16 +314,30 @@ export default function MoviesPage() {
                       (movie) => typeof movie.runtime === "number" && movie.runtime > 140
                     )
                   : filteredByTitle;
+        const filteredByYear = appliedYearRange
+          ? filteredByRuntime.filter((movie) => {
+              const year = getReleaseYear(movie.release);
+              if (!year) return false;
+              const range = yearRangeFilters.find(
+                (filter) => filter.value === appliedYearRange
+              );
+              if (!range) return true;
+              if (typeof range.min === "number" && year < range.min) return false;
+              if ("max" in range && typeof range.max === "number" && year > range.max)
+                return false;
+              return true;
+            })
+          : filteredByRuntime;
         const nextMovies =
           sortKey === "title"
-            ? [...filteredByRuntime].sort((a, b) =>
+            ? [...filteredByYear].sort((a, b) =>
                 (a.title ?? "").localeCompare(b.title ?? "", "ko")
               )
-            : filteredByRuntime;
+            : filteredByYear;
         setMovies(nextMovies);
         const totalSource =
-          normalizedQuery.length > 0 || appliedRuntime
-            ? filteredByRuntime.length
+          normalizedQuery.length > 0 || appliedRuntime || appliedYearRange
+            ? filteredByYear.length
             : response.total;
         const nextTotalPages = Math.max(
           1,
@@ -314,7 +358,14 @@ export default function MoviesPage() {
     return () => {
       isCancelled = true;
     };
-  }, [appliedSorts, appliedGenres, appliedQuery, appliedRuntime, currentPage]);
+  }, [
+    appliedSorts,
+    appliedGenres,
+    appliedQuery,
+    appliedRuntime,
+    appliedYearRange,
+    currentPage,
+  ]);
 
   const handleSortSelect = (value: string) => {
     setSelectedSorts((prev) => {
@@ -340,6 +391,15 @@ export default function MoviesPage() {
     setSelectedRuntime((prev) => {
       const nextSelected = prev === value ? null : value;
       setAppliedRuntime(nextSelected);
+      setCurrentPage(1);
+      return nextSelected;
+    });
+  };
+
+  const handleYearRangeToggle = (value: string) => {
+    setSelectedYearRange((prev) => {
+      const nextSelected = prev === value ? null : value;
+      setAppliedYearRange(nextSelected);
       setCurrentPage(1);
       return nextSelected;
     });
@@ -375,9 +435,11 @@ export default function MoviesPage() {
       selectedSorts,
       selectedGenres,
       selectedRuntime,
+      selectedYearRange,
       appliedSorts,
       appliedGenres,
       appliedRuntime,
+      appliedYearRange,
       appliedQuery,
       currentPage,
       scrollY: window.scrollY,
@@ -437,10 +499,14 @@ export default function MoviesPage() {
             </div>
           </div>
 
-          <div className="filter-group movie-filter-group">
-            <div>
+          <div className="filter-group movie-filter-group filter-table">
+            <div className="filter-box-header">
+              <span className="filter-box-icon" aria-hidden="true" />
+              <span className="filter-box-title">영화 필터</span>
+            </div>
+            <div className="filter-row">
               <p className="filter-title">장르</p>
-              <div className="tag-list">
+              <div className="filter-options">
                 {genreFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -455,9 +521,26 @@ export default function MoviesPage() {
                 ))}
               </div>
             </div>
-            <div>
+            <div className="filter-row">
+              <p className="filter-title">개봉연도</p>
+              <div className="filter-options">
+                {yearRangeFilters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    className={`filter-chip ${
+                      selectedYearRange === filter.value ? "active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => handleYearRangeToggle(filter.value)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="filter-row">
               <p className="filter-title">상영시간</p>
-              <div className="tag-list">
+              <div className="filter-options">
                 {runtimeFilters.map((filter) => (
                   <button
                     key={filter.value}

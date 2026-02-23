@@ -3,7 +3,7 @@ import MainLayout from "../components/layout/MainLayout";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
-import { recommendGroupMovies, type GroupUser, type RecommendedMovie } from "../api/groupRecommend";
+import { recommendGroupMovies, type RecommendedMovie } from "../api/groupRecommend";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
@@ -37,8 +37,6 @@ const parseArrayFromStorage = (key: string): string[] => {
     return [];
   }
 };
-
-// NOTE: local 계산 유틸은 백엔드 연동으로 대체됨
 
 export default function GroupPage() {
   const [userQuery, setUserQuery] = useState("");

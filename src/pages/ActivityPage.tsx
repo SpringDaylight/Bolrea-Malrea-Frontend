@@ -142,11 +142,6 @@ export default function ActivityPage() {
   const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const pendingScrollTarget = useRef<string | null>(null);
-  const reviewSummaryRefs = useRef<Record<number, HTMLSpanElement | null>>({});
-  const reviewMeasureRefs = useRef<Record<number, HTMLSpanElement | null>>({});
-  const [overflowedReviewIds, setOverflowedReviewIds] = useState<
-    Record<number, boolean>
-  >({});
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(
@@ -721,27 +716,6 @@ export default function ActivityPage() {
       scrollToWithHeaderOffset(targetId);
     });
   }, [view]);
-
-  useEffect(() => {
-    let rafId = 0;
-    const measure = () => {
-      const next: Record<number, boolean> = {};
-      visibleReviews.forEach((review) => {
-        const body = reviewSummaryRefs.current[review.id];
-        const measure = reviewMeasureRefs.current[review.id];
-        if (!body || !measure) return;
-        next[review.id] = measure.scrollHeight > body.clientHeight + 1;
-      });
-      setOverflowedReviewIds(next);
-    };
-    rafId = window.requestAnimationFrame(measure);
-    const handleResize = () => measure();
-    window.addEventListener("resize", handleResize);
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [visibleReviews]);
 
   if (!isLoggedIn) {
     return (

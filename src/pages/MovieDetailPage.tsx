@@ -145,8 +145,6 @@ export default function MovieDetailPage() {
   const personalReviewDate = personalReview?.created_at
     ? formatDateTime(personalReview.created_at)
     : formatDateTime();
-  const isPersonalReviewPrivate =
-    personalReview && toReviewVisibility(personalReview.is_public) === "private";
   const reviewsForDisplay = useMemo(() => {
     if (!personalReview || !movie || personalReview.movie_id !== movie.id) {
       return reviews;

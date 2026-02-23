@@ -1628,6 +1628,12 @@
   color: #373850;
 }
 
+.movie-detail-login-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 
 
 .movie-detail-page {

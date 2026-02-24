@@ -7,6 +7,7 @@
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import MainLayout from "../components/layout/MainLayout";
+import SectionHeader from "../components/common/SectionHeader";
 import { useLocation, useParams } from "react-router-dom";
 import { getMovie, getMovieReviews, type Movie, type Review } from "../api/A2_movies";
 import {
@@ -1188,9 +1189,7 @@ export default function MovieDetailPage() {
         </section>
 
         <section className="section" id="my-review">
-          <div className="section-header">
-            <h2>내 리뷰</h2>
-          </div>
+          <SectionHeader title="내 리뷰" />
           {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
             <div className="review-item">
               <article className="card review-card">
@@ -1603,10 +1602,10 @@ export default function MovieDetailPage() {
         </section>
 
         <section className="section">
-          <div className="section-header">
-            <h2>다른 사람들의 리뷰</h2>
-            <p>이 영화에 대한 다양한 반응</p>
-          </div>
+          <SectionHeader
+            title="다른 사람들의 리뷰"
+            description="이 영화에 대한 다양한 반응"
+          />
             {otherReviewsForDisplay.length === 0 ? (
               <article className="card review-card review-empty">
                 <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>

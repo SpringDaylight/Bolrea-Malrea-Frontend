@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import PageTitle from "../components/common/PageTitle";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
 import { login as loginApi } from "../api/auth";
@@ -84,9 +85,7 @@ export default function LoginPage() {
   return (
     <MainLayout>
       <main className="container">
-        <section className="page-title centered">
-          <h1>로그인</h1>
-        </section>
+        <PageTitle title="로그인" centered />
 
         <section className="section">
           <article className="card auth-card">

@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
+import SectionHeader from "../components/common/SectionHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
 import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
@@ -273,32 +274,34 @@ export default function HomePage() {
             </section>
 
             <section className="section">
-              <div className="section-header">
-                <h2>나를 위한 추천</h2>
-                <div className="home-recommend-controls">
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="이전 페이지"
-                    onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
-                    disabled={safeRecommendedPage === 1}
-                  >
-                    {"◀"}
-                  </button>
-                  <span className="page-number-text" aria-live="polite">
-                    {safeRecommendedPage}/{recommendedTotalPages}
-                  </span>
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="다음 페이지"
-                    onClick={() => setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))}
-                    disabled={safeRecommendedPage >= recommendedTotalPages}
-                  >
-                    {"▶"}
-                  </button>
-                </div>
-              </div>
+              <SectionHeader
+                title="나를 위한 추천"
+                actions={
+                  <div className="home-recommend-controls">
+                    <button
+                      className="icon-btn page-arrow-btn"
+                      type="button"
+                      aria-label="이전 페이지"
+                      onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
+                      disabled={safeRecommendedPage === 1}
+                    >
+                      {"◀"}
+                    </button>
+                    <span className="page-number-text" aria-live="polite">
+                      {safeRecommendedPage}/{recommendedTotalPages}
+                    </span>
+                    <button
+                      className="icon-btn page-arrow-btn"
+                      type="button"
+                      aria-label="다음 페이지"
+                      onClick={() => setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))}
+                      disabled={safeRecommendedPage >= recommendedTotalPages}
+                    >
+                      {"▶"}
+                    </button>
+                  </div>
+                }
+              />
 
               {needsTasteSetup ? (
                 <div

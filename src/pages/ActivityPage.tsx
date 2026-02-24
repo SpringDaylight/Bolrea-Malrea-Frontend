@@ -134,6 +134,7 @@ export default function ActivityPage() {
   const [watchedPage, setWatchedPage] = useState(1);
   const [reviewPage, setReviewPage] = useState(1);
   const [watchedSearch, setWatchedSearch] = useState("");
+  const [appliedWatchedSearch, setAppliedWatchedSearch] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -162,7 +163,7 @@ export default function ActivityPage() {
       })),
     [savedWatchedMovies]
   );
-  const normalizedWatchedSearch = watchedSearch.trim().toLowerCase();
+  const normalizedWatchedSearch = appliedWatchedSearch.trim().toLowerCase();
   const filteredPosterItems = useMemo(() => {
     if (!normalizedWatchedSearch) return posterItems;
     return posterItems.filter((item) =>
@@ -688,6 +689,26 @@ export default function ActivityPage() {
                 <p className="muted login-required-text">로그인 후 이용해주세요.</p>
               </article>
             </section>
+
+            <section className="section card activity-summary-card activity-top-card activity-top-card-full">
+              <article className="taste-preview">
+                <div className="taste-preview-header">
+                  <h2>활동 요약</h2>
+                  <p>내가 본 영화와 남긴 리뷰를 관리해요.</p>
+                </div>
+                <div className="activity-stats taste-preview-grid">
+                  <div className="stat taste-preview-main">
+                    <strong>–</strong>
+                    <span>시청작</span>
+                  </div>
+                  <div className="stat taste-preview-side">
+                    <strong>–</strong>
+                    <span>리뷰</span>
+                  </div>
+                </div>
+                <p className="muted login-required-text">로그인 후 이용 가능해요.</p>
+              </article>
+            </section>
           </div>
         </main>
       </MainLayout>
@@ -855,25 +876,44 @@ export default function ActivityPage() {
           </div>
           {view === "posters" && (
             <article className="section view-section" data-view="posters" id="posters-section">
-              <div className="poster-search input-with-clear" style={{ marginLeft: "auto" }}>
+              <div
+                className="poster-search input-with-clear"
+                style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}
+              >
                 <input
                   className="search-input"
-                  type="search"
+                  type="text"
                   placeholder="시청함에서 영화 검색"
                   value={watchedSearch}
                   onChange={(event) => setWatchedSearch(event.target.value)}
                   aria-label="시청함 영화 검색"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      setAppliedWatchedSearch(watchedSearch);
+                    }
+                  }}
                 />
                 {watchedSearch && (
                   <button
                     className="input-clear-btn"
                     type="button"
                     aria-label="검색어 지우기"
-                    onClick={() => setWatchedSearch("")}
+                    onClick={() => {
+                      setWatchedSearch("");
+                      setAppliedWatchedSearch("");
+                    }}
                   >
                     ✕
                   </button>
                 )}
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={() => setAppliedWatchedSearch(watchedSearch)}
+                >
+                  검색
+                </button>
               </div>
               {filteredPosterItems.length === 0 ? (
                 <p className="search-empty">검색 결과가 없어요.</p>

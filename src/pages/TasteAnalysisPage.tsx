@@ -2,6 +2,8 @@
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
+import PageTitle from "../components/common/PageTitle";
+import SectionHeader from "../components/common/SectionHeader";
 import { getMovie } from "../api/A2_movies";
 import { getCurrentUser, getCurrentUserReviews } from "../api/A7_profile";
 import { getCurrentUserWatchedMovies } from "../api/A8_watched";
@@ -430,10 +432,10 @@ export default function TasteAnalysisPage() {
   return (
     <MainLayout>
       <main className="container taste-analysis-page">
-        <section className="page-title">
-          <h1>취향 분석 상세</h1>
-          <p>나의 영화 취향을 확인해보세요!</p>
-        </section>
+        <PageTitle
+          title="취향 분석 상세"
+          description="나의 영화 취향을 확인해보세요!"
+        />
 
         <section className="section card taste-preview-section">
           <article className="taste-preview">
@@ -550,7 +552,7 @@ export default function TasteAnalysisPage() {
             <div className="taste-preview-header with-cta" style={{ position: 'relative' }}>
               <div>
                 <h2>취향 대시보드</h2>
-                <p>워드 클라우드 분석 결과</p>
+                {/* <p>워드 클라우드 분석 결과</p> */}
               </div>
               <button
                 type="button"
@@ -674,10 +676,10 @@ export default function TasteAnalysisPage() {
         </section>
 
         <section className="section">
-          <div className="section-header">
-            <h2>최근 가장 만족했던 영화</h2>
-            <p>최근 리뷰 중에서 4.5점 이상으로 평점을 저장했던 영화 4개를 보여줄게요</p>
-          </div>
+          <SectionHeader
+            title="최근 가장 만족했던 영화"
+            description="최근 리뷰 중에서 4.5점 이상으로 평점을 저장했던 영화 4개를 보여줄게요"
+          />
           {reviewsLoading ? (
             <p className="muted">불러오는 중...</p>
           ) : recentHighRated.length > 0 ? (

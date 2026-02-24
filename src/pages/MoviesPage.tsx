@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import SectionHeader from "../components/common/SectionHeader";
 import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
@@ -305,9 +306,19 @@ export default function MoviesPage() {
             : filteredByRuntime;
         const nextMovies =
           sortKey === "title"
-            ? [...filteredByYear].sort((a, b) =>
-                (a.title ?? "").localeCompare(b.title ?? "", "ko")
-              )
+            ? [...filteredByYear].sort((a, b) => {
+                const titleA = (a.title ?? "").trim();
+                const titleB = (b.title ?? "").trim();
+                if (!titleA && !titleB) return 0;
+                if (!titleA) return 1;
+                if (!titleB) return -1;
+                const collator = new Intl.Collator(["ko-KR", "en-US"], {
+                  numeric: true,
+                  sensitivity: "base",
+                  ignorePunctuation: true,
+                });
+                return collator.compare(titleA, titleB);
+              })
             : filteredByYear;
         setMovies(nextMovies);
         const shouldUseClientTotal =
@@ -532,10 +543,7 @@ const handleSortSelect = (value: string) => {
         </section>
 
         <section className="section">
-          <div className="section-header">
-            <h2>검색결과</h2>
-            {/* <p>선택한 기준으로 추천된 영화가 표시됩니다</p> */}
-          </div>
+          <SectionHeader title="검색결과" />
           <div className="movie-sort-links">
             {sortFilters.map((filter) => (
               <button

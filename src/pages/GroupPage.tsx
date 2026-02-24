@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
+import PageTitle from "../components/common/PageTitle";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { analyzePreference, simulateGroup } from "../api/ml";
 import { getCurrentUser } from "../api/users";
@@ -355,10 +356,10 @@ export default function GroupPage() {
   return (
     <MainLayout>
       <main className="container group-page">
-        <section className="page-title">
-          <h1>모두가 만족하는 영화 찾기</h1>
-          <p>모임 구성원들의 취향을 한 번에 정리해드려요.</p>
-        </section>
+        <PageTitle
+          title="모두가 만족하는 영화 찾기"
+          description="모임 구성원들의 취향을 한 번에 정리해드려요."
+        />
 
         <section className="section card">
           <div className="form-grid">

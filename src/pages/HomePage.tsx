@@ -570,7 +570,6 @@ export default function HomePage() {
         )}
         {showTasteSurveyModal && (
           <TasteSurveyModal
-            isOpen={showTasteSurveyModal}
             onClose={() => setShowTasteSurveyModal(false)}
             onComplete={() => {
               setShowTasteSurveyModal(false);

@@ -252,10 +252,9 @@ export default function MoviesPage() {
       setError(null);
       try {
         const sortKey = appliedSorts.length > 0 ? appliedSorts[0] : undefined;
-        const sort =
-          sortKey && sortKey !== "title"
-            ? (sortKey as "latest" | "popular" | "rating")
-            : undefined;
+        const sort = sortKey
+          ? (sortKey as "latest" | "popular" | "rating" | "title")
+          : undefined;
         const genres = appliedGenres.length > 0 ? appliedGenres.join(",") : undefined;
         const runtimeRange =
           appliedRuntime.length === 1
@@ -310,23 +309,7 @@ export default function MoviesPage() {
                 });
               })
             : filteredByRuntime;
-        const nextMovies =
-          sortKey === "title"
-            ? [...filteredByYear].sort((a, b) => {
-                const titleA = (a.title ?? "").trim();
-                const titleB = (b.title ?? "").trim();
-                if (!titleA && !titleB) return 0;
-                if (!titleA) return 1;
-                if (!titleB) return -1;
-                const collator = new Intl.Collator(["ko-KR", "en-US"], {
-                  numeric: true,
-                  sensitivity: "base",
-                  ignorePunctuation: true,
-                });
-                return collator.compare(titleA, titleB);
-              })
-            : filteredByYear;
-        setMovies(nextMovies);
+        setMovies(filteredByYear);
         const shouldUseClientTotal =
           appliedRuntime.length > 1 || appliedYearRange.length > 1;
         const totalSource = shouldUseClientTotal ? filteredByYear.length : response.total;

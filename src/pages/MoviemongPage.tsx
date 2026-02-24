@@ -15,6 +15,7 @@ import Roulette from "../components/roulette/Roulette";
 import { rouletteItems, type RouletteItem } from "../components/roulette/rouletteItems";
 import { getCurrentUser } from "../api/A7_profile";
 import { getRouletteConfig, getRouletteStatus, spinRoulette } from "../api/A9_roulette";
+import { getAccessToken } from "../api/http";
 
 type QuestionItem = {
   id: number;
@@ -109,7 +110,7 @@ export default function MoviemongPage() {
     themeId: string | null;
   } | null>(null);
   const themeDragMovedRef = useRef(false);
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  const isLoggedIn = Boolean(getAccessToken());
   const selectedTheme = moviemongThemeItems.find(
     (theme) => theme.id === selectedThemeId
   );
@@ -151,20 +152,14 @@ export default function MoviemongPage() {
       alert("????????????????.");
       return null;
     }
-    const userId = localStorage.getItem("mw_user_pk");
-    if (!userId) {
-      alert("??? ????? ??????. ??? ???????????");
-      return null;
-    }
-
     try {
-      const status = await getRouletteStatus(userId);
+      const status = await getRouletteStatus();
       if (!status.can_spin) {
         alert("????? ??? ???????????.");
         return null;
       }
 
-      const response = await spinRoulette(userId);
+      const response = await spinRoulette();
       const matched = rouletteWheelItems.find(
         (item) => item.label === response.item
       );
@@ -388,15 +383,7 @@ export default function MoviemongPage() {
 
     const loadUserStats = async () => {
       try {
-        const userId = localStorage.getItem("mw_user_pk");
-        if (!userId) {
-          setLevel(1);
-          setExpValue(0);
-          setPopcornCount(0);
-          return;
-        }
-
-        const user = await getCurrentUser(userId);
+        const user = await getCurrentUser();
         if (isCancelled) return;
         const totalExp = typeof user.exp === "number" ? user.exp : 0;
         const { level: nextLevel, expValue: nextExpValue } =

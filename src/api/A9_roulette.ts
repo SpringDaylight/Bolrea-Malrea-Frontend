@@ -62,12 +62,12 @@ export function getRouletteConfig(): Promise<RouletteConfigResponse> {
   return get<RouletteConfigResponse>("/api/roulette/config");
 }
 
-export function getRouletteStatus(userId: string): Promise<RouletteStatusResponse> {
-  return get<RouletteStatusResponse>("/api/roulette/status", { user_id: userId });
+export function getRouletteStatus(): Promise<RouletteStatusResponse> {
+  return get<RouletteStatusResponse>("/api/roulette/status");
 }
 
-export function spinRoulette(userId: string): Promise<RouletteSpinResponse> {
-  return post<RouletteSpinResponse>("/api/roulette/spin", { user_id: userId });
+export function spinRoulette(): Promise<RouletteSpinResponse> {
+  return post<RouletteSpinResponse>("/api/roulette/spin");
 }
 
 export function getMoviemongHome(): Promise<MoviemongHomeResponse> {

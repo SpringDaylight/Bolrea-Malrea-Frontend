@@ -2,6 +2,7 @@
 import { Link, NavLink } from "react-router-dom";
 import logoToggle from "../../assets/logo-ticket-ver2.png";
 import { getCurrentUser } from "../../api/A7_profile";
+import { getAccessToken } from "../../api/http";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -17,15 +18,16 @@ export default function Header() {
     };
   const [profileHref, setProfileHref] = useState("/login");
   const [profileLabel, setProfileLabel] = useState("로그인");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const syncProfile = useCallback(() => {
-    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-    const userId = localStorage.getItem("mw_user_pk");
+    const isLoggedIn = Boolean(getAccessToken());
 
-    if (isLoggedIn && userId) {
+    if (isLoggedIn) {
+      setIsLoggedIn(true);
       setProfileHref("/mypage");
       setProfileLabel("DS");
-      getCurrentUser(userId)
+      getCurrentUser()
         .then((user) => {
           const name =
             user.nickname?.trim() ||
@@ -39,6 +41,7 @@ export default function Header() {
           setProfileLabel("DS");
         });
     } else {
+      setIsLoggedIn(false);
       setProfileHref("/login");
       setProfileLabel("로그인");
     }
@@ -79,6 +82,13 @@ export default function Header() {
             영화
           </NavLink>
           <NavLink
+            to="/chat"
+            className={navClass}
+            onClick={handleHeaderLinkClick("/chat")}
+          >
+            대화
+          </NavLink>
+          <NavLink
             to="/group"
             className={navClass}
             onClick={handleHeaderLinkClick("/group")}
@@ -112,6 +122,11 @@ export default function Header() {
           <Link className="profile-chip" to={profileHref} onClick={handleHeaderLinkClick(profileHref)}>
             {profileLabel}
           </Link>
+          {!isLoggedIn && (
+            <Link className="profile-chip" to="/signup" onClick={handleHeaderLinkClick("/signup")}>
+              회원가입
+            </Link>
+          )}
         </div>
       </div>
     </header>

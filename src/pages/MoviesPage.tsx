@@ -6,6 +6,7 @@ import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
 } from "../api/A8_watched";
+import { getAccessToken } from "../api/http";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
 
@@ -65,13 +66,13 @@ const runtimeFilters = [
 
 const yearRangeFilters = [
   { value: "pre1950", label: "1950년 이전", min: 0, max: 1949 },
-  { value: "1950s", label: "1950년-1960년", min: 1950, max: 1959 },
-  { value: "1960s", label: "1960년-1970년", min: 1960, max: 1969 },
-  { value: "1970s", label: "1970년-1980년", min: 1970, max: 1979 },
-  { value: "1980s", label: "1980년-1990년", min: 1980, max: 1989 },
-  { value: "1990s", label: "1990년-2000년", min: 1990, max: 1999 },
-  { value: "2000s", label: "2000년-2010년", min: 2000, max: 2009 },
-  { value: "2010s", label: "2010년-2020년", min: 2010, max: 2019 },
+  { value: "1950s", label: "1950년-1959년", min: 1950, max: 1959 },
+  { value: "1960s", label: "1960년-1969년", min: 1960, max: 1969 },
+  { value: "1970s", label: "1970년-1979년", min: 1970, max: 1979 },
+  { value: "1980s", label: "1980년-1989년", min: 1980, max: 1989 },
+  { value: "1990s", label: "1990년-1999년", min: 1990, max: 1999 },
+  { value: "2000s", label: "2000년-2009년", min: 2000, max: 2009 },
+  { value: "2010s", label: "2010년-2019년", min: 2010, max: 2019 },
   { value: "2020plus", label: "2020년 이후", min: 2020 },
 ] as const;
 
@@ -104,8 +105,7 @@ export default function MoviesPage() {
   const navigate = useNavigate();
   const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-  const currentUserPk = localStorage.getItem("mw_user_pk");
+  const isLoggedIn = Boolean(getAccessToken());
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +130,7 @@ export default function MoviesPage() {
   const shouldSkipSearchParamInitRef = useRef(false);
 
   useEffect(() => {
-    if (!isLoggedIn || !currentUserPk) {
+    if (!isLoggedIn) {
       setWatchedMovieIds(new Set());
       return;
     }
@@ -139,18 +139,14 @@ export default function MoviesPage() {
 
     const fetchWatchedMovies = async () => {
       try {
-        const response = await getCurrentUserWatchedMovies(currentUserPk, {
+        const response = await getCurrentUserWatchedMovies({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
-        const scopedWatched = response.items.filter(
-          (item) => !item.user_id || String(item.user_id) === String(currentUserPk)
-        );
-
         setWatchedMovieIds(
           new Set(
-            scopedWatched.map((item) => Number(item.movie_id)).filter(
+            response.items.map((item) => Number(item.movie_id)).filter(
               (id) => Number.isFinite(id)
             )
           )
@@ -166,7 +162,7 @@ export default function MoviesPage() {
     return () => {
       isCancelled = true;
     };
-  }, [isLoggedIn, currentUserPk]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     try {
@@ -415,10 +411,9 @@ export default function MoviesPage() {
       navigate("/login");
       return;
     }
-    if (!currentUserPk) return;
 
     try {
-      await saveCurrentUserWatchedMovie(currentUserPk, { movie_id: movie.id });
+      await saveCurrentUserWatchedMovie({ movie_id: movie.id });
       setWatchedMovieIds((prev) => {
         const next = new Set(prev);
         next.add(movie.id);
@@ -522,7 +517,7 @@ export default function MoviesPage() {
               </div>
             </div>
             <div className="filter-row">
-              <p className="filter-title">개봉연도</p>
+              <p className="filter-title">개봉년도</p>
               <div className="filter-options">
                 {yearRangeFilters.map((filter) => (
                   <button

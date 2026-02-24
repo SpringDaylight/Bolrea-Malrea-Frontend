@@ -4,6 +4,7 @@ import MainLayout from "../components/layout/MainLayout";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
 import { login as loginApi } from "../api/auth";
+import { setAccessToken } from "../api/http";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -24,16 +25,11 @@ export default function LoginPage() {
 
     try {
       setIsSubmitting(true);
-      const loggedInUser = await loginApi({
+      const authResponse = await loginApi({
         user_id: userIdValue,
         password,
       });
-      localStorage.setItem("mw_user_pk", loggedInUser.id);
-      localStorage.setItem(
-        "mw_user_id",
-        loggedInUser.user_id || userIdValue
-      );
-      localStorage.setItem("mw_logged_in", "true");
+      setAccessToken(authResponse.access_token);
       window.dispatchEvent(new Event("mw_auth_change"));
       navigate("/mypage");
     } catch (error) {

@@ -12,6 +12,9 @@ export default function BottomNav() {
       <NavLink to="/movies" className={navClass}>
         영화
       </NavLink>
+      <NavLink to="/chat" className={navClass}>
+        대화
+      </NavLink>
       <NavLink to="/group" className={navClass}>
         다함께
       </NavLink>

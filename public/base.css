@@ -1,19 +1,52 @@
-﻿@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css");
 
 :root {
   --bg: #F3F6F8;
-  --bg-soft: #ffffff;
-  --text: #111111;
-  --text-subtle: #5d5d66;
-  --line: #e5e5ea;
-  --accent: #6FA3C8;
-  --accent-soft: rgba(111, 163, 200, 0.12);
-  --shadow: 0 12px 30px rgba(23, 23, 28, 0.08);
+  --bg-soft: #FFFFFF;
+  --text: #4A4C6A;
+  --text-subtle: #7B7D93;
+
+  --accent: #373850;
+  --accent-2: #A6A8C4;
+
+  --line: rgba(166, 168, 196, 0.80);
+  --accent-soft: rgba(166, 168, 196, 0.20);
+
+  --ink-08: rgba(74, 76, 106, 0.08);
+  --ink-12: rgba(74, 76, 106, 0.12);
+  --ink-18: rgba(74, 76, 106, 0.18);
+  --ink-35: rgba(74, 76, 106, 0.35);
+  --ink-50: rgba(74, 76, 106, 0.50);
+  --ink-70: rgba(74, 76, 106, 0.70);
+
+  --a2-08: rgba(166, 168, 196, 0.08);
+  --a2-12: rgba(166, 168, 196, 0.12);
+  --a2-18: rgba(166, 168, 196, 0.18);
+  --a2-20: rgba(166, 168, 196, 0.20);
+  --a2-28: rgba(166, 168, 196, 0.28);
+  --a2-35: rgba(166, 168, 196, 0.35);
+  --a2-45: rgba(166, 168, 196, 0.45);
+  --a2-60: rgba(166, 168, 196, 0.60);
+  --a2-80: rgba(166, 168, 196, 0.80);
+
+  --shadow-1: 0 6px 16px var(--ink-08);
+  --shadow-2: 0 12px 30px var(--ink-12);
+  --shadow-3: 0 18px 44px var(--ink-18);
+
+  --focus-outline: var(--focus-outline);
+  --focus-ring: 0 0 0 3px var(--a2-20);
+
+  --danger: #d92d43;
+  --danger-soft: rgba(217, 45, 67, 0.12);
+  --warning: #E6B450;
+  --warning-soft: rgba(230, 180, 80, 0.18);
+  --info: #6FA3C8;
+  --info-soft: var(--info-soft);
+
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
 }
-
 * {
   margin: 0;
   padding: 0;
@@ -92,7 +125,7 @@ textarea {
 
 .movie-watch-btn.is-active {
   background: var(--accent-soft);
-  border-color: rgba(95, 135, 170, 0.40);
+  border-color: var(--a2-45);
   color: var(--accent);
 }
 
@@ -105,7 +138,7 @@ textarea {
 .field-error-text {
   margin: -10px 0 0;
   font-size: 0.82rem;
-  color: #9FB2C8;
+  color: var(--accent-2);
   line-height: 1.3;
   font-weight: 700;
   text-decoration: underline;
@@ -148,7 +181,7 @@ textarea {
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: var(--bg-soft);
   color: var(--text-subtle);
   font-size: 0.9rem;
   cursor: pointer;
@@ -157,7 +190,7 @@ textarea {
 
 .page-btn.active {
   background: var(--accent-soft);
-  border-color: rgba(95, 135, 170, 0.35);
+  border-color: var(--a2-35);
   color: var(--accent);
   font-weight: 600;
 }
@@ -204,7 +237,7 @@ textarea {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: var(--bg-soft);
 }
 
 select:focus,
@@ -213,7 +246,7 @@ input:focus,
 input:focus-visible,
 textarea:focus,
 textarea:focus-visible {
-  border-color: rgba(166, 168, 196, 0.8);
+  border-color: var(--a2-80);
   outline: none;
   box-shadow: none;
 }
@@ -228,7 +261,7 @@ textarea {
   flex-wrap: wrap;
   gap: 30px;
   margin: 24px 0 0;
-  justify-content: center;   /* ⭐ 가로 가운데 정렬 */
+  justify-content: center;   /* ? ???? ???? ???? */
   list-style: none;
   padding: 0;
 }
@@ -249,22 +282,22 @@ textarea {
 .social-login-buttons {
   display: flex;
   gap: 12px;
-  justify-content: center; /* 아이콘이면 중앙 정렬 추천 */
+  justify-content: center; /* ????????? ??? ???? ??o */
   flex-wrap: wrap;
 }
 
 .social-btn {
-  all: unset;                 /* ⭐ 버튼 기본 스타일 제거 */
+  all: unset;                 /* ? ??? ?? ????? ???? */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  width: 44px;                /* 터치 최소 영역 */
+  width: 44px;                /* ??? ??? ???? */
   height: 44px;
 }
 
-/* 아이콘 크기 */
+/* ?????? ??? */
 .social-btn img {
   width: 44px;
   height: 44px;
@@ -273,13 +306,13 @@ textarea {
   display: block;
 }
 
-/* 키보드 접근성 */
+/* ????? ????? */
 .social-btn:focus-visible {
-  outline: 2px solid #000;
+  outline: var(--focus-outline);
   outline-offset: 4px;
 }
 
-/* 선택: 살짝 반응 */
+/* ????: ??| ???? */
 .social-btn:hover { opacity: 0.9; }
 .social-btn:active { transform: scale(0.95); }
 
@@ -332,7 +365,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 12px;
-  background: #ffffff;
+  background: var(--bg-soft);
   display: grid;
   gap: 8px;
 }
@@ -359,7 +392,7 @@ textarea {
 
 .filter-chip {
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: var(--bg-soft);
   color: var(--text-subtle);
   padding: 8px 14px;
   border-radius: 999px;
@@ -369,7 +402,7 @@ textarea {
 
 .filter-chip.active {
   background: var(--accent-soft);
-  border-color: rgba(95, 135, 170, 0.35);
+  border-color: var(--a2-35);
   color: var(--accent);
   font-weight: 600;
 }
@@ -503,8 +536,8 @@ textarea {
 
 .danger {
   color: #d92d43;
-  /* 경고 색상(블루로 통일할 경우 사용)
-  color: #4E789B; */
+  /* ??? ????(???? ?????? ??? ???)
+  color: var(--info); */
 }
 .toggle {
   position: relative;
@@ -519,7 +552,7 @@ textarea {
   width: 44px;
   height: 26px;
   border-radius: 999px;
-  background: #e5e5ea;
+  background: var(--line);
   position: relative;
   outline: none;
   cursor: pointer;
@@ -534,13 +567,13 @@ textarea {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--bg-soft);
   transition: transform 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px var(--ink-18);
 }
 
 .toggle input:checked {
-  background: rgba(95, 135, 170, 0.6);
+  background: var(--a2-60);
 }
 
 .toggle input:checked::after {
@@ -568,7 +601,7 @@ textarea {
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: var(--bg-soft);
   font-weight: 600;
 }
 
@@ -599,7 +632,7 @@ textarea {
 .question-item {
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: var(--bg-soft);
   overflow: hidden;
 }
 
@@ -625,7 +658,7 @@ textarea {
 
 .question-item-answer {
   border-top: 1px solid var(--line);
-  background: #f8f8fb;
+  background: var(--bg);
   padding: 12px 14px;
   display: grid;
   gap: 6px;
@@ -679,8 +712,8 @@ textarea {
 }
 
 .like-btn {
-  border: 1px solid rgba(95, 135, 170, 0.35);
-  background: rgba(111, 163, 200, 0.08);
+  border: 1px solid var(--a2-35);
+  background: var(--a2-08);
   color: var(--accent);
   padding: 8px 14px;
   border-radius: 999px;
@@ -692,7 +725,7 @@ textarea {
   padding: 14px 12px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: var(--bg-soft);
   display: grid;
   gap: 8px;
   justify-items: center;
@@ -756,7 +789,7 @@ textarea {
 
 .meter {
   height: 8px;
-  background: #f0f0f4;
+  background: var(--a2-08);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -765,7 +798,7 @@ textarea {
   display: block;
   height: 100%;
   width: 50%;
-  background: linear-gradient(90deg, #6FA3C8, #ff7aa4);
+  background: linear-gradient(90deg, var(--info), var(--accent-2));
 }
 
 @keyframes rise {
@@ -778,3 +811,7 @@ textarea {
     transform: translateY(0);
   }
 }
+
+
+
+

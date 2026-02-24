@@ -401,11 +401,11 @@
 
 .landing-strip {
   margin-top: 28px;
-  padding: 40px 32px;
-  border-radius: var(--radius-lg);
+  padding: 0;
+  border-radius: 0;
   border: none;
-  background: linear-gradient(135deg, var(--bg-soft) 0%, var(--a2-08) 60%, var(--bg-soft) 100%);
-  box-shadow: var(--shadow-2);
+  background: transparent;
+  box-shadow: none;
 }
 
 .strip-head h2 {
@@ -424,15 +424,15 @@
 }
 
 .strip-step {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--a2-35);
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
   background: var(--bg-soft);
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-weight: 600;
-  box-shadow: 0 6px 12px var(--ink-08);
+  box-shadow: var(--shadow-soft);
 }
 
 .strip-step span {
@@ -885,7 +885,7 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 40;
+  z-index: 2000;
 }
 
 .group-selected-members.is-inline {
@@ -917,6 +917,10 @@
 .activity-page .activity-top-grid .activity-top-card {
   margin-top: 0;
   height: 100%;
+}
+
+.activity-page .activity-top-grid .activity-top-card-full {
+  grid-column: 1 / -1;
 }
 
 .profile-header {

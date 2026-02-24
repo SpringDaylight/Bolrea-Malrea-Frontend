@@ -1,13 +1,14 @@
 import MainLayout from "../components/layout/MainLayout";
+import PageTitle from "../components/common/PageTitle";
 
 export default function CommentPage() {
   return (
     <MainLayout>
       <main className="container">
-        <section className="page-title">
-          <h1>내 감상 기록</h1>
-          <p>보고 난 뒤의 감정을 잊지 않도록 남겨보세요.</p>
-        </section>
+        <PageTitle
+          title="내 감상 기록"
+          description="보고 난 뒤의 감정을 잊지 않도록 남겨보세요."
+        />
 
         <section className="section">
           <article className="card">

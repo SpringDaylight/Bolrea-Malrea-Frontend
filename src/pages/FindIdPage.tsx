@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import PageTitle from "../components/common/PageTitle";
 
 export default function FindIdPage() {
   const [email, setEmail] = useState("");
@@ -8,10 +9,11 @@ export default function FindIdPage() {
   return (
     <MainLayout>
       <main className="container">
-        <section className="page-title centered">
-          <h1>아이디 찾기</h1>
-          <p>가입 시 사용한 이메일로 아이디를 찾습니다.</p>
-        </section>
+        <PageTitle
+          title="아이디 찾기"
+          description="가입 시 사용한 이메일로 아이디를 찾습니다."
+          centered
+        />
 
         <section className="section">
           <article className="card auth-card">

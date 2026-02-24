@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import SectionHeader from "../components/common/SectionHeader";
 import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
@@ -14,12 +15,12 @@ type MoviesPageSnapshot = {
   searchQuery: string;
   selectedSorts: string[];
   selectedGenres: string[];
-  selectedRuntime: string | null;
-  selectedYearRange: string | null;
+  selectedRuntime: string[];
+  selectedYearRange: string[];
   appliedSorts: string[];
   appliedGenres: string[];
-  appliedRuntime: string | null;
-  appliedYearRange: string | null;
+  appliedRuntime: string[];
+  appliedYearRange: string[];
   appliedQuery: string;
   currentPage: number;
   scrollY: number;
@@ -76,13 +77,6 @@ const yearRangeFilters = [
   { value: "2020plus", label: "2020년 이후", min: 2020 },
 ] as const;
 
-const getReleaseYear = (release?: string | null) => {
-  if (!release) return null;
-  const match = /\d{4}/.exec(release);
-  if (!match) return null;
-  const year = Number(match[0]);
-  return Number.isFinite(year) ? year : null;
-};
 
 const resolveFilterToGenres = (values: string[]) => {
   return Array.from(
@@ -101,6 +95,46 @@ const resolveGenresToFilterValues = (genres: string[]) => {
     .map((filter) => filter.value);
 };
 
+const resolveRuntimeRange = (value: string | null): {
+  runtime_min?: number;
+  runtime_max?: number;
+} => {
+  if (!value) return {};
+  switch (value) {
+    case "under-100":
+      return { runtime_max: 100 };
+    case "between-100-120":
+      return { runtime_min: 100, runtime_max: 120 };
+    case "between-120-140":
+      return { runtime_min: 120, runtime_max: 140 };
+    case "over-140":
+      return { runtime_min: 140 };
+    default:
+      return {};
+  }
+};
+
+const resolveYearRange = (value: string | null): {
+  year_min?: number;
+  year_max?: number;
+} => {
+  if (!value) return {};
+  const range = yearRangeFilters.find((filter) => filter.value === value);
+  if (!range) return {};
+  return {
+    year_min: range.min,
+    ...(typeof range.max === "number" ? { year_max: range.max } : {}),
+  };
+};
+
+const getReleaseYear = (release?: string | null) => {
+  if (!release) return null;
+  const match = /\d{4}/.exec(release);
+  if (!match) return null;
+  const year = Number(match[0]);
+  return Number.isFinite(year) ? year : null;
+};
+
 export default function MoviesPage() {
   const navigate = useNavigate();
   const navigationType = useNavigationType();
@@ -112,12 +146,12 @@ export default function MoviesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSorts, setSelectedSorts] = useState<string[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedRuntime, setSelectedRuntime] = useState<string | null>(null);
-  const [selectedYearRange, setSelectedYearRange] = useState<string | null>(null);
+  const [selectedRuntime, setSelectedRuntime] = useState<string[]>([]);
+  const [selectedYearRange, setSelectedYearRange] = useState<string[]>([]);
   const [appliedSorts, setAppliedSorts] = useState<string[]>([]);
   const [appliedGenres, setAppliedGenres] = useState<string[]>([]);
-  const [appliedRuntime, setAppliedRuntime] = useState<string | null>(null);
-  const [appliedYearRange, setAppliedYearRange] = useState<string | null>(null);
+  const [appliedRuntime, setAppliedRuntime] = useState<string[]>([]);
+  const [appliedYearRange, setAppliedYearRange] = useState<string[]>([]);
   const [appliedQuery, setAppliedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -165,57 +199,6 @@ export default function MoviesPage() {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(MOVIES_PAGE_SNAPSHOT_KEY);
-      if (!raw) return;
-      if (navigationType !== "POP") {
-        sessionStorage.removeItem(MOVIES_PAGE_SNAPSHOT_KEY);
-        return;
-      }
-      const parsed = JSON.parse(raw) as MoviesPageSnapshot;
-
-      if (!parsed || parsed.restoreOnReturn !== true) return;
-
-      const toStringArray = (value: unknown) =>
-        Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === "string")
-          : [];
-
-      setSearchQuery(typeof parsed.searchQuery === "string" ? parsed.searchQuery : "");
-      setSelectedSorts(toStringArray(parsed.selectedSorts));
-      setSelectedGenres(toStringArray(parsed.selectedGenres));
-      setSelectedRuntime(
-        typeof parsed.selectedRuntime === "string" ? parsed.selectedRuntime : null
-      );
-      setSelectedYearRange(
-        typeof parsed.selectedYearRange === "string" ? parsed.selectedYearRange : null
-      );
-      setAppliedSorts(toStringArray(parsed.appliedSorts));
-      setAppliedGenres(toStringArray(parsed.appliedGenres));
-      setAppliedRuntime(
-        typeof parsed.appliedRuntime === "string" ? parsed.appliedRuntime : null
-      );
-      setAppliedYearRange(
-        typeof parsed.appliedYearRange === "string" ? parsed.appliedYearRange : null
-      );
-      setAppliedQuery(typeof parsed.appliedQuery === "string" ? parsed.appliedQuery : "");
-      setCurrentPage(
-        Number.isFinite(parsed.currentPage) && parsed.currentPage > 0
-          ? Math.floor(parsed.currentPage)
-          : 1
-      );
-      setPendingScrollRestore(
-        Number.isFinite(parsed.scrollY) && parsed.scrollY >= 0
-          ? parsed.scrollY
-          : 0
-      );
-      shouldSkipSearchParamInitRef.current = true;
-    } catch (err) {
-      console.error("Failed to restore movies page state:", err);
-    }
-  }, [navigationType]);
-
-  useEffect(() => {
     if (shouldSkipSearchParamInitRef.current) {
       shouldSkipSearchParamInitRef.current = false;
       return;
@@ -240,7 +223,6 @@ export default function MoviesPage() {
       setCurrentPage(1);
     }
   }, [searchParams]);
-
   useEffect(() => {
     if (pendingScrollRestore === null) return;
     if (loading) return;
@@ -269,11 +251,21 @@ export default function MoviesPage() {
             ? (sortKey as "latest" | "popular" | "rating")
             : undefined;
         const genres = appliedGenres.length > 0 ? appliedGenres.join(",") : undefined;
+        const runtimeRange =
+          appliedRuntime.length === 1
+            ? resolveRuntimeRange(appliedRuntime[0])
+            : {};
+        const yearRange =
+          appliedYearRange.length === 1
+            ? resolveYearRange(appliedYearRange[0])
+            : {};
 
         const response = await getMovies({
           query: appliedQuery || undefined,
           genres,
           sort,
+          ...runtimeRange,
+          ...yearRange,
           page: currentPage,
           page_size: 20,
         });
@@ -287,58 +279,52 @@ export default function MoviesPage() {
               )
             : response.movies;
         const filteredByRuntime =
-          appliedRuntime === "under-100"
-            ? filteredByTitle.filter(
-                (movie) => typeof movie.runtime === "number" && movie.runtime <= 100
-              )
-            : appliedRuntime === "between-100-120"
-              ? filteredByTitle.filter(
-                  (movie) =>
-                    typeof movie.runtime === "number" &&
-                    movie.runtime >= 100 &&
-                    movie.runtime <= 120
-                )
-              : appliedRuntime === "between-120-140"
-                ? filteredByTitle.filter(
-                    (movie) =>
-                      typeof movie.runtime === "number" &&
-                      movie.runtime >= 120 &&
-                      movie.runtime <= 140
-                  )
-                : appliedRuntime === "over-140"
-                  ? filteredByTitle.filter(
-                      (movie) => typeof movie.runtime === "number" && movie.runtime > 140
-                    )
-                  : filteredByTitle;
-        const filteredByYear = appliedYearRange
-          ? filteredByRuntime.filter((movie) => {
-              const year = getReleaseYear(movie.release);
-              if (!year) return false;
-              const range = yearRangeFilters.find(
-                (filter) => filter.value === appliedYearRange
-              );
-              if (!range) return true;
-              if (typeof range.min === "number" && year < range.min) return false;
-              if ("max" in range && typeof range.max === "number" && year > range.max)
-                return false;
-              return true;
-            })
-          : filteredByRuntime;
+          appliedRuntime.length > 1
+            ? filteredByTitle.filter((movie) => {
+                const runtime = typeof movie.runtime === "number" ? movie.runtime : null;
+                if (runtime === null) return false;
+                return appliedRuntime.some((value) => {
+                  const { runtime_min, runtime_max } = resolveRuntimeRange(value);
+                  if (typeof runtime_min === "number" && runtime < runtime_min) return false;
+                  if (typeof runtime_max === "number" && runtime > runtime_max) return false;
+                  return true;
+                });
+              })
+            : filteredByTitle;
+        const filteredByYear =
+          appliedYearRange.length > 1
+            ? filteredByRuntime.filter((movie) => {
+                const year = getReleaseYear(movie.release);
+                if (!year) return false;
+                return appliedYearRange.some((value) => {
+                  const { year_min, year_max } = resolveYearRange(value);
+                  if (typeof year_min === "number" && year < year_min) return false;
+                  if (typeof year_max === "number" && year > year_max) return false;
+                  return true;
+                });
+              })
+            : filteredByRuntime;
         const nextMovies =
           sortKey === "title"
-            ? [...filteredByYear].sort((a, b) =>
-                (a.title ?? "").localeCompare(b.title ?? "", "ko")
-              )
+            ? [...filteredByYear].sort((a, b) => {
+                const titleA = (a.title ?? "").trim();
+                const titleB = (b.title ?? "").trim();
+                if (!titleA && !titleB) return 0;
+                if (!titleA) return 1;
+                if (!titleB) return -1;
+                const collator = new Intl.Collator(["ko-KR", "en-US"], {
+                  numeric: true,
+                  sensitivity: "base",
+                  ignorePunctuation: true,
+                });
+                return collator.compare(titleA, titleB);
+              })
             : filteredByYear;
         setMovies(nextMovies);
-        const totalSource =
-          normalizedQuery.length > 0 || appliedRuntime || appliedYearRange
-            ? filteredByYear.length
-            : response.total;
-        const nextTotalPages = Math.max(
-          1,
-          Math.ceil(totalSource / response.page_size)
-        );
+        const shouldUseClientTotal =
+          appliedRuntime.length > 1 || appliedYearRange.length > 1;
+        const totalSource = shouldUseClientTotal ? filteredByYear.length : response.total;
+        const nextTotalPages = Math.max(1, Math.ceil(totalSource / response.page_size));
         setTotalPages(nextTotalPages);
       } catch (err) {
         if (isCancelled) return;
@@ -362,8 +348,7 @@ export default function MoviesPage() {
     appliedYearRange,
     currentPage,
   ]);
-
-  const handleSortSelect = (value: string) => {
+const handleSortSelect = (value: string) => {
     setSelectedSorts((prev) => {
       const nextSorts = prev[0] === value ? [] : [value];
       setAppliedSorts(nextSorts);
@@ -385,7 +370,9 @@ export default function MoviesPage() {
 
   const handleRuntimeToggle = (value: string) => {
     setSelectedRuntime((prev) => {
-      const nextSelected = prev === value ? null : value;
+      const nextSelected = prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value];
       setAppliedRuntime(nextSelected);
       setCurrentPage(1);
       return nextSelected;
@@ -394,7 +381,9 @@ export default function MoviesPage() {
 
   const handleYearRangeToggle = (value: string) => {
     setSelectedYearRange((prev) => {
-      const nextSelected = prev === value ? null : value;
+      const nextSelected = prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value];
       setAppliedYearRange(nextSelected);
       setCurrentPage(1);
       return nextSelected;
@@ -523,7 +512,7 @@ export default function MoviesPage() {
                   <button
                     key={filter.value}
                     className={`filter-chip ${
-                      selectedYearRange === filter.value ? "active" : ""
+                      selectedYearRange.includes(filter.value) ? "active" : ""
                     }`}
                     type="button"
                     onClick={() => handleYearRangeToggle(filter.value)}
@@ -540,7 +529,7 @@ export default function MoviesPage() {
                   <button
                     key={filter.value}
                     className={`filter-chip ${
-                      selectedRuntime === filter.value ? "active" : ""
+                      selectedRuntime.includes(filter.value) ? "active" : ""
                     }`}
                     type="button"
                     onClick={() => handleRuntimeToggle(filter.value)}
@@ -554,10 +543,7 @@ export default function MoviesPage() {
         </section>
 
         <section className="section">
-          <div className="section-header">
-            <h2>검색결과</h2>
-            {/* <p>선택한 기준으로 추천된 영화가 표시됩니다</p> */}
-          </div>
+          <SectionHeader title="검색결과" />
           <div className="movie-sort-links">
             {sortFilters.map((filter) => (
               <button
@@ -713,3 +699,12 @@ export default function MoviesPage() {
     </MainLayout>
   );
 }
+
+
+
+
+
+
+
+
+

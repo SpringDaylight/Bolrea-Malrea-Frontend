@@ -1,4 +1,4 @@
-import {
+﻿import {
   useEffect,
   useRef,
   useState,
@@ -16,7 +16,6 @@ import { rouletteItems, type RouletteItem } from "../components/roulette/roulett
 import { getCurrentUser } from "../api/A7_profile";
 import { getRouletteConfig, getRouletteStatus, spinRoulette } from "../api/A9_roulette";
 import { getAccessToken } from "../api/http";
-
 type QuestionItem = {
   id: number;
   question: string;
@@ -39,7 +38,7 @@ const questionItems: QuestionItem[] = Array.from({ length: 32 }, (_, index) => {
     id: index + 1,
     question: `질문 내용 ${index + 1}번입니다.`,
     createdAt: `2026-02-${day}`,
-    answer: `내 답변 내용 ${index + 1}번입니다.`,
+    answer: `답변 내용 ${index + 1}번입니다.`,
   };
 });
 
@@ -114,11 +113,12 @@ export default function MoviemongPage() {
   const selectedTheme = moviemongThemeItems.find(
     (theme) => theme.id === selectedThemeId
   );
-  const heroThemeBackgroundStyle = selectedTheme
-    ? {
-        backgroundImage: `url(${selectedTheme.imageSrc})`,
-      }
-    : undefined;
+  const heroThemeBackgroundStyle =
+    selectedTheme && isLoggedIn
+      ? {
+          backgroundImage: `url(${selectedTheme.imageSrc})`,
+        }
+      : undefined;
   const expMax = getNextExpRequirement(level + 1);
   const expPercent =
     expMax > 0 ? Math.min(100, Math.round((expValue / expMax) * 100)) : 0;
@@ -149,13 +149,13 @@ export default function MoviemongPage() {
 
   const handleRouletteSpin = async (): Promise<RouletteItem | null> => {
     if (!isLoggedIn) {
-      alert("????????????????.");
+      alert("로그인 후 이용해주세요.");
       return null;
     }
     try {
       const status = await getRouletteStatus();
       if (!status.can_spin) {
-        alert("????? ??? ???????????.");
+        alert("이미 룰렛을 사용했어요.");
         return null;
       }
 
@@ -183,9 +183,8 @@ export default function MoviemongPage() {
       return resultItem;
     } catch (error) {
       console.error("Failed to spin roulette:", error);
-      const message =
-        error instanceof Error ? error.message : "??? ??? ????? ?????????.";
-      alert(message || "??? ??? ????? ?????????.");
+      const message = error instanceof Error ? error.message : "룰렛 결과를 불러오지 못했습니다.";
+      alert(message || "룰렛 결과를 불러오지 못했습니다.");
       return null;
     }
   };
@@ -437,6 +436,7 @@ export default function MoviemongPage() {
               </>
             ) : (
               <div className="reviewmong-login-placeholder">
+                <h2>무비몽</h2>
                 <p className="muted login-required-text">로그인 후 이용해주세요.</p>
               </div>
             )}
@@ -445,9 +445,7 @@ export default function MoviemongPage() {
         <section>
           <div className="reviewmong-actions">
             <button
-              className={`secondary-btn ${
-                activeTab === "question" ? "is-active" : ""
-              }`}
+              className={`secondary-btn ${activeTab === "question" ? "is-active" : ""}`}
               type="button"
               onClick={() => handleTabClick("question")}
             >
@@ -458,33 +456,31 @@ export default function MoviemongPage() {
               type="button"
               onClick={() => handleTabClick("feed")}
             >
-              밥주기
+              룰렛
             </button>
             <button
               className={`secondary-btn ${activeTab === "theme" ? "is-active" : ""}`}
               type="button"
               onClick={() => handleTabClick("theme")}
             >
-              테마
+              <p className="question-title">테마</p>
             </button>
             <button
-              className={`secondary-btn ${
-                activeTab === "recipe" ? "is-active" : ""
-              }`}
+              className={`secondary-btn ${activeTab === "recipe" ? "is-active" : ""}`}
               type="button"
               onClick={() => handleTabClick("recipe")}
             >
-              취향 레시피
+              <p className="question-title">취향 레시피</p>
             </button>
             <button
               className={`secondary-btn ${activeTab === "bag" ? "is-active" : ""}`}
               type="button"
               onClick={() => handleTabClick("bag")}
             >
-              내 가방
+              <p className="question-title">보관함</p>
             </button>
           </div>
-          <div
+            <div
             key={`reviewmong-panel-${activeTab}-${panelVersion}`}
             className={`reviewmong-panel ${activeTab === null ? "is-hidden" : ""}`}
           >
@@ -496,13 +492,13 @@ export default function MoviemongPage() {
               <>
                 {activeTab === "question" && (
                   <div className="reviewmong-question">
-                    <p className="question-title">오늘의 질문?</p>
+                    <p className="question-title">오늘의 질문</p>
                     <p className="question-text">
-                      Q1. 태어나서 처음으로 극장에서 봤던 영화, 어렴풋이 기억나요?
+                      Q1. 최근에 영화관에서 본 영화는 무엇인가요?
                     </p>
                     <textarea
                       className="question-input"
-                      placeholder="답변(250bytes)"
+                      placeholder="답변을 입력해 주세요. (250bytes)"
                       maxLength={250}
                     />
                     <div className="question-actions">
@@ -512,7 +508,7 @@ export default function MoviemongPage() {
                     </div>
                     <div className="question-history">
                       <div className="question-history-header">
-                        <span>내 질문 목록</span>
+                        <span>이전 질문 목록</span>
                         <span>
                           {filteredQuestions.length}개 중 {rangeStart}-{rangeEnd}개
                         </span>
@@ -537,7 +533,7 @@ export default function MoviemongPage() {
                               </button>
                               {isOpen && (
                                 <div className="question-item-answer">
-                                  <span className="question-item-answer-label">내 답변</span>
+                                  <span className="question-item-answer-label">답변</span>
                                   <p>{item.answer}</p>
                                 </div>
                               )}
@@ -616,7 +612,7 @@ export default function MoviemongPage() {
                 )}
                 {activeTab === "theme" && (
                   <div className="reviewmong-question">
-                    <p className="question-title">테마</p>
+              <p className="question-title">테마</p>
                     <p className="question-text">무비몽 테마를 골라보세요.</p>
                     <div className="reviewmong-theme-wrap">
                       {canThemeScrollLeft && (
@@ -658,7 +654,7 @@ export default function MoviemongPage() {
                             />
                             {selectedThemeId === theme.id && (
                               <span className="moviemong-theme-check" aria-hidden="true">
-                                ✓
+                                {"\u2713"}
                               </span>
                             )}
                           </button>
@@ -679,14 +675,14 @@ export default function MoviemongPage() {
                 )}
                 {/* {activeTab === "recipe" && (
                   <div className="reviewmong-question">
-                    <p className="question-title">취향 레시피</p>
-                    <p className="question-text">준비 중이에요.</p>
+              <p className="question-title">취향 레시피</p>
+                    <p className="question-text">준비중이에요.</p>
                   </div>
                 )} */}
                 {activeTab === "bag" && (
                   <div className="reviewmong-question">
-                    <p className="question-title">내 가방</p>
-                    <p className="question-text">준비 중이에요.</p>
+              <p className="question-title">보관함</p>
+                    <p className="question-text">준비중이에요.</p>
                   </div>
                 )}
               </>
@@ -697,3 +693,7 @@ export default function MoviemongPage() {
     </MainLayout>
   );
 }
+
+
+
+

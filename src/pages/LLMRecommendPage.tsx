@@ -3,6 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { recommendMovies, explainRecommendation, type Movie } from '../api/llmRecommend';
 import MainLayout from '../components/layout/MainLayout';
 import '../styles/LLMRecommendPage.css';
+import {
+  getStorageItem,
+  removeStorageItem,
+  setJsonToStorage,
+  safeParseJson,
+} from '../utils/storage';
 
 // localStorage 키
 const STORAGE_KEY = 'llm_recommend_state';
@@ -41,9 +47,13 @@ export default function LLMRecommendPage() {
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = getStorageItem(STORAGE_KEY);
       if (saved) {
-        const state: SavedState = JSON.parse(saved);
+        const state = safeParseJson<SavedState | null>(saved, null);
+        if (!state) {
+          removeStorageItem(STORAGE_KEY);
+          return;
+        }
         
         // 24시간 이내 데이터만 복원 (선택사항)
         const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -58,12 +68,12 @@ export default function LLMRecommendPage() {
           setEmotionWeight(state.emotionWeight || 0);
         } else {
           // 오래된 데이터는 삭제
-          localStorage.removeItem(STORAGE_KEY);
+          removeStorageItem(STORAGE_KEY);
         }
       }
     } catch (err) {
       console.error('Failed to restore state:', err);
-      localStorage.removeItem(STORAGE_KEY);
+      removeStorageItem(STORAGE_KEY);
     }
   }, []);
 
@@ -83,7 +93,7 @@ export default function LLMRecommendPage() {
           emotionWeight,
           timestamp: Date.now()
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        setJsonToStorage(STORAGE_KEY, state);
       } catch (err) {
         console.error('Failed to save state:', err);
       }
@@ -132,7 +142,7 @@ export default function LLMRecommendPage() {
     setError('');
     setKeywordCandidates([]);
     setVectorCandidates([]);
-    localStorage.removeItem(STORAGE_KEY);
+    removeStorageItem(STORAGE_KEY);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

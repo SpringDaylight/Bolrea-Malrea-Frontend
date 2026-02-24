@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import SectionHeader from "../components/common/SectionHeader";
+import MovieTileCard from "../components/movie/MovieTileCard";
+import LoadingState from "../components/common/LoadingState";
 import { Link, useNavigate } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
 import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
@@ -326,31 +328,29 @@ export default function HomePage() {
                 </div>
               ) : (
                 <>
-                  {loading && <p>로딩 중...</p>}
+                  {loading && <LoadingState />}
 
                   {!loading && recommendedMovies.length > 0 && (
                     <div className="movie-grid">
                       {visibleRecommended.map((movie) => (
                         <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
-                          <article className="card movie-tile">
-                            <img
-                              className="poster"
-                              src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
-                              alt={`${movie.title} 포스터`}
-                            />
-                            <div className="movie-info">
-                              <h3>{movie.title}</h3>
-                              <p className="probability home-match-probability">
-                                적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
-                              </p>
-                              <p className="muted synopsis-clamp">
-                                {movie.synopsis
-                                  ? movie.synopsis.substring(0, 60) +
-                                    (movie.synopsis.length > 60 ? "..." : "")
-                                  : "줄거리 정보가 없습니다."}
-                              </p>
-                            </div>
-                          </article>
+                          <MovieTileCard
+                            title={movie.title}
+                            posterUrl={
+                              movie.poster_url ||
+                              "https://via.placeholder.com/500x750?text=No+Image"
+                            }
+                          >
+                            <p className="probability home-match-probability">
+                              적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
+                            </p>
+                            <p className="muted synopsis-clamp">
+                              {movie.synopsis
+                                ? movie.synopsis.substring(0, 60) +
+                                  (movie.synopsis.length > 60 ? "..." : "")
+                                : "줄거리 정보가 없습니다."}
+                            </p>
+                          </MovieTileCard>
                         </Link>
                       ))}
                     </div>

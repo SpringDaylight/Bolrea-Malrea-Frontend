@@ -150,6 +150,42 @@ export default function LLMRecommendPage() {
     navigate(movie.detail_url);
   };
 
+  // 추가 추천 영화 선택 (메인 추천과 겹치지 않게, 가중치 비율로 5개)
+  const getAdditionalRecommendations = (): Movie[] => {
+    if (!keywordCandidates.length && !vectorCandidates.length) return [];
+    
+    // 메인 추천 영화 ID 집합
+    const mainMovieIds = new Set(recommendations.map(m => m.movie_id));
+    
+    // 겹치지 않는 후보들만 필터링
+    const uniqueKeywordCandidates = keywordCandidates.filter(m => !mainMovieIds.has(m.movie_id));
+    const uniqueVectorCandidates = vectorCandidates.filter(m => !mainMovieIds.has(m.movie_id));
+    
+    // 가중치 비율로 개수 계산 (총 5개)
+    const totalCount = 5;
+    const keywordCount = Math.round(totalCount * keywordWeight);
+    const emotionCount = totalCount - keywordCount;
+    
+    // 각 후보군에서 선택
+    const selectedKeyword = uniqueKeywordCandidates.slice(0, keywordCount);
+    const selectedEmotion = uniqueVectorCandidates.slice(0, emotionCount);
+    
+    // 합치기
+    const additional = [...selectedKeyword, ...selectedEmotion];
+    
+    // 5개가 안 되면 나머지로 채우기
+    if (additional.length < totalCount) {
+      const remaining = [...uniqueKeywordCandidates, ...uniqueVectorCandidates]
+        .filter(m => !additional.find(a => a.movie_id === m.movie_id))
+        .slice(0, totalCount - additional.length);
+      additional.push(...remaining);
+    }
+    
+    return additional.slice(0, totalCount);
+  };
+
+  const additionalRecommendations = getAdditionalRecommendations();
+
   const handleExplainClick = async (movie: Movie, e: React.MouseEvent) => {
     e.stopPropagation(); // 영화 카드 클릭 이벤트 방지
     
@@ -201,43 +237,6 @@ export default function LLMRecommendPage() {
       setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: false }));
     }
   };
-
-  const renderCandidateCard = (movie: Movie, index: number) => (
-    <div 
-      key={`${movie.movie_id}-${index}`}
-      className={`candidate-card ${movie.is_selected ? 'selected' : 'not-selected'}`}
-      onClick={() => handleMovieClick(movie)}
-    >
-      {movie.poster_url ? (
-        <img 
-          src={movie.poster_url} 
-          alt={movie.title}
-          className="candidate-poster"
-        />
-      ) : (
-        <div className="candidate-poster-placeholder">
-          🎬
-        </div>
-      )}
-      <div className="candidate-info">
-        <h4>{movie.title}</h4>
-        <p className="candidate-genres">{movie.genres.join(', ')}</p>
-        <div className="candidate-score">
-          <span className="score-badge">
-            {(movie.final_score! * 100).toFixed(0)}%
-          </span>
-          {movie.is_selected ? (
-            <span className="selected-badge">✅ 선택됨</span>
-          ) : (
-            <span className="not-selected-badge">❌ 제외됨</span>
-          )}
-        </div>
-        {movie.not_selected_reason && (
-          <p className="not-selected-reason">💭 {movie.not_selected_reason}</p>
-        )}
-      </div>
-    </div>
-  );
 
   useEffect(() => {
     const query = searchParams.get('q');
@@ -396,41 +395,46 @@ export default function LLMRecommendPage() {
           </div>
         )}
 
-        {useOrchestrator && !isLoading && (keywordCandidates.length > 0 || vectorCandidates.length > 0) && (
-          <div className="candidates-section">
-            <h2>🔍 추천 과정</h2>
-            
-            {keywordWeight > 0 && emotionWeight > 0 && (
-              <div className="weight-info">
-                <p>
-                  <strong>가중치 설정:</strong> 키워드 {(keywordWeight * 100).toFixed(0)}% / 감성 {(emotionWeight * 100).toFixed(0)}%
-                </p>
-              </div>
-            )}
-
-            {keywordCandidates.length > 0 && (
-              <div className="candidate-group">
-                <h3>🔍 키워드 검색 후보 (상위 {keywordCandidates.length}개)</h3>
-                <p className="candidate-description">
-                  제목과 시놉시스에서 키워드를 찾아 매칭한 결과입니다.
-                </p>
-                <div className="candidate-grid">
-                  {keywordCandidates.map((movie, index) => renderCandidateCard(movie, index))}
+        {/* 추가 추천 섹션 */}
+        {useOrchestrator && !isLoading && additionalRecommendations.length > 0 && (
+          <div className="additional-recommendations-wrapper">
+            <div className="additional-recommendations-header">
+              <h2>✨ 비슷한 키워드 혹은 감성을 가진 영화들 또한 추천드려요</h2>
+            </div>
+            <div className="additional-movie-grid">
+              {additionalRecommendations.map((movie) => (
+                <div key={movie.movie_id} className="additional-movie-card" onClick={() => handleMovieClick(movie)}>
+                  {movie.poster_url ? (
+                    <img 
+                      src={movie.poster_url} 
+                      alt={movie.title}
+                      className="additional-movie-poster"
+                    />
+                  ) : (
+                    <div className="additional-movie-poster-placeholder">
+                      🎬
+                    </div>
+                  )}
+                  <div className="additional-movie-info">
+                    <h3>{movie.title}</h3>
+                    <p className="additional-movie-genres">{movie.genres.join(', ')}</p>
+                    
+                    {/* 만족도 확률 표시 */}
+                    <div className="additional-movie-satisfaction">
+                      {movie.satisfaction_probability !== undefined ? (
+                        <span className="satisfaction-value">
+                          💝 {(movie.satisfaction_probability * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="satisfaction-login-hint">
+                          🔒 로그인 필요
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {vectorCandidates.length > 0 && (
-              <div className="candidate-group">
-                <h3>🎭 감성 검색 후보 (상위 {vectorCandidates.length}개)</h3>
-                <p className="candidate-description">
-                  영화의 감성 프로필과 요청의 유사도를 계산한 결과입니다.
-                </p>
-                <div className="candidate-grid">
-                  {vectorCandidates.map((movie, index) => renderCandidateCard(movie, index))}
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         )}
 

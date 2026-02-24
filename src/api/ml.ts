@@ -57,6 +57,7 @@ export interface MovieProfile {
 
 // A-3: 만족 확률 계산
 export interface PredictSatisfactionRequest {
+  user_id?: string;  // ✅ 문자열 UUID (있으면 백엔드에서 DB 조회)
   user_profile: UserProfile;
   movie_profile: MovieProfile;
   dislike_tags?: string[];

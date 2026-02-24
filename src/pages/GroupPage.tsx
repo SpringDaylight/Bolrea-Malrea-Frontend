@@ -6,6 +6,7 @@ import { analyzePreference, simulateGroup } from "../api/ml";
 import { getCurrentUser } from "../api/users";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
 import { getAccessToken } from "../api/http";
+import { useTasteSurveyStorage } from "../hooks/useTasteSurveyStorage";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
@@ -20,29 +21,6 @@ const getUserDisplayName = (user: GroupUserSearchItem) =>
   user.nickname?.trim() || user.user_id?.trim() || user.id;
 const getUserSecondaryLabel = (user: GroupUserSearchItem) =>
   user.user_id?.trim() || user.id;
-
-const getLocalStorageItem = (key: string) => {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-
-const parseArrayFromStorage = (key: string): string[] => {
-  try {
-    const raw = getLocalStorageItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-};
 
 export default function GroupPage() {
   const [userQuery, setUserQuery] = useState("");
@@ -63,6 +41,7 @@ export default function GroupPage() {
   const isLoggedIn = Boolean(getAccessToken());
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
+  const tasteSurvey = useTasteSurveyStorage();
 
   const showError = (message: string) => {
     setError(message);
@@ -239,12 +218,12 @@ export default function GroupPage() {
     setError(null);
 
     try {
-      const likedGenres = parseArrayFromStorage("mw_taste_genres");
-      const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
-      const keywords = parseArrayFromStorage("mw_taste_keywords");
-      const vibe = (localStorage.getItem("mw_taste_vibe") || "").trim();
-      const context = (localStorage.getItem("mw_taste_context") || "").trim();
-      const origin = (localStorage.getItem("mw_taste_origin") || "").trim();
+      const likedGenres = tasteSurvey.selectedGenres;
+      const avoidedGenres = tasteSurvey.avoidedGenres;
+      const keywords = tasteSurvey.savedKeywords;
+      const vibe = tasteSurvey.savedVibe;
+      const context = tasteSurvey.tasteContext;
+      const origin = tasteSurvey.tasteOrigin;
 
       const tasteText = [
         vibe,

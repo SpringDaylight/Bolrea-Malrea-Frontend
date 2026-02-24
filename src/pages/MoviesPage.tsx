@@ -2,12 +2,16 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import SectionHeader from "../components/common/SectionHeader";
+import MovieTileCard from "../components/movie/MovieTileCard";
+import LoadingState from "../components/common/LoadingState";
+import EmptyState from "../components/common/EmptyState";
 import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
 } from "../api/A8_watched";
 import { getAccessToken } from "../api/http";
+import { setJsonToSession } from "../utils/storage";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
 
@@ -134,13 +138,6 @@ const resolveYearRange = (value: string | null): {
   };
 };
 
-const getReleaseYear = (release?: string | null) => {
-  if (!release) return null;
-  const match = /\d{4}/.exec(release);
-  if (!match) return null;
-  const year = Number(match[0]);
-  return Number.isFinite(year) ? year : null;
-};
 
 export default function MoviesPage() {
   const navigate = useNavigate();
@@ -395,7 +392,7 @@ const handleSortSelect = (value: string) => {
       scrollY: window.scrollY,
       restoreOnReturn,
     };
-    sessionStorage.setItem(MOVIES_PAGE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    setJsonToSession(MOVIES_PAGE_SNAPSHOT_KEY, snapshot);
   };
 
   const handleOpenMovieDetail = (movieId: number) => {
@@ -526,19 +523,24 @@ const handleSortSelect = (value: string) => {
             ))}
           </div>
 
-          {loading && <p>로딩 중...</p>}
+          {loading && <LoadingState />}
           {error && <p className="error">{error}</p>}
 
           {!loading && !error && movies.length === 0 && (
-            <p>검색결과가 없습니다.</p>
+            <EmptyState message="검색결과가 없습니다." />
           )}
 
           {!loading && !error && movies.length > 0 && (
             <div className="movie-grid">
               {movies.map((movie) => (
-                <article
-                  className="card movie-tile movie-card-clickable"
+                <MovieTileCard
                   key={movie.id}
+                  className="movie-card-clickable"
+                  title={movie.title}
+                  posterUrl={
+                    movie.poster_url ||
+                    "https://via.placeholder.com/500x750?text=No+Image"
+                  }
                   role="button"
                   tabIndex={0}
                   onClick={() => handleOpenMovieDetail(movie.id)}
@@ -548,16 +550,7 @@ const handleSortSelect = (value: string) => {
                       handleOpenMovieDetail(movie.id);
                     }
                   }}
-                >
-                  <img
-                    className="poster"
-                    src={
-                      movie.poster_url ||
-                      "https://via.placeholder.com/500x750?text=No+Image"
-                    }
-                    alt={`${movie.title} 포스터`}
-                  />
-                  <div className="movie-info">
+                  titleSlot={
                     <div className="movie-card-title-row">
                       <h3>{movie.title}</h3>
                       <button
@@ -575,24 +568,19 @@ const handleSortSelect = (value: string) => {
                         시청함
                       </button>
                     </div>
-                    <p className="movie-rating">
-                      평점{" "}
-                      {typeof movie.avg_rating === "number"
-                        ? movie.avg_rating.toFixed(1)
-                        : "정보 없음"}{" "}
-                      ({movie.reviews_count ?? movie.review_count ?? 0})
-                    </p>
-                    <p className="muted synopsis-clamp">
-                      {movie.synopsis || "줄거리 정보가 없습니다."}
-                    </p>
-                    {/* <div className="meta-list">
-                      {movie.genres.slice(0, 3).map((genre) => (
-                        <span key={genre}>{genre}</span>
-                      ))}
-                      {movie.runtime && <span>{movie.runtime}분</span>}
-                    </div> */}
-                  </div>
-                </article>
+                  }
+                >
+                  <p className="movie-rating">
+                    평점{" "}
+                    {typeof movie.avg_rating === "number"
+                      ? movie.avg_rating.toFixed(1)
+                      : "정보 없음"}{" "}
+                    ({movie.reviews_count ?? movie.review_count ?? 0})
+                  </p>
+                  <p className="muted synopsis-clamp">
+                    {movie.synopsis || "줄거리 정보가 없습니다."}
+                  </p>
+                </MovieTileCard>
               ))}
             </div>
           )}

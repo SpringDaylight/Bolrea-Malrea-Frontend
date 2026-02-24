@@ -33,7 +33,7 @@
   --shadow-2: 0 12px 30px var(--ink-12);
   --shadow-3: 0 18px 44px var(--ink-18);
 
-  --font-base: "Pretendard Variable", "Pretendard", "jttbareunsaenghwal", sans-serif;
+  --font-base: "jttbareunsaenghwal", sans-serif;
   --focus-outline: 2px solid var(--accent);
   --focus-ring: 0 0 0 3px var(--a2-20);
 
@@ -56,6 +56,13 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
 }
 
 html,

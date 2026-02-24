@@ -7,6 +7,12 @@ import { analyzePreference } from "../api/ml";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
+import {
+  getArrayFromStorage,
+  getStringFromStorage,
+  setJsonToStorage,
+  setStorageItem,
+} from "../utils/storage";
 
 const genreLikeOptions = [
   "💕 로맨스 / 로코",
@@ -95,30 +101,8 @@ const normalizeKey = (value: string) => value.replace(/\s+/g, "").trim();
 const isAvoidNone = (value: string) =>
   avoidNoneAliases.some((label) => normalizeKey(label) === normalizeKey(value));
 
-const readStorageArray = (key: string): string[] => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is string => typeof item === "string" && item.trim().length > 0
-    );
-  } catch {
-    return [];
-  }
-};
-
-const readStorageString = (key: string): string => {
-  try {
-    return (localStorage.getItem(key) || "").trim();
-  } catch {
-    return "";
-  }
-};
-
 const readAvoidGenres = (): string[] => {
-  const stored = readStorageArray("mw_taste_avoid_genres");
+  const stored = getArrayFromStorage("mw_taste_avoid_genres");
   if (stored.some(isAvoidNone)) {
     return [avoidNoneLabel];
   }
@@ -126,21 +110,25 @@ const readAvoidGenres = (): string[] => {
 };
 
 const readKeywords = (): string[] => {
-  const stored = readStorageArray("mw_taste_keywords");
+  const stored = getArrayFromStorage("mw_taste_keywords");
   if (stored.length > 0) return stored;
-  return readStorageArray("mw_tast_keyword");
+  return getArrayFromStorage("mw_tast_keyword");
 };
 
 export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyModalProps) {
   const [surveyStep, setSurveyStep] = useState(0);
   const [genres, setGenres] = useState<string[]>(() =>
-    readStorageArray("mw_taste_genres")
+    getArrayFromStorage("mw_taste_genres")
   );
   const [avoidGenres, setAvoidGenres] = useState<string[]>(() => readAvoidGenres());
-  const [context, setContext] = useState(() => readStorageString("mw_taste_context"));
-  const [vibe, setVibe] = useState(() => readStorageString("mw_taste_vibe"));
+  const [context, setContext] = useState(() =>
+    getStringFromStorage("mw_taste_context").trim()
+  );
+  const [vibe, setVibe] = useState(() => getStringFromStorage("mw_taste_vibe").trim());
   const [keywords, setKeywords] = useState<string[]>(() => readKeywords());
-  const [origin, setOrigin] = useState(() => readStorageString("mw_taste_origin"));
+  const [origin, setOrigin] = useState(() =>
+    getStringFromStorage("mw_taste_origin").trim()
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const toggleValueWithLimit = (
@@ -194,12 +182,12 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
       );
 
       // localStorage 저장
-      localStorage.setItem("mw_taste_genres", JSON.stringify(processedGenres));
-      localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(processedAvoidGenres));
-      localStorage.setItem("mw_taste_context", context);
-      localStorage.setItem("mw_taste_vibe", vibe);
-      localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
-      localStorage.setItem("mw_taste_origin", origin);
+      setJsonToStorage("mw_taste_genres", processedGenres);
+      setJsonToStorage("mw_taste_avoid_genres", processedAvoidGenres);
+      setStorageItem("mw_taste_context", context);
+      setStorageItem("mw_taste_vibe", vibe);
+      setJsonToStorage("mw_taste_keywords", keywords);
+      setStorageItem("mw_taste_origin", origin);
 
       // ML API: 취향 분석 수행
       const userText = `${vibe} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
@@ -211,7 +199,7 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
       });
 
       // 분석 결과 저장
-      localStorage.setItem("mw_user_profile", JSON.stringify(userProfile));
+      setJsonToStorage("mw_user_profile", userProfile);
 
       // 로그인한 사용자라면 DB에도 저장
       const isLoggedIn = Boolean(getAccessToken());

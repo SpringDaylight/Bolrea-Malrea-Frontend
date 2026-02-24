@@ -132,27 +132,27 @@ export const calculateMovieMatchRate = async (
 
   console.log(`🔄 Cache disabled, calculating for movie ${movie.id}...`);
 
-  // 로그인 확인
-  const userPk = localStorage.getItem("mw_user_pk");
-  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  // 로그인 확인 (JWT 토큰만 확인)
+  const accessToken = localStorage.getItem("mw_access_token");
   
-  if (!isLoggedIn || !userPk) {
+  console.log('🔍 [MatchRate] 로그인 상태 확인:', {
+    hasAccessToken: !!accessToken
+  });
+  
+  if (!accessToken) {
     console.log('⚠️ [MatchRate] 로그인 안 됨, 만족도 계산 불가');
     return null;
   }
 
-  // /api/llm/satisfaction 직접 호출 (DB의 MovieVector 사용)
-  console.log('🔍 [MatchRate] Calling /api/llm/satisfaction:', {
-    movie_id: movie.id,
-    user_id: userPk
-  });
+  // /api/llm/satisfaction 직접 호출 (JWT 인증)
+  console.log('🔍 [MatchRate] Calling /api/llm/satisfaction with JWT');
   
   try {
     const { calculateSatisfaction } = await import('../api/llmRecommend');
     
+    // JWT 인증을 사용하므로 user_id 전달 불필요
     const response = await calculateSatisfaction({
-      movie_id: movie.id,
-      user_id: userPk
+      movie_id: movie.id
     });
     
     // SatisfactionPrediction 형식으로 변환

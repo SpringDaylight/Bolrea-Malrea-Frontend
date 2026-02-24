@@ -65,7 +65,7 @@ export interface ExplainResponse {
 
 export interface SatisfactionRequest {
   movie_id: number;
-  user_id?: string;  // ✅ 문자열 UUID
+  user_id?: string;  // ✅ Optional: 하위 호환성을 위해 유지, JWT 인증 시 불필요
 }
 
 export interface SatisfactionResponse {
@@ -107,5 +107,8 @@ export async function explainRecommendation(
 export async function calculateSatisfaction(
   request: SatisfactionRequest
 ): Promise<SatisfactionResponse> {
-  return post<SatisfactionResponse>('/api/llm/satisfaction', request);
+  console.log('📤 [calculateSatisfaction] Sending request:', request);
+  const response = await post<SatisfactionResponse>('/api/llm/satisfaction', request);
+  console.log('📥 [calculateSatisfaction] Received response:', response);
+  return response;
 }

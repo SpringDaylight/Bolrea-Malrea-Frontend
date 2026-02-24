@@ -1413,9 +1413,6 @@ export default function MovieDetailPage() {
                   ) : (
                     <p className="muted">아직 댓글이 없습니다.</p>
                   )}
-                  {commentErrors[personalReview.id] && (
-                    <p className="muted">{commentErrors[personalReview.id]}</p>
-                  )}
                   </div>
                 </div>
               )}
@@ -1606,281 +1603,316 @@ export default function MovieDetailPage() {
             title="다른 사람들의 리뷰"
             description="이 영화에 대한 다양한 반응"
           />
-            {otherReviewsForDisplay.length === 0 ? (
-              <article className="card review-card review-empty">
-                <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
-              </article>
-            ) : (
-              <div className="review-list">
-                {otherReviewsForDisplay.map((review) => {
-                  const authorName = getDisplayAuthorName(review.user_id);
+          {otherReviewsForDisplay.length === 0 ? (
+            <article className="card review-card review-empty">
+              <p className="muted">아직 이 영화에는 리뷰가 없어요.</p>
+            </article>
+          ) : (
+            <div className="review-list">
+              {otherReviewsForDisplay.map((review) => {
+                const authorName = getDisplayAuthorName(review.user_id);
                 const reviewVisibility = toReviewVisibility(review.is_public);
                 const visibilityMeta = getReviewVisibilityMeta(reviewVisibility);
                 const isPrivateReview = reviewVisibility === "private";
-                  const reviewContent = isPrivateReview
-                    ? "비공개로 설정한 리뷰입니다"
+                const reviewContent = isPrivateReview
+                  ? "비공개로 설정한 리뷰입니다"
                   : review.content ?? "리뷰 코멘트가 없습니다.";
                 return (
                   <div className="review-item" key={review.id}>
                     <article className="card review-card">
-                    <div className="review-header">
-                      <div className="review-user">
-                        <div className="review-avatar">
-                          {authorName.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="review-name">{authorName}</p>
-                          <p className="muted review-meta-line">
-                            <span>
-                              {formatDateTime(review.created_at)} · 평점{" "}
-                              {formatRatingLabel(review.rating)}
-                            </span>
-                            {reviewVisibility === "private" && (
-                              <span
-                                className={`review-visibility-indicator ${visibilityMeta.className}`}
-                                role="img"
-                                aria-label={visibilityMeta.label}
-                                title={visibilityMeta.label}
-                              />
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="review-actions">
-                        {(() => {
-                          const reaction = myReviewReactions[review.id] ?? null;
-                          const likeActive = reaction === "like";
-                          const dislikeActive = reaction === "dislike";
-                          return (
-                            <>
-                              <button
-                                className={`ghost-btn review-reaction-btn ${
-                                  likeActive ? "is-active" : ""
-                                }`}
-                                type="button"
-                                aria-label="좋아요"
-                                aria-pressed={likeActive}
-                                disabled={dislikeActive}
-                                onClick={() => handleToggleReaction(review.id, "like")}
-                              >
-                                <span
-                                  className="review-reaction-icon"
-                                  aria-hidden="true"
-                                />
-                                {reactions[review.id]?.likes ?? review.likes_count ?? 0}
-                              </button>
-                              {/* <span className="muted">|</span> */}
-                              <button
-                                className={`ghost-btn review-reaction-btn ${
-                                  dislikeActive ? "is-active" : ""
-                                }`}
-                                type="button"
-                                aria-label="싫어요"
-                                aria-pressed={dislikeActive}
-                                disabled={likeActive}
-                                onClick={() => handleToggleReaction(review.id, "dislike")}
-                              >
-                                <span
-                                  className="review-reaction-icon is-dislike"
-                                  aria-hidden="true"
-                                />
-                                {reactions[review.id]?.dislikes ?? review.dislikes_count ?? 0}
-                              </button>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <p className="review-text">
-                      {isPrivateReview
-                        ? reviewContent
-                        : reviewContent.length > 100
-                          ? reviewContent.substring(0, 100) + "..."
-                          : reviewContent}
-                    </p>
-                    {!isPrivateReview && (
-                      <>
-                        <div className="review-link-row">
-                          <span className="muted">
-                            댓글이 {reviewComments[review.id]?.length ?? review.comments_count ?? 0}개 있어요
-                          </span>
-                          <button
-                            className="ghost-btn review-link-btn"
-                            type="button"
-                            onClick={() => toggleReplyOpen(review.id)}
-                          >
-                            댓글 달기
-                          </button>
-                          <button
-                            className="ghost-btn review-link-btn"
-                            type="button"
-                            onClick={() => toggleCommentOpen(review.id)}
-                          >
-                            {commentOpen[review.id] ? "댓글 접기" : "댓글 보기"}
-                          </button>
-                        </div>
-                        {replyOpen[review.id] && (
-                          <div className="review-reply-form">
-                            <textarea
-                              className="review-reply-input"
-                              placeholder="댓글을 입력하세요"
-                              value={replyDrafts[review.id] || ""}
-                              onChange={(event) =>
-                                handleReplyChange(review.id, event.target.value)
-                              }
-                            />
-                            <div className="review-reply-actions">
-                              <button
-                                className="primary-btn review-reply-submit"
-                                type="button"
-                                onClick={() => handleReplySubmit(review.id)}
-                              >
-                                저장하기
-                              </button>
-                            </div>
+                      <div className="review-header">
+                        <div className="review-user">
+                          <div className="review-avatar">
+                            {authorName.substring(0, 2).toUpperCase()}
                           </div>
-                        )}
-                      </>
-                    )}
+                          <div>
+                            <p className="review-name">{authorName}</p>
+                            <p className="muted review-meta-line">
+                              <span>
+                                {formatDateTime(review.created_at)} · 평점{" "}
+                                {formatRatingLabel(review.rating)}
+                              </span>
+                              {reviewVisibility === "private" && (
+                                <span
+                                  className={`review-visibility-indicator ${visibilityMeta.className}`}
+                                  role="img"
+                                  aria-label={visibilityMeta.label}
+                                  title={visibilityMeta.label}
+                                />
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="review-actions">
+                          {(() => {
+                            const reaction = myReviewReactions[review.id] ?? null;
+                            const likeActive = reaction === "like";
+                            const dislikeActive = reaction === "dislike";
+                            return (
+                              <>
+                                <button
+                                  className={`ghost-btn review-reaction-btn ${
+                                    likeActive ? "is-active" : ""
+                                  }`}
+                                  type="button"
+                                  aria-label="좋아요"
+                                  aria-pressed={likeActive}
+                                  disabled={dislikeActive}
+                                  onClick={() =>
+                                    handleToggleReaction(review.id, "like")
+                                  }
+                                >
+                                  <span
+                                    className="review-reaction-icon"
+                                    aria-hidden="true"
+                                  />
+                                  {reactions[review.id]?.likes ??
+                                    review.likes_count ??
+                                    0}
+                                </button>
+                                <button
+                                  className={`ghost-btn review-reaction-btn ${
+                                    dislikeActive ? "is-active" : ""
+                                  }`}
+                                  type="button"
+                                  aria-label="싫어요"
+                                  aria-pressed={dislikeActive}
+                                  disabled={likeActive}
+                                  onClick={() =>
+                                    handleToggleReaction(review.id, "dislike")
+                                  }
+                                >
+                                  <span
+                                    className="review-reaction-icon is-dislike"
+                                    aria-hidden="true"
+                                  />
+                                  {reactions[review.id]?.dislikes ??
+                                    review.dislikes_count ??
+                                    0}
+                                </button>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <p className="review-text">
+                        {isPrivateReview
+                          ? reviewContent
+                          : reviewContent.length > 100
+                            ? reviewContent.substring(0, 100) + "..."
+                            : reviewContent}
+                      </p>
+                      {!isPrivateReview && (
+                        <>
+                          <div className="review-link-row">
+                            <span className="muted">
+                              댓글이{" "}
+                              {reviewComments[review.id]?.length ??
+                                review.comments_count ??
+                                0}
+                              개 있어요
+                            </span>
+                            <button
+                              className="ghost-btn review-link-btn"
+                              type="button"
+                              onClick={() => toggleReplyOpen(review.id)}
+                            >
+                              댓글 달기
+                            </button>
+                            <button
+                              className="ghost-btn review-link-btn"
+                              type="button"
+                              onClick={() => toggleCommentOpen(review.id)}
+                            >
+                              {commentOpen[review.id] ? "댓글 접기" : "댓글 보기"}
+                            </button>
+                          </div>
+                          {replyOpen[review.id] && (
+                            <div className="review-reply-form">
+                              <textarea
+                                className="review-reply-input"
+                                placeholder="댓글을 입력하세요"
+                                value={replyDrafts[review.id] || ""}
+                                onChange={(event) =>
+                                  handleReplyChange(review.id, event.target.value)
+                                }
+                              />
+                              {commentErrors[review.id] && (
+                                <p className="muted">{commentErrors[review.id]}</p>
+                              )}
+                              <div className="review-reply-actions">
+                                <button
+                                  className="primary-btn review-reply-submit"
+                                  type="button"
+                                  onClick={() => handleReplySubmit(review.id)}
+                                >
+                                  저장하기
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </article>
                     {!isPrivateReview && commentOpen[review.id] && (
                       <div className="comment-thread">
                         <div className="comment-list">
-                      {commentLoading[review.id] ? (
-                        <p className="muted">댓글을 불러오는 중...</p>
-                      ) : (reviewComments[review.id] || []).length > 0 ? (
-                        (reviewComments[review.id] || []).map((comment) => (
-                          <div className="comment-card" key={comment.id}>
-                        <div className="comment-meta">
-                          <span className="review-name">
-                            {getDisplayAuthorName(comment.user_id)}
-                          </span>
-                          <span className="muted">
-                            {formatDateTime(comment.created_at)}
-                          </span>
-                          <div className="comment-reactions">
-                            {(() => {
-                              const reaction = myCommentReactions[comment.id] ?? null;
-                              const likeActive = reaction === "like";
-                              const dislikeActive = reaction === "dislike";
-                              const isOwnComment =
-                                Boolean(currentUserPk) &&
-                                String(comment.user_id) === String(currentUserPk);
-                              return (
-                                <>
-                                  <button
-                                    className={`ghost-btn review-reaction-btn ${
-                                      likeActive ? "is-active" : ""
-                                    }`}
-                                    type="button"
-                                    aria-label="좋아요"
-                                    aria-pressed={likeActive}
-                                    disabled={dislikeActive || isOwnComment}
-                                    onClick={() =>
-                                      handleToggleCommentReaction(
-                                        review.id,
-                                        comment.id,
-                                        "like"
-                                      )
-                                    }
-                                  >
-                                    <span
-                                      className="review-reaction-icon"
-                                      aria-hidden="true"
-                                    />
-                                    {commentReactions[comment.id]?.likes ??
-                                      comment.likes_count ??
-                                      0}
-                                  </button>
-                                  <button
-                                    className={`ghost-btn review-reaction-btn ${
-                                      dislikeActive ? "is-active" : ""
-                                    }`}
-                                    type="button"
-                                    aria-label="싫어요"
-                                    aria-pressed={dislikeActive}
-                                    disabled={likeActive || isOwnComment}
-                                    onClick={() =>
-                                      handleToggleCommentReaction(
-                                        review.id,
-                                        comment.id,
-                                        "dislike"
-                                      )
-                                    }
-                                  >
-                                    <span
-                                      className="review-reaction-icon is-dislike"
-                                      aria-hidden="true"
-                                    />
-                                    {commentReactions[comment.id]?.dislikes ??
-                                      comment.dislikes_count ??
-                                      0}
-                                  </button>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                        {commentEditing[comment.id] ? (
-                          <div className="comment-edit-form">
-                            <textarea
-                              className="review-reply-input"
-                              value={commentEditDrafts[comment.id] ?? comment.content}
-                              onChange={(event) =>
-                                handleCommentEditChange(comment.id, event.target.value)
-                              }
-                            />
-                            <div className="comment-edit-actions">
-                              <button
-                                className="primary-btn review-reply-submit"
-                                type="button"
-                                onClick={() => handleCommentEditSave(review.id, comment.id)}
-                              >
-                                저장하기
-                              </button>
-                              <button
-                                className="ghost-btn review-link-btn"
-                                type="button"
-                                onClick={() => handleCommentEditCancel(comment.id)}
-                              >
-                                취소
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="review-text">{comment.content}</p>
-                            {currentUserPk &&
-                              String(comment.user_id) === String(currentUserPk) && (
-                                <div className="comment-actions">
-                                  <button
-                                    className="ghost-btn comment-edit-btn"
-                                    type="button"
-                                    onClick={() =>
-                                      handleCommentEditOpen(comment.id, comment.content)
-                                    }
-                                  >
-                                    댓글 수정
-                                  </button>
-                                  <button
-                                    className="ghost-btn comment-delete-btn"
-                                    type="button"
-                                    onClick={() => handleCommentDelete(review.id, comment.id)}
-                                  >
-                                    댓글 삭제
-                                  </button>
+                          {commentLoading[review.id] ? (
+                            <p className="muted">댓글을 불러오는 중...</p>
+                          ) : (reviewComments[review.id] || []).length > 0 ? (
+                            (reviewComments[review.id] || []).map((comment) => (
+                              <div className="comment-card" key={comment.id}>
+                                <div className="comment-meta">
+                                  <span className="review-name">
+                                    {getDisplayAuthorName(comment.user_id)}
+                                  </span>
+                                  <span className="muted">
+                                    {formatDateTime(comment.created_at)}
+                                  </span>
+                                  <div className="comment-reactions">
+                                    {(() => {
+                                      const reaction =
+                                        myCommentReactions[comment.id] ?? null;
+                                      const likeActive = reaction === "like";
+                                      const dislikeActive = reaction === "dislike";
+                                      const isOwnComment =
+                                        Boolean(currentUserPk) &&
+                                        String(comment.user_id) ===
+                                          String(currentUserPk);
+                                      return (
+                                        <>
+                                          <button
+                                            className={`ghost-btn review-reaction-btn ${
+                                              likeActive ? "is-active" : ""
+                                            }`}
+                                            type="button"
+                                            aria-label="좋아요"
+                                            aria-pressed={likeActive}
+                                            disabled={dislikeActive || isOwnComment}
+                                            onClick={() =>
+                                              handleToggleCommentReaction(
+                                                review.id,
+                                                comment.id,
+                                                "like"
+                                              )
+                                            }
+                                          >
+                                            <span
+                                              className="review-reaction-icon"
+                                              aria-hidden="true"
+                                            />
+                                            {commentReactions[comment.id]?.likes ??
+                                              comment.likes_count ??
+                                              0}
+                                          </button>
+                                          <button
+                                            className={`ghost-btn review-reaction-btn ${
+                                              dislikeActive ? "is-active" : ""
+                                            }`}
+                                            type="button"
+                                            aria-label="싫어요"
+                                            aria-pressed={dislikeActive}
+                                            disabled={likeActive || isOwnComment}
+                                            onClick={() =>
+                                              handleToggleCommentReaction(
+                                                review.id,
+                                                comment.id,
+                                                "dislike"
+                                              )
+                                            }
+                                          >
+                                            <span
+                                              className="review-reaction-icon is-dislike"
+                                              aria-hidden="true"
+                                            />
+                                            {commentReactions[comment.id]?.dislikes ??
+                                              comment.dislikes_count ??
+                                              0}
+                                          </button>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
                                 </div>
-                              )}
-                          </>
-                        )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="muted">아직 댓글이 없습니다.</p>
-                      )}
-                      {commentErrors[review.id] && (
-                        <p className="muted">{commentErrors[review.id]}</p>
-                      )}
+                                {commentEditing[comment.id] ? (
+                                  <div className="comment-edit-form">
+                                    <textarea
+                                      className="review-reply-input"
+                                      value={
+                                        commentEditDrafts[comment.id] ??
+                                        comment.content
+                                      }
+                                      onChange={(event) =>
+                                        handleCommentEditChange(
+                                          comment.id,
+                                          event.target.value
+                                        )
+                                      }
+                                    />
+                                    <div className="comment-edit-actions">
+                                      <button
+                                        className="primary-btn review-reply-submit"
+                                        type="button"
+                                        onClick={() =>
+                                          handleCommentEditSave(
+                                            review.id,
+                                            comment.id
+                                          )
+                                        }
+                                      >
+                                        저장하기
+                                      </button>
+                                      <button
+                                        className="ghost-btn review-link-btn"
+                                        type="button"
+                                        onClick={() =>
+                                          handleCommentEditCancel(comment.id)
+                                        }
+                                      >
+                                        취소
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="review-text">{comment.content}</p>
+                                    {currentUserPk &&
+                                      String(comment.user_id) ===
+                                        String(currentUserPk) && (
+                                        <div className="comment-actions">
+                                          <button
+                                            className="ghost-btn comment-edit-btn"
+                                            type="button"
+                                            onClick={() =>
+                                              handleCommentEditOpen(
+                                                comment.id,
+                                                comment.content
+                                              )
+                                            }
+                                          >
+                                            댓글 수정
+                                          </button>
+                                          <button
+                                            className="ghost-btn comment-delete-btn"
+                                            type="button"
+                                            onClick={() =>
+                                              handleCommentDelete(
+                                                review.id,
+                                                comment.id
+                                              )
+                                            }
+                                          >
+                                            댓글 삭제
+                                          </button>
+                                        </div>
+                                      )}
+                                  </>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="muted">아직 댓글이 없습니다.</p>
+                          )}
                         </div>
                       </div>
                     )}

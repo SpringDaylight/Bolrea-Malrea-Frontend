@@ -33,7 +33,8 @@
   --shadow-2: 0 12px 30px var(--ink-12);
   --shadow-3: 0 18px 44px var(--ink-18);
 
-  --focus-outline: var(--focus-outline);
+  --font-base: "jttbareunsaenghwal", sans-serif;
+  --focus-outline: 2px solid var(--accent);
   --focus-ring: 0 0 0 3px var(--a2-20);
 
   --danger: #d92d43;
@@ -41,16 +42,27 @@
   --warning: #E6B450;
   --warning-soft: rgba(230, 180, 80, 0.18);
   --info: #6FA3C8;
-  --info-soft: var(--info-soft);
+  --info-soft: rgba(111, 163, 200, 0.18);
 
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
+
+  --space-section: 32px;
+  --space-page-title: 18px;
+  --space-card: 18px;
 }
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
 }
 
 html,
@@ -535,7 +547,7 @@ textarea {
 }
 
 .danger {
-  color: #d92d43;
+  color: var(--danger);
   /* ??? ????(???? ?????? ??? ???)
   color: var(--info); */
 }

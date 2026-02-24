@@ -40,17 +40,6 @@ const parseArrayFromStorage = (key: string): string[] => {
   }
 };
 
-const getTopEmotions = (
-  scores: Record<string, number> | null,
-  limit = 6
-) => {
-  if (!scores) return [];
-  return Object.entries(scores)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, limit)
-    .map(([tag]) => tag);
-};
-
 const getFillStyle = (percent: number): CSSProperties =>
   ({ ["--fill" as string]: `${percent}%` } as CSSProperties);
 
@@ -637,6 +626,7 @@ export default function TasteAnalysisPage() {
     </MainLayout>
   );
 }
+
 
 
 

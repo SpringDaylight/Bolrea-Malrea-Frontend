@@ -455,7 +455,18 @@ export default function GroupPage() {
             <div className="group-result-grid">
               {recommendedMovies.map((movie) => (
                 <article key={movie.movie_id} className="card">
-                  <div className="movie-info">
+                  <div className="group-movie-card">
+                    {movie.poster_url ? (
+                      <img
+                        className="group-movie-poster"
+                        src={movie.poster_url}
+                        alt={`${movie.title} 포스터`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="group-movie-poster is-empty" aria-hidden="true" />
+                    )}
+                    <div className="movie-info">
                     <h3>{movie.title}</h3>
                     <p className="muted">
                       {movie.release_year} · {movie.genres.join(", ")}
@@ -491,6 +502,7 @@ export default function GroupPage() {
                         ))}
                       </div>
                     )}
+                    </div>
                   </div>
                 </article>
               ))}

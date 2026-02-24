@@ -818,8 +818,7 @@
 
 .group-selected-remove:hover {
   color: var(--accent);
-  background: var(--a2-12)
-;
+  background: var(--a2-12);
 }
 
 .group-selected-remove:focus-visible {
@@ -841,6 +840,26 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.group-movie-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.group-movie-poster {
+  width: 72px;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--a2-08);
+  flex: 0 0 auto;
+}
+
+.group-movie-poster.is-empty {
+  display: block;
+  background: var(--a2-12);
 }
 
 @media (max-width: 1100px) {
@@ -1084,6 +1103,7 @@
   position: absolute;
   top: 0;
   right: 0;
+  z-index: 2;
 }
 
 .taste-preview-top-cta {
@@ -1163,6 +1183,8 @@
   display: flex;
   justify-content: flex-end;
   margin: 12px 0 24px;
+  position: relative;
+  z-index: 2;
 }
 
 .survey-cta-btn {
@@ -1174,6 +1196,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
+  pointer-events: auto;
 }
 
 .taste-preview-body .muted,

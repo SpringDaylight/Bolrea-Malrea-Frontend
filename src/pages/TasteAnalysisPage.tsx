@@ -45,6 +45,8 @@ const parseArrayFromStorage = (key: string): string[] => {
 const getFillStyle = (percent: number): CSSProperties =>
   ({ ["--fill" as string]: `${percent}%` } as CSSProperties);
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 export default function TasteAnalysisPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +59,12 @@ export default function TasteAnalysisPage() {
   const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState<number | null>(null);
+  // WordCloud state
+  const [wordCloudUserId, setWordCloudUserId] = useState<string | null>(null);
+  const [wordCloudLoading, setWordCloudLoading] = useState(false);
+  const [wordCloudError, setWordCloudError] = useState<string | null>(null);
+  const [wordCloudUrl, setWordCloudUrl] = useState<string | null>(null);
+  const wordCloudUrlRef = useRef<string | null>(null);
   const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
 
   const handleSurveyOpen = () => setIsSurveyOpen(true);
@@ -380,8 +388,8 @@ export default function TasteAnalysisPage() {
     }
     return url;
   };
-  const wordCloudUrl = getWordCloudUrl();
-  const emotionWordCloudUrl = wordCloudUrl ? wordCloudUrl.replace("type=both", "type=emotion") : null;
+  const computedWordCloudUrl = getWordCloudUrl();
+  const emotionWordCloudUrl = computedWordCloudUrl ? computedWordCloudUrl.replace("type=both", "type=emotion") : null;
 
   const handleRefreshWordCloud = () => {
     setRefreshKey(Date.now());
@@ -599,10 +607,26 @@ export default function TasteAnalysisPage() {
               </div>
               <div className="taste-preview-side">
                 <p className="muted">관심 키워드</p>
-                {wordCloudUrl ? (
+                {wordCloudLoading ? (
+                  <p className="muted">불러오는 중...</p>
+                ) : wordCloudError ? (
+                  <p className="muted">{wordCloudError}</p>
+                ) : wordCloudUrl ? (
                   <div className="word-cloud-image-container" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
                     <img
-                      src={wordCloudUrl.replace("type=both", "type=boost")}
+                      src={wordCloudUrl}
+                      alt="관심 키워드 워드 클라우드"
+                      style={{ width: "100%", maxWidth: "500px", height: "auto", borderRadius: "8px", objectFit: "contain" }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<p class="muted">키워드를 불러올 수 없습니다.<br/>(데이터 부족)</p>';
+                      }}
+                    />
+                  </div>
+                ) : computedWordCloudUrl ? (
+                  <div className="word-cloud-image-container" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+                    <img
+                      src={computedWordCloudUrl.replace("type=both", "type=boost")}
                       alt="관심 키워드 워드 클라우드"
                       style={{ width: "100%", maxWidth: "500px", height: "auto", borderRadius: "8px", objectFit: "contain" }}
                       onError={(e) => {

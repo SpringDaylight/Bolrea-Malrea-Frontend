@@ -31,6 +31,7 @@ export interface Movie {
   reason?: string; // 개별 추천 이유 (오케스트레이터 모드)
   is_selected?: boolean;  // 최종 선택 여부
   not_selected_reason?: string;  // 선택되지 않은 이유
+  satisfaction_probability?: number;  // 만족도 확률
 }
 
 export interface RecommendResponse {

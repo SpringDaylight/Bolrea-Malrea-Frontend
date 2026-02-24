@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { recommendMovies, explainRecommendation, calculateSatisfaction, type Movie } from '../api/llmRecommend';
+import { recommendMovies, explainRecommendation, type Movie } from '../api/llmRecommend';
 import MainLayout from '../components/layout/MainLayout';
 import '../styles/LLMRecommendPage.css';
 import {
@@ -42,8 +42,7 @@ export default function LLMRecommendPage() {
   const [emotionWeight, setEmotionWeight] = useState<number>(0);
   const [expandedExplanations, setExpandedExplanations] = useState<Record<number, string>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<number, boolean>>({});
-  const [satisfactionScores, setSatisfactionScores] = useState<Record<number, number>>({});
-  const [loadingSatisfaction, setLoadingSatisfaction] = useState<Record<number, boolean>>({});
+  const [visibleExplanations, setVisibleExplanations] = useState<Record<number, boolean>>({});
 
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
@@ -111,6 +110,8 @@ export default function LLMRecommendPage() {
     setExplanation('');
     setKeywordCandidates([]);
     setVectorCandidates([]);
+    setExpandedExplanations({});  // AI 상세 설명 캐시 초기화
+    setVisibleExplanations({});  // AI 상세 설명 표시 상태 초기화
     setInput(query);
 
     try {
@@ -159,23 +160,58 @@ export default function LLMRecommendPage() {
     navigate(movie.detail_url);
   };
 
+  // 추가 추천 영화 선택 (메인 추천과 겹치지 않게, 가중치 비율로 5개)
+  const getAdditionalRecommendations = (): Movie[] => {
+    if (!keywordCandidates.length && !vectorCandidates.length) return [];
+    
+    // 메인 추천 영화 ID 집합
+    const mainMovieIds = new Set(recommendations.map(m => m.movie_id));
+    
+    // 겹치지 않는 후보들만 필터링
+    const uniqueKeywordCandidates = keywordCandidates.filter(m => !mainMovieIds.has(m.movie_id));
+    const uniqueVectorCandidates = vectorCandidates.filter(m => !mainMovieIds.has(m.movie_id));
+    
+    // 가중치 비율로 개수 계산 (총 5개)
+    const totalCount = 5;
+    const keywordCount = Math.round(totalCount * keywordWeight);
+    const emotionCount = totalCount - keywordCount;
+    
+    // 각 후보군에서 선택
+    const selectedKeyword = uniqueKeywordCandidates.slice(0, keywordCount);
+    const selectedEmotion = uniqueVectorCandidates.slice(0, emotionCount);
+    
+    // 합치기
+    const additional = [...selectedKeyword, ...selectedEmotion];
+    
+    // 5개가 안 되면 나머지로 채우기
+    if (additional.length < totalCount) {
+      const remaining = [...uniqueKeywordCandidates, ...uniqueVectorCandidates]
+        .filter(m => !additional.find(a => a.movie_id === m.movie_id))
+        .slice(0, totalCount - additional.length);
+      additional.push(...remaining);
+    }
+    
+    return additional.slice(0, totalCount);
+  };
+
+  const additionalRecommendations = getAdditionalRecommendations();
+
   const handleExplainClick = async (movie: Movie, e: React.MouseEvent) => {
     e.stopPropagation(); // 영화 카드 클릭 이벤트 방지
     
     // 이미 로딩 중이면 무시
     if (loadingExplanations[movie.movie_id]) return;
     
-    // 이미 설명이 있으면 토글
+    // 이미 설명이 있으면 보이기/숨기기 토글
     if (expandedExplanations[movie.movie_id]) {
-      setExpandedExplanations(prev => {
-        const next = { ...prev };
-        delete next[movie.movie_id];
-        return next;
-      });
+      setVisibleExplanations(prev => ({
+        ...prev,
+        [movie.movie_id]: !prev[movie.movie_id]
+      }));
       return;
     }
     
-    // LLM 설명 요청
+    // LLM 설명 요청 (처음 한 번만)
     setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: true }));
     
     try {
@@ -193,115 +229,24 @@ export default function LLMRecommendPage() {
         ...prev,
         [movie.movie_id]: response.explanation
       }));
+      setVisibleExplanations(prev => ({
+        ...prev,
+        [movie.movie_id]: true
+      }));
     } catch (err) {
       console.error('Explanation error:', err);
       setExpandedExplanations(prev => ({
         ...prev,
         [movie.movie_id]: '설명을 생성하는 중 오류가 발생했습니다.'
       }));
+      setVisibleExplanations(prev => ({
+        ...prev,
+        [movie.movie_id]: true
+      }));
     } finally {
       setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: false }));
     }
   };
-
-  const handleSatisfactionClick = async (movie: Movie, e: React.MouseEvent) => {
-    e.stopPropagation(); // 영화 카드 클릭 이벤트 방지
-    
-    // 이미 로딩 중이면 무시
-    if (loadingSatisfaction[movie.movie_id]) return;
-    
-    // 이미 점수가 있으면 토글
-    if (satisfactionScores[movie.movie_id] !== undefined) {
-      setSatisfactionScores(prev => {
-        const next = { ...prev };
-        delete next[movie.movie_id];
-        return next;
-      });
-      return;
-    }
-    
-    // 로그인 확인 (JWT 토큰만 확인)
-    const accessToken = getStorageItem("mw_access_token");
-    
-    // 디버깅 로그
-    console.log('🔍 [LLMRecommend] 만족도 계산 시도:', {
-      movie_id: movie.movie_id,
-      hasAccessToken: !!accessToken
-    });
-    
-    if (!accessToken) {
-      console.error('❌ [LLMRecommend] 로그인 정보 없음');
-      alert('로그인이 필요한 기능입니다.');
-      return;
-    }
-    
-    // 만족도 계산 요청
-    setLoadingSatisfaction(prev => ({ ...prev, [movie.movie_id]: true }));
-    
-    try {
-      console.log('📤 [LLMRecommend] calculateSatisfaction 호출 (JWT 인증)');
-      
-      // JWT 인증을 사용하므로 user_id 전달 불필요
-      const response = await calculateSatisfaction({
-        movie_id: movie.movie_id
-      });
-      
-      console.log('✅ [LLMRecommend] 만족도 계산 성공:', response);
-      
-      setSatisfactionScores(prev => ({
-        ...prev,
-        [movie.movie_id]: response.satisfaction_probability
-      }));
-    } catch (err: any) {
-      console.error('❌ [LLMRecommend] 만족도 계산 실패:', err);
-      if (err.message?.includes('로그인') || err.message?.includes('401')) {
-        alert('로그인이 필요한 기능입니다.');
-      } else if (err.message?.includes('404')) {
-        alert('사용자 선호도 정보를 찾을 수 없습니다. 영화를 평가하거나 리뷰를 작성해주세요.');
-      } else {
-        alert('만족도를 계산하는 중 오류가 발생했습니다.');
-      }
-    } finally {
-      setLoadingSatisfaction(prev => ({ ...prev, [movie.movie_id]: false }));
-    }
-  };
-
-  const renderCandidateCard = (movie: Movie, index: number) => (
-    <div 
-      key={`${movie.movie_id}-${index}`}
-      className={`candidate-card ${movie.is_selected ? 'selected' : 'not-selected'}`}
-      onClick={() => handleMovieClick(movie)}
-    >
-      {movie.poster_url ? (
-        <img 
-          src={movie.poster_url} 
-          alt={movie.title}
-          className="candidate-poster"
-        />
-      ) : (
-        <div className="candidate-poster-placeholder">
-          🎬
-        </div>
-      )}
-      <div className="candidate-info">
-        <h4>{movie.title}</h4>
-        <p className="candidate-genres">{movie.genres.join(', ')}</p>
-        <div className="candidate-score">
-          <span className="score-badge">
-            {(movie.final_score! * 100).toFixed(0)}%
-          </span>
-          {movie.is_selected ? (
-            <span className="selected-badge">✅ 선택됨</span>
-          ) : (
-            <span className="not-selected-badge">❌ 제외됨</span>
-          )}
-        </div>
-        {movie.not_selected_reason && (
-          <p className="not-selected-reason">💭 {movie.not_selected_reason}</p>
-        )}
-      </div>
-    </div>
-  );
 
   useEffect(() => {
     const query = searchParams.get('q');
@@ -397,65 +342,43 @@ export default function LLMRecommendPage() {
             <h2>🎬 추천 영화 ({recommendations.length}개)</h2>
             <div className="movie-grid">
               {recommendations.map((movie) => (
-                <div key={movie.movie_id} className="movie-container">
-                  {/* 영화 카드 (클릭 시 상세 페이지) */}
-                  <div 
-                    className="movie-card"
-                    onClick={() => handleMovieClick(movie)}
-                  >
-                    {movie.poster_url ? (
-                      <img 
-                        src={movie.poster_url} 
-                        alt={movie.title}
-                        className="movie-poster"
-                      />
-                    ) : (
-                      <div className="movie-poster-placeholder">
-                        🎬
-                      </div>
-                    )}
-                    <div className="movie-info">
-                      <h3>{movie.title}</h3>
-                      <p className="movie-genres">{movie.genres.join(', ')}</p>
-                      <p className="movie-year">📅 {movie.release_year}</p>
-                      {movie.rating && (
-                        <p className="movie-rating">⭐ {movie.rating.toFixed(1)}</p>
-                      )}
-                      {movie.reason && (
-                        <p className="movie-reason">💡 {movie.reason}</p>
-                      )}
-                      <div className="movie-similarity">
-                        <div className="similarity-bar">
-                          <div 
-                            className="similarity-fill"
-                            style={{ width: `${movie.similarity_score * 100}%` }}
-                          ></div>
-                        </div>
-                        <span className="similarity-label">
-                          {(movie.similarity_score * 100).toFixed(0)}% 일치
-                        </span>
-                      </div>
+                <div key={movie.movie_id} className="movie-card" onClick={() => handleMovieClick(movie)}>
+                  {movie.poster_url ? (
+                    <img 
+                      src={movie.poster_url} 
+                      alt={movie.title}
+                      className="movie-poster"
+                    />
+                  ) : (
+                    <div className="movie-poster-placeholder">
+                      🎬
                     </div>
-                  </div>
-
-                  {/* 액션 버튼 카드 */}
-                  <div className="action-card" onClick={(e) => e.stopPropagation()}>
-                    {/* 만족도 확률 버튼 */}
-                    <button 
-                      className="satisfaction-btn"
-                      onClick={(e) => handleSatisfactionClick(movie, e)}
-                      disabled={loadingSatisfaction[movie.movie_id]}
-                    >
-                      {loadingSatisfaction[movie.movie_id] ? (
-                        <>⏳ 계산 중...</>
-                      ) : satisfactionScores[movie.movie_id] !== undefined ? (
-                        <>📊 만족도: {(satisfactionScores[movie.movie_id] * 100).toFixed(1)}%</>
-                      ) : (
-                        <>💝 내 취향 만족도</>
-                      )}
-                    </button>
+                  )}
+                  <div className="movie-info">
+                    <h3>{movie.title}</h3>
+                    <p className="movie-genres">{movie.genres.join(', ')}</p>
+                    <p className="movie-year">📅 {movie.release_year}</p>
+                    {movie.rating && (
+                      <p className="movie-rating">⭐ {movie.rating.toFixed(1)}</p>
+                    )}
                     
-                    {/* LLM 설명 버튼 */}
+                    {/* 만족도 확률 표시 */}
+                    <div className="movie-satisfaction">
+                      {movie.satisfaction_probability !== undefined ? (
+                        <span className="satisfaction-label">
+                          💝 내 취향 만족도: {(movie.satisfaction_probability * 100).toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="satisfaction-label satisfaction-login-required">
+                          💝 로그인하셔야 만족도를 볼 수 있어요
+                        </span>
+                      )}
+                    </div>
+                    
+                    {movie.reason && (
+                      <p className="movie-reason">💡 {movie.reason}</p>
+                    )}
+                    
                     <button 
                       className="explain-btn"
                       onClick={(e) => handleExplainClick(movie, e)}
@@ -463,15 +386,14 @@ export default function LLMRecommendPage() {
                     >
                       {loadingExplanations[movie.movie_id] ? (
                         <>⏳ 생성 중...</>
-                      ) : expandedExplanations[movie.movie_id] ? (
+                      ) : visibleExplanations[movie.movie_id] ? (
                         <>📖 설명 닫기</>
                       ) : (
                         <>🤖 AI 상세 설명</>
                       )}
                     </button>
                     
-                    {/* LLM 설명 내용 */}
-                    {expandedExplanations[movie.movie_id] && (
+                    {visibleExplanations[movie.movie_id] && expandedExplanations[movie.movie_id] && (
                       <div className="llm-explanation">
                         <p>{expandedExplanations[movie.movie_id]}</p>
                       </div>
@@ -483,42 +405,46 @@ export default function LLMRecommendPage() {
           </div>
         )}
 
-        {/* 후보군 섹션 (오케스트레이터 모드) */}
-        {useOrchestrator && !isLoading && (keywordCandidates.length > 0 || vectorCandidates.length > 0) && (
-          <div className="candidates-section">
-            <h2>🔍 추천 과정</h2>
-            
-            {keywordWeight > 0 && emotionWeight > 0 && (
-              <div className="weight-info">
-                <p>
-                  <strong>가중치 설정:</strong> 키워드 {(keywordWeight * 100).toFixed(0)}% / 감성 {(emotionWeight * 100).toFixed(0)}%
-                </p>
-              </div>
-            )}
-
-            {keywordCandidates.length > 0 && (
-              <div className="candidate-group">
-                <h3>🔍 키워드 검색 후보 (상위 {keywordCandidates.length}개)</h3>
-                <p className="candidate-description">
-                  제목과 시놉시스에서 키워드를 찾아 매칭한 결과입니다.
-                </p>
-                <div className="candidate-grid">
-                  {keywordCandidates.map((movie, index) => renderCandidateCard(movie, index))}
+        {/* 추가 추천 섹션 */}
+        {useOrchestrator && !isLoading && additionalRecommendations.length > 0 && (
+          <div className="additional-recommendations-wrapper">
+            <div className="additional-recommendations-header">
+              <h2>✨ 비슷한 키워드 혹은 감성을 가진 영화들 또한 추천드려요</h2>
+            </div>
+            <div className="additional-movie-grid">
+              {additionalRecommendations.map((movie) => (
+                <div key={movie.movie_id} className="additional-movie-card" onClick={() => handleMovieClick(movie)}>
+                  {movie.poster_url ? (
+                    <img 
+                      src={movie.poster_url} 
+                      alt={movie.title}
+                      className="additional-movie-poster"
+                    />
+                  ) : (
+                    <div className="additional-movie-poster-placeholder">
+                      🎬
+                    </div>
+                  )}
+                  <div className="additional-movie-info">
+                    <h3>{movie.title}</h3>
+                    <p className="additional-movie-genres">{movie.genres.join(', ')}</p>
+                    
+                    {/* 만족도 확률 표시 */}
+                    <div className="additional-movie-satisfaction">
+                      {movie.satisfaction_probability !== undefined ? (
+                        <span className="satisfaction-value">
+                          💝 {(movie.satisfaction_probability * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="satisfaction-login-hint">
+                          🔒 로그인 필요
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {vectorCandidates.length > 0 && (
-              <div className="candidate-group">
-                <h3>🎭 감성 검색 후보 (상위 {vectorCandidates.length}개)</h3>
-                <p className="candidate-description">
-                  영화의 감성 프로필과 요청의 유사도를 계산한 결과입니다.
-                </p>
-                <div className="candidate-grid">
-                  {vectorCandidates.map((movie, index) => renderCandidateCard(movie, index))}
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type CSSProperties } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
@@ -7,12 +7,7 @@ import { getCurrentUser, getCurrentUserReviews } from "../api/A7_profile";
 import { getCurrentUserWatchedMovies } from "../api/A8_watched";
 import { getTasteMap, type UserProfile } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
-import { getAccessToken } from "../api/http";
-
-type WordCloudItem = {
-  word: string;
-  size: "xl" | "lg" | "md" | "sm";
-};
+import { API_BASE_URL, getAccessToken } from "../api/http";
 
 type RecentMovie = {
   movieId: number;
@@ -21,8 +16,6 @@ type RecentMovie = {
 };
 
 const POSTER_FALLBACK = "https://via.placeholder.com/500x750?text=No+Image";
-const WORD_CLOUD_LIMIT = 12;
-
 const getLocalStorageItem = (key: string) => {
   try {
     if (typeof window === "undefined" || !window.localStorage) return null;
@@ -47,18 +40,6 @@ const parseArrayFromStorage = (key: string): string[] => {
   }
 };
 
-const dedupe = (items: string[]) => {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const value = item.trim();
-    if (!value) return false;
-    const key = value.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
 const getTopEmotions = (
   scores: Record<string, number> | null,
   limit = 6
@@ -68,20 +49,6 @@ const getTopEmotions = (
     .sort(([, a], [, b]) => b - a)
     .slice(0, limit)
     .map(([tag]) => tag);
-};
-
-const getWordCloudItems = (words: string[]): WordCloudItem[] => {
-  const unique = dedupe(words).slice(0, WORD_CLOUD_LIMIT);
-  const total = unique.length;
-  return unique.map((word, index) => {
-    const ratio = total <= 1 ? 0 : index / (total - 1);
-    let size: WordCloudItem["size"] = "md";
-    if (ratio < 0.2) size = "xl";
-    else if (ratio < 0.45) size = "lg";
-    else if (ratio < 0.75) size = "md";
-    else size = "sm";
-    return { word, size };
-  });
 };
 
 const getFillStyle = (percent: number): CSSProperties =>
@@ -97,6 +64,11 @@ export default function TasteAnalysisPage() {
   >([]);
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
   const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
+  const [wordCloudUrl, setWordCloudUrl] = useState<string | null>(null);
+  const [wordCloudLoading, setWordCloudLoading] = useState(false);
+  const [wordCloudError, setWordCloudError] = useState<string | null>(null);
+  const [wordCloudUserId, setWordCloudUserId] = useState<string | null>(null);
+  const wordCloudUrlRef = useRef<string | null>(null);
   const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
 
   const handleSurveyOpen = () => setIsSurveyOpen(true);
@@ -112,6 +84,7 @@ export default function TasteAnalysisPage() {
       try {
         if (isLoggedIn) {
           const currentUser = await getCurrentUser();
+          setWordCloudUserId(currentUser.id);
           const preference = await getUserPreference(currentUser.id);
           const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
             .sort(([, a], [, b]) => b - a)
@@ -143,6 +116,7 @@ export default function TasteAnalysisPage() {
             });
           }
         } else {
+          setWordCloudUserId(null);
           const savedProfile = getLocalStorageItem("mw_user_profile");
           if (savedProfile) {
             const profile = JSON.parse(savedProfile) as UserProfile;
@@ -164,6 +138,76 @@ export default function TasteAnalysisPage() {
 
     loadTasteAnalysis();
   }, [isLoggedIn, surveyRefreshKey]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !wordCloudUserId) {
+      setWordCloudError(null);
+      setWordCloudLoading(false);
+      if (wordCloudUrlRef.current) {
+        URL.revokeObjectURL(wordCloudUrlRef.current);
+        wordCloudUrlRef.current = null;
+      }
+      setWordCloudUrl(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const controller = new AbortController();
+
+    const fetchWordCloud = async () => {
+      setWordCloudLoading(true);
+      setWordCloudError(null);
+
+      try {
+        const token = getAccessToken();
+        const response = await fetch(
+          `${API_BASE_URL}/api/user-preferences/${wordCloudUserId}/wordcloud`,
+          {
+            method: "GET",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            credentials: "include",
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || "워드 클라우드를 불러오지 못했습니다.");
+        }
+
+        const blob = await response.blob();
+        const nextUrl = URL.createObjectURL(blob);
+        if (isCancelled) {
+          URL.revokeObjectURL(nextUrl);
+          return;
+        }
+
+        if (wordCloudUrlRef.current) {
+          URL.revokeObjectURL(wordCloudUrlRef.current);
+        }
+        wordCloudUrlRef.current = nextUrl;
+        setWordCloudUrl(nextUrl);
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch word cloud:", err);
+        setWordCloudError("워드 클라우드 데이터를 불러오지 못했습니다.");
+        if (wordCloudUrlRef.current) {
+          URL.revokeObjectURL(wordCloudUrlRef.current);
+          wordCloudUrlRef.current = null;
+        }
+        setWordCloudUrl(null);
+      } finally {
+        if (!isCancelled) setWordCloudLoading(false);
+      }
+    };
+
+    fetchWordCloud();
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+    };
+  }, [isLoggedIn, wordCloudUserId]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -342,19 +386,6 @@ export default function TasteAnalysisPage() {
 
   const savedKeywords = parseArrayFromStorage("mw_taste_keywords");
   const savedVibe = (getLocalStorageItem("mw_taste_vibe") || "").trim();
-  const preferenceWordCloudTags = useMemo(() => {
-    if (!userProfile) return [];
-    return dedupe([
-      ...(userProfile.boost_tags ?? []),
-      ...(userProfile.dislike_tags ?? []),
-    ]);
-  }, [userProfile]);
-  const wordCloudSource =
-    preferenceWordCloudTags.length > 0
-      ? preferenceWordCloudTags
-      : [savedVibe, ...savedKeywords];
-  const wordCloudItems = getWordCloudItems(wordCloudSource);
-  const wordCloudRenderItems = wordCloudItems;
   const selectedGenres = parseArrayFromStorage("mw_taste_genres");
   const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
   const tasteContext = (getLocalStorageItem("mw_taste_context") || "").trim();
@@ -511,40 +542,22 @@ export default function TasteAnalysisPage() {
           <article className="taste-preview">
             <div className="taste-preview-header">
               <h2>취향 대시보드</h2>
-              <p>정서 태그와 워드 클라우드</p>
+              <p>워드 클라우드</p>
             </div>
-            <div className="taste-preview-body taste-preview-grid">
-              <div className="taste-preview-main">
-                <p className="muted">정서 태그</p>
-                {topEmotions.length > 0 ? (
-                  <div className="tag-list">
-                    {topEmotions.map((tag) => (
-                      <span key={tag} className="tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="muted">정서 태그 데이터가 없습니다.</p>
-                )}
-              </div>
-              <div className="taste-preview-side">
-                <p className="muted">워드 클라우드</p>
-                {wordCloudRenderItems.length > 0 ? (
-                  <div className="word-cloud">
-                    {wordCloudRenderItems.map((item) => (
-                      <span
-                        key={`${item.word}-${item.size}`}
-                        className={`word-cloud-item size-${item.size}`}
-                      >
-                        {item.word}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="muted">워드 클라우드 데이터가 없습니다.</p>
-                )}
-              </div>
+            <div className="taste-preview-body">
+              {wordCloudLoading ? (
+                <p className="muted">불러오는 중...</p>
+              ) : wordCloudUrl ? (
+                <img
+                  className="word-cloud-image"
+                  src={wordCloudUrl}
+                  alt="취향 워드 클라우드"
+                />
+              ) : (
+                <p className="muted">
+                  {wordCloudError || "워드 클라우드 데이터가 없습니다."}
+                </p>
+              )}
             </div>
           </article>
         </section>

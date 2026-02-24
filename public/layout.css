@@ -124,6 +124,12 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 8px;
+  width: 100%;
+}
+
+.hero-actions .search-input {
+  flex: 1 1 520px;
+  min-width: 0;
 }
 
 .section {

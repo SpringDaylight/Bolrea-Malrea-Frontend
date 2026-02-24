@@ -9,11 +9,6 @@ import { getTasteMap, type UserProfile } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
 import { getAccessToken } from "../api/http";
 
-type WordCloudItem = {
-  word: string;
-  size: "xl" | "lg" | "md" | "sm";
-};
-
 type RecentMovie = {
   movieId: number;
   title: string;
@@ -21,7 +16,6 @@ type RecentMovie = {
 };
 
 const POSTER_FALLBACK = "https://via.placeholder.com/500x750?text=No+Image";
-const WORD_CLOUD_LIMIT = 12;
 
 const getLocalStorageItem = (key: string) => {
   try {
@@ -47,42 +41,6 @@ const parseArrayFromStorage = (key: string): string[] => {
   }
 };
 
-const dedupe = (items: string[]) => {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const value = item.trim();
-    if (!value) return false;
-    const key = value.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-const getTopEmotions = (
-  scores: Record<string, number> | null,
-  limit = 6
-) => {
-  if (!scores) return [];
-  return Object.entries(scores)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, limit)
-    .map(([tag]) => tag);
-};
-
-const getWordCloudItems = (words: string[]): WordCloudItem[] => {
-  const unique = dedupe(words).slice(0, WORD_CLOUD_LIMIT);
-  const total = unique.length;
-  return unique.map((word, index) => {
-    const ratio = total <= 1 ? 0 : index / (total - 1);
-    let size: WordCloudItem["size"] = "md";
-    if (ratio < 0.2) size = "xl";
-    else if (ratio < 0.45) size = "lg";
-    else if (ratio < 0.75) size = "md";
-    else size = "sm";
-    return { word, size };
-  });
-};
 
 const getFillStyle = (percent: number): CSSProperties =>
   ({ ["--fill" as string]: `${percent}%` } as CSSProperties);
@@ -97,6 +55,8 @@ export default function TasteAnalysisPage() {
   >([]);
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
   const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState<number | null>(null);
   const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
 
   const handleSurveyOpen = () => setIsSurveyOpen(true);
@@ -112,6 +72,7 @@ export default function TasteAnalysisPage() {
       try {
         if (isLoggedIn) {
           const currentUser = await getCurrentUser();
+          setCurrentUserId(currentUser.id.toString());
           const preference = await getUserPreference(currentUser.id);
           const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
             .sort(([, a], [, b]) => b - a)
@@ -340,21 +301,23 @@ export default function TasteAnalysisPage() {
     };
   }, [isLoggedIn]);
 
+  const getWordCloudUrl = () => {
+    if (!currentUserId || !isLoggedIn) return null;
+    let url = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}/api/user-preferences/${currentUserId}/wordcloud?type=both`;
+    if (refreshKey) {
+      url += `&t=${refreshKey}`;
+    }
+    return url;
+  };
+  const wordCloudUrl = getWordCloudUrl();
+  const emotionWordCloudUrl = wordCloudUrl ? wordCloudUrl.replace("type=both", "type=emotion") : null;
+
+  const handleRefreshWordCloud = () => {
+    setRefreshKey(Date.now());
+  };
+
   const savedKeywords = parseArrayFromStorage("mw_taste_keywords");
   const savedVibe = (getLocalStorageItem("mw_taste_vibe") || "").trim();
-  const preferenceWordCloudTags = useMemo(() => {
-    if (!userProfile) return [];
-    return dedupe([
-      ...(userProfile.boost_tags ?? []),
-      ...(userProfile.dislike_tags ?? []),
-    ]);
-  }, [userProfile]);
-  const wordCloudSource =
-    preferenceWordCloudTags.length > 0
-      ? preferenceWordCloudTags
-      : [savedVibe, ...savedKeywords];
-  const wordCloudItems = getWordCloudItems(wordCloudSource);
-  const wordCloudRenderItems = wordCloudItems;
   const selectedGenres = parseArrayFromStorage("mw_taste_genres");
   const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
   const tasteContext = (getLocalStorageItem("mw_taste_context") || "").trim();
@@ -374,7 +337,6 @@ export default function TasteAnalysisPage() {
     }
     return { genre: slot.genre, percent: slot.percent };
   });
-  const topEmotions = getTopEmotions(userProfile?.emotion_scores ?? null, 6);
 
   if (loading) {
     return (
@@ -445,9 +407,8 @@ export default function TasteAnalysisPage() {
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">주로 영화를 볼 때에는?</h3>
                     <p
-                      className={`survey-summary-value ${
-                        tasteContext ? "" : "is-empty"
-                      }`}
+                      className={`survey-summary-value ${tasteContext ? "" : "is-empty"
+                        }`}
                     >
                       {tasteContext || "미설정"}
                     </p>
@@ -455,9 +416,8 @@ export default function TasteAnalysisPage() {
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 분위기</h3>
                     <p
-                      className={`survey-summary-value ${
-                        savedVibe ? "" : "is-empty"
-                      }`}
+                      className={`survey-summary-value ${savedVibe ? "" : "is-empty"
+                        }`}
                     >
                       {savedVibe || "미설정"}
                     </p>
@@ -479,9 +439,8 @@ export default function TasteAnalysisPage() {
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 영화 나라</h3>
                     <p
-                      className={`survey-summary-value ${
-                        tasteOrigin ? "" : "is-empty"
-                      }`}
+                      className={`survey-summary-value ${tasteOrigin ? "" : "is-empty"
+                        }`}
                     >
                       {tasteOrigin || "미설정"}
                     </p>
@@ -509,40 +468,80 @@ export default function TasteAnalysisPage() {
 
         <section className="section card taste-preview-section">
           <article className="taste-preview">
-            <div className="taste-preview-header">
-              <h2>취향 대시보드</h2>
-              <p>정서 태그와 워드 클라우드</p>
+            <div className="taste-preview-header with-cta" style={{ position: 'relative' }}>
+              <div>
+                <h2>취향 대시보드</h2>
+                <p>워드 클라우드 분석 결과</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefreshWordCloud}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#6b7280',
+                  transition: 'color 0.2s ease, transform 0.2s ease',
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                }}
+                title="최신 데이터 반영하기"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#3b82f6';
+                  e.currentTarget.style.transform = 'rotate(15deg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#6b7280';
+                  e.currentTarget.style.transform = 'rotate(0deg)';
+                }}
+                aria-label="새로고침"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
             </div>
             <div className="taste-preview-body taste-preview-grid">
               <div className="taste-preview-main">
-                <p className="muted">정서 태그</p>
-                {topEmotions.length > 0 ? (
-                  <div className="tag-list">
-                    {topEmotions.map((tag) => (
-                      <span key={tag} className="tag">
-                        {tag}
-                      </span>
-                    ))}
+                <p className="muted">정서 취향</p>
+                {emotionWordCloudUrl ? (
+                  <div className="word-cloud-image-container" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+                    <img
+                      src={emotionWordCloudUrl}
+                      alt="선호 정서 워드 클라우드"
+                      style={{ width: "100%", maxWidth: "500px", height: "auto", borderRadius: "8px", objectFit: "contain" }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<p class="muted">정서 데이터를 불러올 수 없습니다.<br/>(리뷰 데이터 부족)</p>';
+                      }}
+                    />
                   </div>
                 ) : (
-                  <p className="muted">정서 태그 데이터가 없습니다.</p>
+                  <p className="muted">정서 리뷰가 부족합니다.</p>
                 )}
               </div>
               <div className="taste-preview-side">
-                <p className="muted">워드 클라우드</p>
-                {wordCloudRenderItems.length > 0 ? (
-                  <div className="word-cloud">
-                    {wordCloudRenderItems.map((item) => (
-                      <span
-                        key={`${item.word}-${item.size}`}
-                        className={`word-cloud-item size-${item.size}`}
-                      >
-                        {item.word}
-                      </span>
-                    ))}
+                <p className="muted">관심 키워드</p>
+                {wordCloudUrl ? (
+                  <div className="word-cloud-image-container" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+                    <img
+                      src={wordCloudUrl.replace("type=both", "type=boost")}
+                      alt="관심 키워드 워드 클라우드"
+                      style={{ width: "100%", maxWidth: "500px", height: "auto", borderRadius: "8px", objectFit: "contain" }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<p class="muted">키워드를 불러올 수 없습니다.<br/>(데이터 부족)</p>';
+                      }}
+                    />
                   </div>
                 ) : (
-                  <p className="muted">워드 클라우드 데이터가 없습니다.</p>
+                  <p className="muted">데이터 추출 중입니다.</p>
                 )}
               </div>
             </div>

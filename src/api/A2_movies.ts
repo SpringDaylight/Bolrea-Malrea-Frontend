@@ -59,7 +59,7 @@ export function getMovies(params?: {
   query?: string;
   genres?: string;
   category?: string;
-  sort?: 'latest' | 'popular' | 'rating';
+  sort?: 'latest' | 'popular' | 'rating' | 'title';
   runtime_min?: number;
   runtime_max?: number;
   year_min?: number;

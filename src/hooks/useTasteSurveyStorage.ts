@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAccessToken } from "../api/http";
 import { getCurrentUser } from "../api/A7_profile";
-import { getUserPreference } from "../api/userPreferences";
+import { checkUserPreferenceExists, getUserPreference } from "../api/userPreferences";
 import { getArrayFromStorage, getStringFromStorage } from "../utils/storage";
 
 type TasteSurveyStorage = {
@@ -62,6 +62,13 @@ export const useTasteSurveyStorage = (refreshKey?: number): TasteSurveyStorage =
     const setFromServer = async () => {
       try {
         const currentUser = await getCurrentUser();
+        const exists = await checkUserPreferenceExists(currentUser.id);
+        if (!exists.exists) {
+          if (!isCancelled) {
+            setState(emptySurveyState);
+          }
+          return;
+        }
         const preference = await getUserPreference(currentUser.id);
         const survey = preference.preference_vector_json?.taste_survey;
 
@@ -91,7 +98,13 @@ export const useTasteSurveyStorage = (refreshKey?: number): TasteSurveyStorage =
           });
         }
       } catch (error) {
-        console.warn("Failed to load taste survey from server:", error);
+        const message = error instanceof Error ? error.message : "";
+        const isNotFound =
+          message.includes("404") ||
+          message.toLowerCase().includes("not found");
+        if (!isNotFound) {
+          console.warn("Failed to load taste survey from server:", error);
+        }
         if (!isCancelled) {
           setState(emptySurveyState);
         }

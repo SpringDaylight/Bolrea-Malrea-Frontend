@@ -2,7 +2,7 @@
  * 영화 적합도 계산 유틸리티
  * HomePage와 MovieDetailPage에서 동일한 로직 사용
  */
-import { getUserPreference } from "../api/userPreferences";
+import { checkUserPreferenceExists, getUserPreference } from "../api/userPreferences";
 import type { Movie } from "../api/A2_movies";
 import type { SatisfactionPrediction } from "../api/ml";
 import { getAccessToken } from "../api/http";
@@ -54,6 +54,10 @@ export const getUserTasteData = async () => {
   
   // 로그인한 사용자는 반드시 DB에서 가져와야 함
   if (isLoggedIn && userPk) {
+    const exists = await checkUserPreferenceExists(userPk);
+    if (!exists.exists) {
+      throw new Error("User preference not found");
+    }
     const preference = await getUserPreference(userPk);
     
     // DB에서 가져온 데이터를 변환

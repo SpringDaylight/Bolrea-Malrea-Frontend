@@ -10,7 +10,7 @@ import {
   safeParseJson,
 } from '../utils/storage';
 
-// localStorage 키
+// localStorage 상태 저장
 const STORAGE_KEY = 'llm_recommend_state';
 
 // 저장할 상태 타입
@@ -35,7 +35,7 @@ export default function LLMRecommendPage() {
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [explanation, setExplanation] = useState('');
   const [error, setError] = useState('');
-  const useOrchestrator = true;  // 항상 오케스트레이션 모드 사용
+  const useOrchestrator = true;  // 항상 오케스트레이터 모드 사용
   const [keywordCandidates, setKeywordCandidates] = useState<Movie[]>([]);
   const [vectorCandidates, setVectorCandidates] = useState<Movie[]>([]);
   const [keywordWeight, setKeywordWeight] = useState<number>(0);
@@ -55,13 +55,13 @@ export default function LLMRecommendPage() {
           return;
         }
         
-        // 24시간 이내 데이터만 복원 (선택사항)
+        // 24시간 이내 데이터만 복원 (옵션사항)
         const ONE_DAY = 24 * 60 * 60 * 1000;
         if (Date.now() - state.timestamp < ONE_DAY) {
           setInput(state.input);
           setRecommendations(state.recommendations);
           setExplanation(state.explanation);
-          // useOrchestrator는 항상 true이므로 복원하지 않음
+          // useOrchestrator는 항상 true로 복원하지 않음
           setKeywordCandidates(state.keywordCandidates || []);
           setVectorCandidates(state.vectorCandidates || []);
           setKeywordWeight(state.keywordWeight || 0);
@@ -129,7 +129,7 @@ export default function LLMRecommendPage() {
       setEmotionWeight(response.emotion_weight || 0);
     } catch (err) {
       console.error('Recommendation error:', err);
-      setError(err instanceof Error ? err.message : '추천에 실패했습니다.');
+      setError(err instanceof Error ? err.message : '추천 요청에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +167,7 @@ export default function LLMRecommendPage() {
     // 메인 추천 영화 ID 집합
     const mainMovieIds = new Set(recommendations.map(m => m.movie_id));
     
-    // 겹치지 않는 후보들만 필터링
+    // 겹치지 않는 후보만 필터링
     const uniqueKeywordCandidates = keywordCandidates.filter(m => !mainMovieIds.has(m.movie_id));
     const uniqueVectorCandidates = vectorCandidates.filter(m => !mainMovieIds.has(m.movie_id));
     
@@ -176,14 +176,14 @@ export default function LLMRecommendPage() {
     const keywordCount = Math.round(totalCount * keywordWeight);
     const emotionCount = totalCount - keywordCount;
     
-    // 각 후보군에서 선택
+    // 키워드/감성 후보에서 선택
     const selectedKeyword = uniqueKeywordCandidates.slice(0, keywordCount);
     const selectedEmotion = uniqueVectorCandidates.slice(0, emotionCount);
     
     // 합치기
     const additional = [...selectedKeyword, ...selectedEmotion];
     
-    // 5개가 안 되면 나머지로 채우기
+    // 5개가 안되면 나머지로 채우기
     if (additional.length < totalCount) {
       const remaining = [...uniqueKeywordCandidates, ...uniqueVectorCandidates]
         .filter(m => !additional.find(a => a.movie_id === m.movie_id))
@@ -197,23 +197,27 @@ export default function LLMRecommendPage() {
   const additionalRecommendations = getAdditionalRecommendations();
 
   const handleExplainClick = async (movie: Movie, e: React.MouseEvent) => {
-    e.stopPropagation(); // 영화 카드 클릭 이벤트 방지
-    
-    // 이미 로딩 중이면 무시
+    e.stopPropagation();
+
     if (loadingExplanations[movie.movie_id]) return;
-    
-    // 이미 설명이 있으면 보이기/숨기기 토글
-    if (expandedExplanations[movie.movie_id]) {
+
+    if (visibleExplanations[movie.movie_id]) {
       setVisibleExplanations(prev => ({
         ...prev,
-        [movie.movie_id]: !prev[movie.movie_id]
+        [movie.movie_id]: false
       }));
       return;
     }
-    
-    // LLM 설명 요청 (처음 한 번만)
+
+    setVisibleExplanations(prev => ({
+      ...prev,
+      [movie.movie_id]: true
+    }));
+
+    if (expandedExplanations[movie.movie_id]) return;
+
     setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: true }));
-    
+
     try {
       const response = await explainRecommendation({
         user_input: input,
@@ -224,24 +228,16 @@ export default function LLMRecommendPage() {
         emotion_score: movie.emotion_score,
         final_score: movie.final_score
       });
-      
+
       setExpandedExplanations(prev => ({
         ...prev,
         [movie.movie_id]: response.explanation
-      }));
-      setVisibleExplanations(prev => ({
-        ...prev,
-        [movie.movie_id]: true
       }));
     } catch (err) {
       console.error('Explanation error:', err);
       setExpandedExplanations(prev => ({
         ...prev,
         [movie.movie_id]: '설명을 생성하는 중 오류가 발생했습니다.'
-      }));
-      setVisibleExplanations(prev => ({
-        ...prev,
-        [movie.movie_id]: true
       }));
     } finally {
       setLoadingExplanations(prev => ({ ...prev, [movie.movie_id]: false }));
@@ -262,28 +258,29 @@ export default function LLMRecommendPage() {
     <MainLayout>
       <div className="llm-recommend-page">
         <div className="recommend-container">
-        <div className="recommend-header">
-          <h1>🎬 AI 영화 추천</h1>
-          <p>자연어로 원하는 영화를 설명하면 AI가 추천해드립니다</p>
-        </div>
+          <div className="recommend-header">
+            <h1>AI 영화 추천</h1>
+            <p>자연어로 원하는 영화를 설명하면 AI가 추천해드립니다.</p>
+          </div>
 
-        <div className="search-section">
-          <div className="search-box">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="어떤 영화를 찾으시나요? (예: 우울한 기분을 달래줄 영화)"
-              rows={3}
-              disabled={isLoading}
-            />
+
+          <div className="search-section">
+            <div className="search-box">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="어떤 영화를 찾으시나요? (예: 겨울밤 분위기의 영화)"
+                rows={3}
+                disabled={isLoading}
+              />
             
             <button 
               onClick={handleRecommendClick} 
               disabled={!input.trim() || isLoading}
               className="recommend-btn"
             >
-              {isLoading ? '추천 중...' : '🎯 추천받기'}
+              {isLoading ? '추천 중...' : '추천받기'}
             </button>
             
             {(recommendations.length > 0 || explanation) && (
@@ -293,31 +290,30 @@ export default function LLMRecommendPage() {
                 className="clear-btn"
                 title="결과 지우기"
               >
-                🗑️
+                ×
               </button>
             )}
           </div>
 
           <div className="example-queries">
             <p>예시:</p>
-            <button onClick={() => setInput('우울한 기분을 달래줄 영화')}>
-              우울한 기분을 달래줄 영화
+            <button onClick={() => setInput('겨울밤 분위기의 영화')}>
+              겨울밤 분위기의 영화
             </button>
-            <button onClick={() => setInput('설레는 로맨스 영화')}>
-              설레는 로맨스 영화
+            <button onClick={() => setInput('아련한 로맨스 영화')}>
+              아련한 로맨스 영화
             </button>
             <button onClick={() => setInput('반전이 있는 스릴러')}>
               반전이 있는 스릴러
             </button>
-            <button onClick={() => setInput('가족과 함께 볼 따뜻한 영화')}>
-              가족과 함께 볼 따뜻한 영화
+            <button onClick={() => setInput('가족과 함께 보기 좋은 영화')}>
+              가족과 함께 보기 좋은 영화
             </button>
           </div>
         </div>
-
         {error && (
           <div className="error-box">
-            <p>❌ {error}</p>
+            <p>에러: {error}</p>
           </div>
         )}
 
@@ -330,7 +326,7 @@ export default function LLMRecommendPage() {
 
         {explanation && !isLoading && (
           <div className="explanation-section">
-            <h2>💡 추천 이유</h2>
+            <h2>추천 이유</h2>
             <div className="explanation-content">
               {explanation}
             </div>
@@ -339,65 +335,77 @@ export default function LLMRecommendPage() {
 
         {recommendations.length > 0 && !isLoading && (
           <div className="results-section">
-            <h2>🎬 추천 영화 ({recommendations.length}개)</h2>
+            <h2>추천 영화 ({recommendations.length}개)</h2>
             <div className="movie-grid">
               {recommendations.map((movie) => (
-                <div key={movie.movie_id} className="movie-card" onClick={() => handleMovieClick(movie)}>
-                  {movie.poster_url ? (
-                    <img 
-                      src={movie.poster_url} 
-                      alt={movie.title}
-                      className="movie-poster"
-                    />
-                  ) : (
-                    <div className="movie-poster-placeholder">
-                      🎬
-                    </div>
-                  )}
-                  <div className="movie-info">
-                    <h3>{movie.title}</h3>
-                    <p className="movie-genres">{movie.genres.join(', ')}</p>
-                    <p className="movie-year">📅 {movie.release_year}</p>
-                    {movie.rating && (
-                      <p className="movie-rating">⭐ {movie.rating.toFixed(1)}</p>
-                    )}
-                    
-                    {/* 만족도 확률 표시 */}
-                    <div className="movie-satisfaction">
-                      {movie.satisfaction_probability !== undefined ? (
-                        <span className="satisfaction-label">
-                          💝 내 취향 만족도: {(movie.satisfaction_probability * 100).toFixed(1)}%
-                        </span>
+                <div
+                  key={movie.movie_id}
+                  className={`movie-card llm-flip-card ${visibleExplanations[movie.movie_id] ? "is-flipped" : ""}`}
+                >
+                  <div className="llm-flip-inner">
+                    <div className="llm-flip-face llm-flip-front">
+                      {movie.poster_url ? (
+                        <img
+                          src={movie.poster_url}
+                          alt={movie.title}
+                          className="movie-poster"
+                        />
                       ) : (
-                        <span className="satisfaction-label satisfaction-login-required">
-                          💝 로그인하셔야 만족도를 볼 수 있어요
-                        </span>
+                        <div className="movie-poster-placeholder">
+                          포스터 없음
+                        </div>
                       )}
-                    </div>
-                    
-                    {movie.reason && (
-                      <p className="movie-reason">💡 {movie.reason}</p>
-                    )}
-                    
-                    <button 
-                      className="explain-btn"
-                      onClick={(e) => handleExplainClick(movie, e)}
-                      disabled={loadingExplanations[movie.movie_id]}
-                    >
-                      {loadingExplanations[movie.movie_id] ? (
-                        <>⏳ 생성 중...</>
-                      ) : visibleExplanations[movie.movie_id] ? (
-                        <>📖 설명 닫기</>
-                      ) : (
-                        <>🤖 AI 상세 설명</>
-                      )}
-                    </button>
-                    
-                    {visibleExplanations[movie.movie_id] && expandedExplanations[movie.movie_id] && (
-                      <div className="llm-explanation">
-                        <p>{expandedExplanations[movie.movie_id]}</p>
+                      <div className="movie-info">
+                        <h3>{movie.title}</h3>
+                        <p className="movie-genres">{movie.genres.join(", ")}</p>
+                        <p className="movie-year">개봉 {movie.release_year}</p>
+                        {movie.rating && (
+                          <p className="movie-rating">평점 {movie.rating.toFixed(1)}</p>
+                        )}
+
+                        <div className="movie-satisfaction">
+                          {movie.satisfaction_probability !== undefined ? (
+                            <span className="satisfaction-label">
+                              내 취향 만족도 {(movie.satisfaction_probability * 100).toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="satisfaction-label satisfaction-login-required">
+                              로그인해야 만족도를 볼 수 있어요
+                            </span>
+                          )}
+                        </div>
+
+                        {movie.reason && (
+                          <p className="movie-reason">추천 이유: {movie.reason}</p>
+                        )}
+
+                        <button
+                          className="explain-link"
+                          onClick={(e) => handleExplainClick(movie, e)}
+                          disabled={loadingExplanations[movie.movie_id]}
+                        >
+                          {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
+                        </button>
                       </div>
-                    )}
+                    </div>
+                    <div className="llm-flip-face llm-flip-back">
+                      <div className="llm-flip-back-header">
+                        <h4>{movie.title}</h4>
+                        <button
+                          className="explain-link"
+                          onClick={(e) => handleExplainClick(movie, e)}
+                        >
+                          닫기
+                        </button>
+                      </div>
+                      <div className="llm-flip-back-content">
+                        {loadingExplanations[movie.movie_id] ? (
+                          <p className="muted">설명 생성 중...</p>
+                        ) : (
+                          <p>{expandedExplanations[movie.movie_id] || "설명이 없습니다."}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -409,7 +417,7 @@ export default function LLMRecommendPage() {
         {useOrchestrator && !isLoading && additionalRecommendations.length > 0 && (
           <div className="additional-recommendations-wrapper">
             <div className="additional-recommendations-header">
-              <h2>✨ 비슷한 키워드 혹은 감성을 가진 영화들 또한 추천드려요</h2>
+              <h2>키워드/감성 기반 영화도 함께 추천해드려요</h2>
             </div>
             <div className="additional-movie-grid">
               {additionalRecommendations.map((movie) => (
@@ -422,22 +430,22 @@ export default function LLMRecommendPage() {
                     />
                   ) : (
                     <div className="additional-movie-poster-placeholder">
-                      🎬
+                      포스터 없음
                     </div>
                   )}
                   <div className="additional-movie-info">
                     <h3>{movie.title}</h3>
-                    <p className="additional-movie-genres">{movie.genres.join(', ')}</p>
-                    
-                    {/* 만족도 확률 표시 */}
+                    <p className="additional-movie-genres">{movie.genres.join(", ")}</p>
+
+                    {/* 만족도 표시 */}
                     <div className="additional-movie-satisfaction">
                       {movie.satisfaction_probability !== undefined ? (
                         <span className="satisfaction-value">
-                          💝 {(movie.satisfaction_probability * 100).toFixed(0)}%
+                          만족도 {(movie.satisfaction_probability * 100).toFixed(0)}%
                         </span>
                       ) : (
                         <span className="satisfaction-login-hint">
-                          🔒 로그인 필요
+                          로그인 필요
                         </span>
                       )}
                     </div>
@@ -447,16 +455,16 @@ export default function LLMRecommendPage() {
             </div>
           </div>
         )}
-
         {!isLoading && !error && recommendations.length === 0 && !explanation && (
           <div className="empty-state">
-            <div className="empty-icon">🎭</div>
-            <h3>영화를 추천받아보세요</h3>
-            <p>위의 입력창에 원하는 영화의 분위기나 장르를 입력하세요</p>
+            <div className="empty-icon">MOVIE</div>
+            <h3>영화를 추천받아보세요!</h3>
+            <p>입력창에 원하는 영화나 분위기를 입력해보세요.</p>
           </div>
         )}
-        </div>
       </div>
+    </div>
     </MainLayout>
   );
 }
+

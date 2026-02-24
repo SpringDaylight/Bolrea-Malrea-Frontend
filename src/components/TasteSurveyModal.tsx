@@ -4,6 +4,7 @@
  */
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
+import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
 
@@ -177,17 +178,21 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      // 태그 전처리: 이모티콘 제거 및 '/' 분리
+      const processedGenres = processGenreTags(genres);
+      const processedAvoidGenres = processGenreTags(avoidGenres.filter((g) => g !== avoidNoneLabel));
+      
       // localStorage에 저장
-      localStorage.setItem("mw_taste_genres", JSON.stringify(genres));
-      localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(avoidGenres));
+      localStorage.setItem("mw_taste_genres", JSON.stringify(processedGenres));
+      localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(processedAvoidGenres));
       localStorage.setItem("mw_taste_context", context);
       localStorage.setItem("mw_taste_vibe", vibe);
       localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
       localStorage.setItem("mw_taste_origin", origin);
 
       // ML API: 취향 분석 수행
-      const userText = `${vibe} ${keywords.join(", ")} ${genres.join(", ")}`;
-      const userDislikes = avoidGenres.filter((g) => g !== avoidNoneLabel).join(", ");
+      const userText = `${vibe} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
+      const userDislikes = processedAvoidGenres.join(", ");
 
       const userProfile = await analyzePreference({
         text: userText,

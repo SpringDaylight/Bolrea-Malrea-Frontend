@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
-import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
+import { analyzePreference, simulateGroup } from "../api/ml";
 import { getCurrentUser } from "../api/A7_profile";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
 import { getAccessToken } from "../api/http";
@@ -9,6 +9,10 @@ import { getAccessToken } from "../api/http";
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
 const maxMembersMessage = `최대 ${maxMembers}명까지 선택할 수 있어요.`;
+
+// 그룹 추천 설정
+const RECOMMEND_TOP_K = 6;  // 추천 영화 개수 (3개, 6개, 10개 등으로 변경 가능)
+const RECOMMEND_CANDIDATE_K = 200;  // 후보 영화 개수
 
 const getUserId = (user: GroupUserSearchItem) => user.user_id ?? user.id;
 const getUserDisplayName = (user: GroupUserSearchItem) =>
@@ -50,7 +54,6 @@ export default function GroupPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
-  const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
@@ -291,13 +294,11 @@ export default function GroupPage() {
         };
       });
 
-      const result = await simulateGroup({
+      await simulateGroup({
         members: membersPayload as any,
         movie_profile: baseProfile as any,
         strategy: "least_misery",
       });
-
-      setGroupResult(result as GroupSimulationResult);
 
       // 사용자 데이터 구성 (영화 추천용)
       const users: GroupUser[] = selectedMembers.map((memberId) => {
@@ -306,7 +307,7 @@ export default function GroupPage() {
           (isMe ? currentUserNickname : selectedMemberProfiles[memberId]?.nickname) ||
           memberId;
         return {
-          user_id: label,
+          user_id: memberId,  // 실제 user_id 사용 (nickname이 아님)
           name: label,
           text: isMe ? keywords.join(", ") : "",
           likes: isMe ? likedGenres : [],
@@ -316,15 +317,15 @@ export default function GroupPage() {
 
       console.log('[API 호출 시작]', {
         users: users.length,
-        top_k: 10,
-        candidate_k: 200
+        top_k: RECOMMEND_TOP_K,
+        candidate_k: RECOMMEND_CANDIDATE_K
       });
 
       // 백엔드 API 호출
       const response = await recommendGroupMovies({
         users,
-        top_k: 10,
-        candidate_k: 200,
+        top_k: RECOMMEND_TOP_K,
+        candidate_k: RECOMMEND_CANDIDATE_K,
         strategy: 'mean',
         use_bedrock: true
       });
@@ -353,13 +354,6 @@ export default function GroupPage() {
     } finally {
       setAnalyzing(false);
     }
-  };
-
-  const toggleMovieExpand = (movieId: number) => {
-    setExpandedMovies(prev => ({
-      ...prev,
-      [movieId]: !prev[movieId]
-    }));
   };
 
   return (
@@ -479,59 +473,10 @@ export default function GroupPage() {
           </div>
         </section>
 
-        {groupResult && (
-          <section className="section">
-            <div className="group-result-grid">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <article className="card" key={`group-result-${index}`}>
-                  <div className="movie-info">
-                    <h3>추천 결과 {index + 1}</h3>
-                    <p className="probability">
-                      그룹 만족 확률 {Math.round(groupResult.group_score * 100)}%
-                    </p>
-                    <p className="muted">{groupResult.comment}</p>
-                  </div>
-
-                  <div className="section" style={{ marginTop: 16 }}>
-                    <h3>멤버별 예상 반응</h3>
-                    <ul className="list">
-                      {groupResult.members.map((member) => (
-                        <li key={member.user_id}>
-                          {member.user_id}: {member.level} ({Math.round(member.probability * 100)}%)
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="section" style={{ marginTop: 16 }}>
-                    <h3>추천 의견</h3>
-                    <p className="muted">{groupResult.recommendation}</p>
-                  </div>
-
-                  <div className="section" style={{ marginTop: 16 }}>
-                    <h3>통계</h3>
-                    <ul className="list">
-                      <li>
-                        최소 만족도: {Math.round(groupResult.statistics.min_satisfaction * 100)}%
-                      </li>
-                      <li>
-                        최대 만족도: {Math.round(groupResult.statistics.max_satisfaction * 100)}%
-                      </li>
-                      <li>
-                        평균 만족도: {Math.round(groupResult.statistics.avg_satisfaction * 100)}%
-                      </li>
-                    </ul>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
         {recommendedMovies.length > 0 && (
           <section className="section">
             <h2>추천 영화 ({recommendedMovies.length}개)</h2>
-            <div className="movie-list">
+            <div className="group-result-grid">
               {recommendedMovies.map((movie) => (
                 <article key={movie.movie_id} className="card">
                   <div className="movie-info">
@@ -544,43 +489,31 @@ export default function GroupPage() {
                     </p>
 
                     {movie.per_user_detail && movie.per_user_detail.length > 0 && (
-                      <>
-                        <button
-                          className="ghost-btn"
-                          onClick={() => toggleMovieExpand(movie.movie_id)}
-                          style={{ marginTop: 12 }}
-                        >
-                          {expandedMovies[movie.movie_id] ? "멤버별 반응 접기" : "멤버별 반응 보기"}
-                        </button>
-
-                        {expandedMovies[movie.movie_id] && (
-                          <div className="section" style={{ marginTop: 16 }}>
-                            <h4>멤버별 예상 반응</h4>
-                            {movie.per_user_detail.map((detail) => (
-                              <div
-                                key={detail.user_id}
-                                style={{
-                                  marginTop: 12,
-                                  paddingLeft: 12,
-                                  borderLeft: "3px solid #ddd",
-                                }}
-                              >
-                                <p>
-                                  <strong>{detail.name}</strong>: {Math.round(detail.probability * 100)}%
-                                </p>
-                                <p className="muted" style={{ marginTop: 4 }}>
-                                  {detail.explanation}
-                                </p>
-                                {detail.top_factors.length > 0 && (
-                                  <p className="muted" style={{ marginTop: 4, fontSize: "0.9em" }}>
-                                    주요 요인: {detail.top_factors.join(", ")}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                      <div className="section" style={{ marginTop: 16 }}>
+                        <h4>멤버별 예상 반응</h4>
+                        {movie.per_user_detail.map((detail) => (
+                          <div
+                            key={detail.user_id}
+                            style={{
+                              marginTop: 12,
+                              paddingLeft: 12,
+                              borderLeft: "3px solid #ddd",
+                            }}
+                          >
+                            <p>
+                              <strong>{detail.name}</strong>: {Math.round(detail.probability * 100)}%
+                            </p>
+                            <p className="muted" style={{ marginTop: 4 }}>
+                              {detail.explanation}
+                            </p>
+                            {detail.top_factors.length > 0 && (
+                              <p className="muted" style={{ marginTop: 4, fontSize: "0.9em" }}>
+                                주요 요인: {detail.top_factors.join(", ")}
+                              </p>
+                            )}
                           </div>
-                        )}
-                      </>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </article>

@@ -4,6 +4,7 @@ import MainLayout from "../components/layout/MainLayout";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
 import { signup as signupApi } from "../api/auth";
+import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
 
@@ -224,9 +225,13 @@ export default function SignupPage() {
   };
 
   const handleCompleteSurvey = async () => {
+    // 태그 전처리: 이모티콘 제거 및 '/' 분리
+    const processedGenres = processGenreTags(genres);
+    const processedAvoidGenres = processGenreTags(avoidGenres.filter(g => g !== avoidNoneLabel));
+    
     // Save taste survey data
-    localStorage.setItem("mw_taste_genres", JSON.stringify(genres));
-    localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(avoidGenres));
+    localStorage.setItem("mw_taste_genres", JSON.stringify(processedGenres));
+    localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(processedAvoidGenres));
     localStorage.setItem("mw_taste_context", context);
     localStorage.setItem("mw_taste_vibe", vibe);
     localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
@@ -235,8 +240,8 @@ export default function SignupPage() {
 
     // Analyze preference with ML
     try {
-      const userText = `${vibe} ${keywords.join(', ')} ${genres.join(', ')}`;
-      const userDislikes = avoidGenres.filter(g => g !== "없음").join(', ');
+      const userText = `${vibe} ${keywords.join(', ')} ${processedGenres.join(', ')}`;
+      const userDislikes = processedAvoidGenres.join(', ');
       
       const { analyzePreference } = await import("../api/ml");
       const userProfile = await analyzePreference({

@@ -2,7 +2,6 @@
  * 영화 적합도 계산 유틸리티
  * HomePage와 MovieDetailPage에서 동일한 로직 사용
  */
-import { analyzePreference, predictSatisfaction, vectorizeMovie } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
 import type { Movie } from "../api/A2_movies";
 import type { SatisfactionPrediction } from "../api/ml";
@@ -10,7 +9,6 @@ import { getAccessToken } from "../api/http";
 import { getCurrentUser } from "../api/A7_profile";
 
 const CACHE_KEY_PREFIX = "mw_match_rate_cache_";
-const CACHE_DURATION = 1000 * 60 * 30; // 30분
 
 /**
  * 캐시 키 생성
@@ -19,29 +17,6 @@ const getCacheKey = (movieId: number, userTasteText: string): string => {
   // 사용자 취향 텍스트의 해시를 포함하여 취향이 바뀌면 캐시 무효화
   const hash = userTasteText.substring(0, 50);
   return `${CACHE_KEY_PREFIX}${movieId}_${hash}`;
-};
-
-/**
- * 캐시에서 가져오기
- */
-const getFromCache = (cacheKey: string): SatisfactionPrediction | null => {
-  try {
-    const cached = sessionStorage.getItem(cacheKey);
-    if (!cached) return null;
-    
-    const parsed = JSON.parse(cached);
-    if (!parsed.data || !parsed.timestamp) return null;
-    
-    // 캐시 만료 확인
-    if (Date.now() - parsed.timestamp > CACHE_DURATION) {
-      sessionStorage.removeItem(cacheKey);
-      return null;
-    }
-    
-    return parsed.data;
-  } catch {
-    return null;
-  }
 };
 
 /**
@@ -139,54 +114,80 @@ export const calculateMovieMatchRate = async (
   movie: Movie
 ): Promise<SatisfactionPrediction | null> => {
   const tasteData = await getUserTasteData();
-  const { userTasteText, userKeywords, userAvoidGenres, userProfile, fromDatabase } = tasteData;
+  const { userTasteText, userProfile } = tasteData;
 
   if (!userTasteText.trim() && !userProfile) {
     return null;
   }
 
-  const fullUserText = `${userTasteText} ${userKeywords.join(", ")}`.trim();
+  const fullUserText = `${userTasteText}`.trim();
   const cacheKey = getCacheKey(movie.id, fullUserText);
   
-  // 캐시 확인
-  const cached = getFromCache(cacheKey);
-  if (cached) {
-    console.log(`Cache hit for movie ${movie.id}`);
-    return cached;
+  // 캐시 확인 (임시로 비활성화)
+  // const cached = getFromCache(cacheKey);
+  // if (cached) {
+  //   console.log(`Cache hit for movie ${movie.id}`);
+  //   return cached;
+  // }
+
+  console.log(`🔄 Cache disabled, calculating for movie ${movie.id}...`);
+
+  // 로그인 확인
+  const userPk = localStorage.getItem("mw_user_pk");
+  const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
+  
+  if (!isLoggedIn || !userPk) {
+    console.log('⚠️ [MatchRate] 로그인 안 됨, 만족도 계산 불가');
+    return null;
   }
 
-  console.log(`Cache miss for movie ${movie.id}, calculating...`);
-
-  // 1. 사용자 취향 분석 (DB에서 가져온 경우 스킵)
-  let finalUserProfile = userProfile;
-  if (!fromDatabase || !userProfile) {
-    finalUserProfile = await analyzePreference({
-      text: fullUserText,
-      dislikes: userAvoidGenres.length ? userAvoidGenres.join(", ") : undefined,
-    });
-  }
-
-  // 2. 영화 벡터화
-  const movieProfile = await vectorizeMovie({
+  // /api/llm/satisfaction 직접 호출 (DB의 MovieVector 사용)
+  console.log('🔍 [MatchRate] Calling /api/llm/satisfaction:', {
     movie_id: movie.id,
-    title: movie.title,
-    overview: movie.synopsis || undefined,
-    genres: movie.genres,
-    keywords: movie.tags,
+    user_id: userPk
   });
-
-  // 3. 만족도 예측
-  const prediction = await predictSatisfaction({
-    user_profile: finalUserProfile,
-    movie_profile: movieProfile,
-    dislike_tags: finalUserProfile.dislike_tags,
-    boost_tags: finalUserProfile.boost_tags,
-  });
-
-  // 캐시에 저장
-  saveToCache(cacheKey, prediction);
-
-  return prediction;
+  
+  try {
+    const { calculateSatisfaction } = await import('../api/llmRecommend');
+    
+    const response = await calculateSatisfaction({
+      movie_id: movie.id,
+      user_id: userPk
+    });
+    
+    // SatisfactionPrediction 형식으로 변환
+    const prediction: SatisfactionPrediction = {
+      movie_id: movie.id,
+      title: movie.title,
+      probability: response.satisfaction_probability,
+      confidence: response.confidence || 0,
+      raw_score: 0, // breakdown에서 계산 가능
+      match_rate: response.satisfaction_probability * 100,
+      breakdown: {
+        emotion_similarity: response.breakdown?.emotion_similarity || 0,
+        narrative_similarity: response.breakdown?.narrative_similarity || 0,
+        direction_similarity: 0, // Not provided by /api/llm/satisfaction
+        character_similarity: 0, // Not provided by /api/llm/satisfaction
+        ending_similarity: response.breakdown?.ending_similarity || 0,
+        boost_score: response.breakdown?.boost_score || 0,
+        dislike_penalty: response.breakdown?.dislike_penalty || 0,
+        top_factors: response.breakdown?.top_factors || []
+      }
+    };
+    
+    console.log('✅ [MatchRate] /api/llm/satisfaction result:', {
+      probability: prediction.probability,
+      match_rate: prediction.match_rate
+    });
+    
+    // 캐시에 저장
+    saveToCache(cacheKey, prediction);
+    
+    return prediction;
+  } catch (error) {
+    console.error('❌ [MatchRate] Error:', error);
+    return null;
+  }
 };
 
 /**

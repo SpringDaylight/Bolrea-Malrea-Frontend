@@ -2,7 +2,7 @@
 import MainLayout from "../components/layout/MainLayout";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { analyzePreference, simulateGroup } from "../api/ml";
-import { getCurrentUser } from "../api/A7_profile";
+import { getCurrentUser } from "../api/users";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
 import { getAccessToken } from "../api/http";
 

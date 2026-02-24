@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { recommendMovies, explainRecommendation, calculateSatisfaction, type Movie } from '../api/llmRecommend';
 import MainLayout from '../components/layout/MainLayout';
 import '../styles/LLMRecommendPage.css';
@@ -22,6 +22,8 @@ interface SavedState {
 
 export default function LLMRecommendPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const lastAutoQueryRef = useRef<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
@@ -89,8 +91,9 @@ export default function LLMRecommendPage() {
     }
   }, [input, recommendations, explanation, useOrchestrator, keywordCandidates, vectorCandidates, keywordWeight, emotionWeight]);
 
-  const handleRecommend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleRecommend = async (value?: string) => {
+    const query = (value ?? input).trim();
+    if (!query || isLoading) return;
 
     setIsLoading(true);
     setError('');
@@ -98,10 +101,11 @@ export default function LLMRecommendPage() {
     setExplanation('');
     setKeywordCandidates([]);
     setVectorCandidates([]);
+    setInput(query);
 
     try {
       const response = await recommendMovies({
-        user_input: input.trim(),
+        user_input: query,
         top_k: 5,
         use_orchestrator: useOrchestrator
       });
@@ -135,6 +139,10 @@ export default function LLMRecommendPage() {
       e.preventDefault();
       handleRecommend();
     }
+  };
+
+  const handleRecommendClick: React.MouseEventHandler<HTMLButtonElement> = () => {
+    handleRecommend();
   };
 
   const handleMovieClick = (movie: Movie) => {
@@ -202,19 +210,17 @@ export default function LLMRecommendPage() {
       return;
     }
     
-    // 로그인 확인
-    const isLoggedIn = localStorage.getItem("mw_logged_in") === "true";
-    const userPk = localStorage.getItem("mw_user_pk");
+    // 로그인 확인 (JWT 토큰만 확인)
+    const accessToken = localStorage.getItem("mw_access_token");
     
     // 디버깅 로그
-    console.log('🔍 만족도 계산 시도:', {
-      isLoggedIn,
-      userPk,
-      mw_logged_in_raw: localStorage.getItem("mw_logged_in"),
-      mw_user_pk_raw: localStorage.getItem("mw_user_pk")
+    console.log('🔍 [LLMRecommend] 만족도 계산 시도:', {
+      movie_id: movie.movie_id,
+      hasAccessToken: !!accessToken
     });
     
-    if (!isLoggedIn || !userPk) {
+    if (!accessToken) {
+      console.error('❌ [LLMRecommend] 로그인 정보 없음');
       alert('로그인이 필요한 기능입니다.');
       return;
     }
@@ -223,19 +229,21 @@ export default function LLMRecommendPage() {
     setLoadingSatisfaction(prev => ({ ...prev, [movie.movie_id]: true }));
     
     try {
+      console.log('📤 [LLMRecommend] calculateSatisfaction 호출 (JWT 인증)');
+      
+      // JWT 인증을 사용하므로 user_id 전달 불필요
       const response = await calculateSatisfaction({
-        movie_id: movie.movie_id,
-        user_id: userPk  // ✅ 문자열 그대로 전달 (parseInt 제거)
+        movie_id: movie.movie_id
       });
       
-      console.log('✅ 만족도 계산 성공:', response);
+      console.log('✅ [LLMRecommend] 만족도 계산 성공:', response);
       
       setSatisfactionScores(prev => ({
         ...prev,
         [movie.movie_id]: response.satisfaction_probability
       }));
     } catch (err: any) {
-      console.error('❌ 만족도 계산 실패:', err);
+      console.error('❌ [LLMRecommend] 만족도 계산 실패:', err);
       if (err.message?.includes('로그인') || err.message?.includes('401')) {
         alert('로그인이 필요한 기능입니다.');
       } else if (err.message?.includes('404')) {
@@ -285,6 +293,16 @@ export default function LLMRecommendPage() {
     </div>
   );
 
+  useEffect(() => {
+    const query = searchParams.get('q');
+    if (!query) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    if (lastAutoQueryRef.current === trimmed) return;
+    lastAutoQueryRef.current = trimmed;
+    handleRecommend(trimmed);
+  }, [searchParams]);
+
   return (
     <MainLayout>
       <div className="llm-recommend-page">
@@ -306,7 +324,7 @@ export default function LLMRecommendPage() {
             />
             
             <button 
-              onClick={handleRecommend} 
+              onClick={handleRecommendClick} 
               disabled={!input.trim() || isLoading}
               className="recommend-btn"
             >

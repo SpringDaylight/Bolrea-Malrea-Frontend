@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type CSSProperties } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
@@ -104,6 +104,7 @@ export default function TasteAnalysisPage() {
             });
           }
         } else {
+          setWordCloudUserId(null);
           const savedProfile = getLocalStorageItem("mw_user_profile");
           if (savedProfile) {
             const profile = JSON.parse(savedProfile) as UserProfile;
@@ -125,6 +126,76 @@ export default function TasteAnalysisPage() {
 
     loadTasteAnalysis();
   }, [isLoggedIn, surveyRefreshKey]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !wordCloudUserId) {
+      setWordCloudError(null);
+      setWordCloudLoading(false);
+      if (wordCloudUrlRef.current) {
+        URL.revokeObjectURL(wordCloudUrlRef.current);
+        wordCloudUrlRef.current = null;
+      }
+      setWordCloudUrl(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const controller = new AbortController();
+
+    const fetchWordCloud = async () => {
+      setWordCloudLoading(true);
+      setWordCloudError(null);
+
+      try {
+        const token = getAccessToken();
+        const response = await fetch(
+          `${API_BASE_URL}/api/user-preferences/${wordCloudUserId}/wordcloud`,
+          {
+            method: "GET",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            credentials: "include",
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || "워드 클라우드를 불러오지 못했습니다.");
+        }
+
+        const blob = await response.blob();
+        const nextUrl = URL.createObjectURL(blob);
+        if (isCancelled) {
+          URL.revokeObjectURL(nextUrl);
+          return;
+        }
+
+        if (wordCloudUrlRef.current) {
+          URL.revokeObjectURL(wordCloudUrlRef.current);
+        }
+        wordCloudUrlRef.current = nextUrl;
+        setWordCloudUrl(nextUrl);
+      } catch (err) {
+        if (isCancelled) return;
+        console.error("Failed to fetch word cloud:", err);
+        setWordCloudError("워드 클라우드 데이터를 불러오지 못했습니다.");
+        if (wordCloudUrlRef.current) {
+          URL.revokeObjectURL(wordCloudUrlRef.current);
+          wordCloudUrlRef.current = null;
+        }
+        setWordCloudUrl(null);
+      } finally {
+        if (!isCancelled) setWordCloudLoading(false);
+      }
+    };
+
+    fetchWordCloud();
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+    };
+  }, [isLoggedIn, wordCloudUserId]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -624,6 +695,7 @@ export default function TasteAnalysisPage() {
     </MainLayout>
   );
 }
+
 
 
 

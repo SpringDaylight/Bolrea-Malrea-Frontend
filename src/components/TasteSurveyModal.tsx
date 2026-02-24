@@ -1,6 +1,6 @@
-/**
+﻿/**
  * 취향 설문 모달 컴포넌트
- * SignupPage의 설문 로직을 재사용
+ * SignupPage의 설문 로직을 복사
  */
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
@@ -23,7 +23,12 @@ const genreLikeOptions = [
   "🎥 다큐멘터리",
 ];
 
-const avoidNoneLabel = "🆗 없음 (다 잘 봐요!)";
+const avoidNoneLabel = "선택 없음 (중복 불가!)";
+const avoidNoneAliases = [
+  avoidNoneLabel,
+  "선택 없음 (중복불가!)",
+  "선택 없음",
+];
 
 const genreAvoidOptions = [
   "💕 로맨스 / 로코",
@@ -50,12 +55,12 @@ const contextOptions = [
 ];
 
 const vibeOptions = [
-  "🤣 가볍고 유쾌한",
-  "😭 감동적이고 여운 남는",
-  "🤯 충격적이고 파격적인",
-  "🌿 잔잔하고 힐링되는",
-  "🧠 철학적이고 생각하게 만드는",
-  "🌃 어둡고 피폐한",
+  "😀 가볍고 유쾌한",
+  "🥲 감동적이고 따뜻한",
+  "🤯 충격적이고 강렬한",
+  "🌿 여유롭고 잔잔한",
+  "🤔 철학적이고 생각하게 만드는",
+  "😰 긴장감 있는",
 ];
 
 const keywordOptions = [
@@ -75,8 +80,8 @@ const originOptions = [
   "🇰🇷 한국 영화",
   "🇺🇸 미국/할리우드",
   "🇯🇵 일본 영화/애니",
-  "🇪🇺 유럽/기타 해외",
-  "🎞️ 고전 명작",
+  "🌍 유럽/기타 해외",
+  "🎞 고전 명작",
 ];
 
 const totalSurveySteps = 6;
@@ -85,6 +90,10 @@ interface TasteSurveyModalProps {
   onClose: () => void;
   onComplete: () => void;
 }
+
+const normalizeKey = (value: string) => value.replace(/\s+/g, "").trim();
+const isAvoidNone = (value: string) =>
+  avoidNoneAliases.some((label) => normalizeKey(label) === normalizeKey(value));
 
 const readStorageArray = (key: string): string[] => {
   try {
@@ -110,10 +119,10 @@ const readStorageString = (key: string): string => {
 
 const readAvoidGenres = (): string[] => {
   const stored = readStorageArray("mw_taste_avoid_genres");
-  if (stored.includes(avoidNoneLabel)) {
+  if (stored.some(isAvoidNone)) {
     return [avoidNoneLabel];
   }
-  return stored;
+  return stored.filter((item) => !isAvoidNone(item));
 };
 
 const readKeywords = (): string[] => {
@@ -153,9 +162,9 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
   const toggleAvoidGenre = (value: string) => {
     setAvoidGenres((prev) => {
       if (value === avoidNoneLabel) {
-        return prev.includes(avoidNoneLabel) ? [] : [avoidNoneLabel];
+        return prev.some(isAvoidNone) ? [] : [avoidNoneLabel];
       }
-      const withoutNone = prev.filter((item) => item !== avoidNoneLabel);
+      const withoutNone = prev.filter((item) => !isAvoidNone(item));
       if (withoutNone.includes(value)) {
         return withoutNone.filter((item) => item !== value);
       }
@@ -178,11 +187,13 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      // 태그 전처리: 이모티콘 제거 및 '/' 분리
+      // 장르 정리 및 이모지 제거 후 '/' 분리
       const processedGenres = processGenreTags(genres);
-      const processedAvoidGenres = processGenreTags(avoidGenres.filter((g) => g !== avoidNoneLabel));
-      
-      // localStorage에 저장
+      const processedAvoidGenres = processGenreTags(
+        avoidGenres.filter((g) => !isAvoidNone(g))
+      );
+
+      // localStorage 저장
       localStorage.setItem("mw_taste_genres", JSON.stringify(processedGenres));
       localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(processedAvoidGenres));
       localStorage.setItem("mw_taste_context", context);
@@ -252,12 +263,14 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
           <div className="modal-section">
             {surveyStep === 0 && (
-              <p className="muted">당신에게 맞는 영화를 추천하기 위해 간단한 질문을 드릴게요.</p>
+              <p className="muted">
+                당신에게 맞는 영화를 추천하기 위해 간단한 질문을 드릴게요.
+              </p>
             )}
 
             {surveyStep === 1 && (
               <>
-                <h3 className="filter-title">가장 좋아하는 장르를 골라주세요. (최대 5개)</h3>
+                <h3 className="filter-title">가장 좋아하는 장르를 골라주세요 (최대 5개)</h3>
                 <div className="tag-list">
                   {genreLikeOptions.map((genre) => (
                     <button
@@ -275,7 +288,7 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
             {surveyStep === 2 && (
               <>
-                <h3 className="filter-title">이것만큼은 피하고 싶다! 절대 안 보는 장르는? (선택)</h3>
+                <h3 className="filter-title">아쉽지만 선호하지 않는 장르도 알려주세요 (선택)</h3>
                 <div className="tag-list">
                   {genreAvoidOptions.map((genre) => (
                     <button
@@ -311,7 +324,7 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
             {surveyStep === 4 && (
               <>
-                <h3 className="filter-title">어떤 분위기의 영화가 땡기나요?</h3>
+                <h3 className="filter-title">어떤 분위기의 영화가 끌리시나요?</h3>
                 <div className="tag-list">
                   {vibeOptions.map((option) => (
                     <button
@@ -329,7 +342,7 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
             {surveyStep === 5 && (
               <>
-                <h3 className="filter-title">관심 있는 키워드를 골라주세요. (최대 3개)</h3>
+                <h3 className="filter-title">관심 있는 키워드를 골라주세요 (최대 3개)</h3>
                 <div className="tag-list">
                   {keywordOptions.map((option) => (
                     <button
@@ -347,7 +360,7 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
             {surveyStep === 6 && (
               <>
-                <h3 className="filter-title">주로 어느 나라 영화를 보시나요?</h3>
+                <h3 className="filter-title">주로 어디 나라 영화를 보시나요?</h3>
                 <div className="tag-list">
                   {originOptions.map((option) => (
                     <button
@@ -366,27 +379,43 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
 
           <div className="modal-footer">
             {surveyStep === 0 && (
-              <button className="primary-btn" type="button" onClick={handleNext}>
+              <button
+                className="secondary-btn survey-nav-btn"
+                type="button"
+                onClick={handleNext}
+              >
                 시작하기
               </button>
             )}
             {surveyStep > 0 && surveyStep < totalSurveySteps && (
               <>
-                <button className="secondary-btn" type="button" onClick={handlePrev}>
+                <button
+                  className="secondary-btn survey-nav-btn"
+                  type="button"
+                  onClick={handlePrev}
+                >
                   이전
                 </button>
-                <button className="primary-btn" type="button" onClick={handleNext}>
+                <button
+                  className="secondary-btn survey-nav-btn"
+                  type="button"
+                  onClick={handleNext}
+                >
                   다음
                 </button>
               </>
             )}
             {surveyStep === totalSurveySteps && (
               <>
-                <button className="secondary-btn" type="button" onClick={handlePrev}>
+                <button
+                  className="secondary-btn survey-nav-btn"
+                  type="button"
+                  onClick={handlePrev}
+                >
                   이전
                 </button>
                 <button
-                  className="primary-btn"
+                  className="secondary-btn survey-nav-btn"
                   type="button"
                   onClick={handleSubmit}
                   disabled={submitting}

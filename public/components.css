@@ -37,6 +37,20 @@
   cursor: pointer;
 }
 
+.survey-nav-btn {
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.survey-nav-btn:hover,
+.survey-nav-btn:focus-visible {
+  background: var(--a2-20);
+  color: var(--text);
+  border: 1px solid var(--a2-80);
+  box-shadow: var(--shadow-1);
+}
+
 .primary-btn {
   background: var(--a2-20);
   color: var(--text);
@@ -1255,6 +1269,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.word-cloud-image {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
 }
 
 .word-cloud-sample {

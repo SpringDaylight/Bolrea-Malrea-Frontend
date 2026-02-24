@@ -141,6 +141,10 @@ export default function LLMRecommendPage() {
     }
   };
 
+  const handleRecommendClick: React.MouseEventHandler<HTMLButtonElement> = () => {
+    handleRecommend();
+  };
+
   const handleMovieClick = (movie: Movie) => {
     navigate(movie.detail_url);
   };
@@ -320,7 +324,7 @@ export default function LLMRecommendPage() {
             />
             
             <button 
-              onClick={handleRecommend} 
+              onClick={handleRecommendClick} 
               disabled={!input.trim() || isLoading}
               className="recommend-btn"
             >

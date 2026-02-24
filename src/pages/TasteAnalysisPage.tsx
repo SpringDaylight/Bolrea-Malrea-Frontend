@@ -405,7 +405,6 @@ export default function TasteAnalysisPage() {
     }
     return { genre: slot.genre, percent: slot.percent };
   });
-  const topEmotions = getTopEmotions(userProfile?.emotion_scores ?? null, 6);
 
   if (loading) {
     return (

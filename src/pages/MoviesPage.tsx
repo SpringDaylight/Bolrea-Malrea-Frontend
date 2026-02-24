@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import SectionHeader from "../components/common/SectionHeader";
 import { getMovies, type Movie } from "../api/A2_movies";
@@ -40,6 +40,13 @@ type GenreFilter = {
   queryGenres: string[];
 };
 
+
+type YearRangeFilter = {
+  value: string;
+  label: string;
+  min: number;
+  max?: number;
+};
 const genreFilters = [
   { value: "로맨스/로코", label: "로맨스/로코", queryGenres: ["로맨스"] },
   { value: "드라마/휴먼", label: "드라마/휴먼", queryGenres: ["드라마"] },
@@ -65,7 +72,7 @@ const runtimeFilters = [
   { value: "over-140", label: "140분 이상" },
 ] as const;
 
-const yearRangeFilters = [
+const yearRangeFilters: YearRangeFilter[] = [
   { value: "pre1950", label: "1950년 이전", min: 0, max: 1949 },
   { value: "1950s", label: "1950년-1959년", min: 1950, max: 1959 },
   { value: "1960s", label: "1960년-1969년", min: 1960, max: 1969 },
@@ -75,7 +82,7 @@ const yearRangeFilters = [
   { value: "2000s", label: "2000년-2009년", min: 2000, max: 2009 },
   { value: "2010s", label: "2010년-2019년", min: 2010, max: 2019 },
   { value: "2020plus", label: "2020년 이후", min: 2020 },
-] as const;
+];
 
 
 const resolveFilterToGenres = (values: string[]) => {
@@ -137,7 +144,6 @@ const getReleaseYear = (release?: string | null) => {
 
 export default function MoviesPage() {
   const navigate = useNavigate();
-  const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
   const isLoggedIn = Boolean(getAccessToken());
   const [movies, setMovies] = useState<Movie[]>([]);

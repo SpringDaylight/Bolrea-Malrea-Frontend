@@ -82,11 +82,11 @@ export default function Header() {
             영화
           </NavLink>
           <NavLink
-            to="/chat"
+            to="/llm-recommend"
             className={navClass}
-            onClick={handleHeaderLinkClick("/chat")}
+            onClick={handleHeaderLinkClick("/llm-recommend")}
           >
-            대화
+            🎯 AI 추천
           </NavLink>
           <NavLink
             to="/group"
@@ -101,13 +101,6 @@ export default function Header() {
             onClick={handleHeaderLinkClick("/moviemong")}
           >
             무비몽
-          </NavLink>
-          <NavLink
-            to="/llm-recommend"
-            className={navClass}
-            onClick={handleHeaderLinkClick("/llm-recommend")}
-          >
-            🎯 AI 추천
           </NavLink>
           <NavLink
             to="/mypage"

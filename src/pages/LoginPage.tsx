@@ -13,6 +13,35 @@ export default function LoginPage() {
   const [loginError, setLoginError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const getLoginErrorMessage = (error: unknown) => {
+    const raw = error instanceof Error ? error.message : "";
+    const lower = raw.toLowerCase();
+
+    if (
+      lower.includes("password") ||
+      lower.includes("비밀번호") ||
+      lower.includes("incorrect") ||
+      lower.includes("invalid") ||
+      lower.includes("401")
+    ) {
+      return "비밀번호를 확인해주세요";
+    }
+
+    if (
+      lower.includes("not found") ||
+      lower.includes("no such user") ||
+      lower.includes("user not") ||
+      lower.includes("account") ||
+      lower.includes("404") ||
+      lower.includes("존재") ||
+      lower.includes("계정")
+    ) {
+      return "회원가입 후 이용해주세요";
+    }
+
+    return "로그인에 실패했습니다.";
+  };
+
   const handleLogin = async () => {
     if (isSubmitting) return;
     setLoginError("");
@@ -33,8 +62,7 @@ export default function LoginPage() {
       window.dispatchEvent(new Event("mw_auth_change"));
       navigate("/mypage");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "로그인에 실패했습니다.";
-      setLoginError(message || "로그인에 실패했습니다.");
+      setLoginError(getLoginErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

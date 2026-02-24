@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { recommendMovies, explainRecommendation, calculateSatisfaction, type Movie } from '../api/llmRecommend';
 import MainLayout from '../components/layout/MainLayout';
 import '../styles/LLMRecommendPage.css';
@@ -22,6 +22,8 @@ interface SavedState {
 
 export default function LLMRecommendPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const lastAutoQueryRef = useRef<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
@@ -89,8 +91,9 @@ export default function LLMRecommendPage() {
     }
   }, [input, recommendations, explanation, useOrchestrator, keywordCandidates, vectorCandidates, keywordWeight, emotionWeight]);
 
-  const handleRecommend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleRecommend = async (value?: string) => {
+    const query = (value ?? input).trim();
+    if (!query || isLoading) return;
 
     setIsLoading(true);
     setError('');
@@ -98,10 +101,11 @@ export default function LLMRecommendPage() {
     setExplanation('');
     setKeywordCandidates([]);
     setVectorCandidates([]);
+    setInput(query);
 
     try {
       const response = await recommendMovies({
-        user_input: input.trim(),
+        user_input: query,
         top_k: 5,
         use_orchestrator: useOrchestrator
       });
@@ -284,6 +288,16 @@ export default function LLMRecommendPage() {
       </div>
     </div>
   );
+
+  useEffect(() => {
+    const query = searchParams.get('q');
+    if (!query) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    if (lastAutoQueryRef.current === trimmed) return;
+    lastAutoQueryRef.current = trimmed;
+    handleRecommend(trimmed);
+  }, [searchParams]);
 
   return (
     <MainLayout>

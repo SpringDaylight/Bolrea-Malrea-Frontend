@@ -1521,7 +1521,7 @@ export default function MovieDetailPage() {
                             {myReviewVisibility === "private" ? "비공개" : "공개"}
                           </span>
                           <span className="option-select-arrow" aria-hidden="true">
-                            ?
+                            ▾
                           </span>
                         </button>
                         {isVisibilityOpen && isLoggedIn && (
@@ -1541,7 +1541,7 @@ export default function MovieDetailPage() {
                               }}
                             >
                               <strong>공개</strong>
-                              {myReviewVisibility === "public" && <span>?</span>}
+                              {myReviewVisibility === "public" && <span>✓</span>}
                             </button>
                             <button
                               type="button"
@@ -1554,7 +1554,7 @@ export default function MovieDetailPage() {
                               }}
                             >
                               <strong>비공개</strong>
-                              {myReviewVisibility === "private" && <span>?</span>}
+                              {myReviewVisibility === "private" && <span>✓</span>}
                             </button>
                           </div>
                         )}

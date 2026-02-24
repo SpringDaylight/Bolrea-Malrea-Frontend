@@ -62,8 +62,10 @@ export function getMovies(params?: {
   sort?: 'latest' | 'popular' | 'rating' | 'title';
   runtime_min?: number;
   runtime_max?: number;
+  runtime_ranges?: string;
   year_min?: number;
   year_max?: number;
+  year_ranges?: string;
   page?: number;
   page_size?: number;
 }): Promise<MovieListResponse> {

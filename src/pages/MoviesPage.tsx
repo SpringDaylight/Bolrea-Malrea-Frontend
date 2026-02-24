@@ -264,12 +264,18 @@ export default function MoviesPage() {
           appliedYearRange.length === 1
             ? resolveYearRange(appliedYearRange[0])
             : {};
+        const runtimeRangesParam =
+          appliedRuntime.length > 1 ? appliedRuntime.join(",") : undefined;
+        const yearRangesParam =
+          appliedYearRange.length > 1 ? appliedYearRange.join(",") : undefined;
 
         const response = await getMovies({
           query: appliedQuery || undefined,
           genres,
           sort,
+          runtime_ranges: runtimeRangesParam,
           ...runtimeRange,
+          year_ranges: yearRangesParam,
           ...yearRange,
           page: currentPage,
           page_size: 20,
@@ -283,37 +289,8 @@ export default function MoviesPage() {
                 (movie.title ?? "").toLowerCase().includes(normalizedQuery)
               )
             : response.movies;
-        const filteredByRuntime =
-          appliedRuntime.length > 1
-            ? filteredByTitle.filter((movie) => {
-                const runtime = typeof movie.runtime === "number" ? movie.runtime : null;
-                if (runtime === null) return false;
-                return appliedRuntime.some((value) => {
-                  const { runtime_min, runtime_max } = resolveRuntimeRange(value);
-                  if (typeof runtime_min === "number" && runtime < runtime_min) return false;
-                  if (typeof runtime_max === "number" && runtime > runtime_max) return false;
-                  return true;
-                });
-              })
-            : filteredByTitle;
-        const filteredByYear =
-          appliedYearRange.length > 1
-            ? filteredByRuntime.filter((movie) => {
-                const year = getReleaseYear(movie.release);
-                if (!year) return false;
-                return appliedYearRange.some((value) => {
-                  const { year_min, year_max } = resolveYearRange(value);
-                  if (typeof year_min === "number" && year < year_min) return false;
-                  if (typeof year_max === "number" && year > year_max) return false;
-                  return true;
-                });
-              })
-            : filteredByRuntime;
-        setMovies(filteredByYear);
-        const shouldUseClientTotal =
-          appliedRuntime.length > 1 || appliedYearRange.length > 1;
-        const totalSource = shouldUseClientTotal ? filteredByYear.length : response.total;
-        const nextTotalPages = Math.max(1, Math.ceil(totalSource / response.page_size));
+        setMovies(filteredByTitle);
+        const nextTotalPages = Math.max(1, Math.ceil(response.total / response.page_size));
         setTotalPages(nextTotalPages);
       } catch (err) {
         if (isCancelled) return;

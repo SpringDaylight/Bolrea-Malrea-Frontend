@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Link } from "react-router-dom";
 import { getMovies, type Movie } from "../api/A2_movies";
@@ -7,13 +7,37 @@ import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
 import TasteSurveyModal from "../components/TasteSurveyModal";
 import { getAccessToken } from "../api/http";
 
+const RECOMMENDED_PAGE_SIZE = 4;
+const RECOMMENDED_TOTAL = 12;
+
+const FAQ_ITEMS = [
+  {
+    q: "볼래! 말래?는 어떤 서비스인가요?",
+    a: "취향 데이터를 바탕으로 영화 추천과 탐색을 쉽게 도와주는 서비스입니다.",
+  },
+  {
+    q: "대화 추천은 어떤 기준으로 나오나요?",
+    a: "대화에 포함된 키워드와 감성 태그를 분석해 유사한 분위기의 작품을 추천해요.",
+  },
+  {
+    q: "다함께 추천은 어떻게 이용하나요?",
+    a: "멤버를 선택하면 모두의 취향을 고려해 만족도가 높은 영화를 보여줘요.",
+  },
+  {
+    q: "취향 설정은 언제 필요한가요?",
+    a: "개인화 추천과 매칭 점수를 정확히 보려면 취향 설정이 필요합니다.",
+  },
+  {
+    q: "영화 데이터는 어떻게 업데이트되나요?",
+    a: "최신 인기작과 평점 데이터를 기준으로 정기 업데이트하고 있어요.",
+  },
+];
+
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
   const [searchResults, setSearchResults] = useState<Movie[] | null>(null);
-  const [recommendedMatchRates, setRecommendedMatchRates] = useState<Record<number, number>>(
-    {}
-  );
+  const [recommendedMatchRates, setRecommendedMatchRates] = useState<Record<number, number>>({});
   const [searchMatchRates, setSearchMatchRates] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -25,11 +49,8 @@ export default function HomePage() {
   const [recommendedPage, setRecommendedPage] = useState(1);
   const [needsTasteSetup, setNeedsTasteSetup] = useState(false);
   const [showTasteSurveyModal, setShowTasteSurveyModal] = useState(false);
-  
-  const isLoggedIn = Boolean(getAccessToken());
 
-  const RECOMMENDED_PAGE_SIZE = 4;
-  const RECOMMENDED_TOTAL = 12;
+  const isLoggedIn = Boolean(getAccessToken());
 
   const computeMovieMatchRates = async (movies: Movie[]) => {
     try {
@@ -114,9 +135,7 @@ export default function HomePage() {
 
     if (isNaturalLanguage && trimmedQuery.length > 3) {
       try {
-        const emotionResult = await emotionalSearch({
-          text: trimmedQuery,
-        });
+        const emotionResult = await emotionalSearch({ text: trimmedQuery });
 
         const emotionScores = emotionResult.expanded_query.emotion_scores;
         const topTags = Object.entries(emotionScores)
@@ -131,17 +150,17 @@ export default function HomePage() {
           setActiveSearchLabel(`${trimmedQuery} (감성 검색)`);
 
           const emotionToGenreMap: { [key: string]: string[] } = {
-            감동적이에요: ["드라마"],
-            따뜻해요: ["드라마", "가족"],
-            슬퍼요: ["드라마"],
-            무서워요: ["공포", "스릴러"],
-            긴장돼요: ["스릴러", "액션"],
-            웃겨요: ["코미디"],
-            로맨틱해요: ["로맨스"],
-            설레요: ["로맨스"],
-            통쾌해요: ["액션"],
-            잔잔해요: ["드라마"],
-            힐링돼요: ["드라마", "가족"],
+            "감동적이에요": ["드라마"],
+            "따뜻해요": ["드라마", "가족"],
+            "슬퍼요": ["드라마"],
+            "무서워요": ["공포", "스릴러"],
+            "긴장돼요": ["스릴러", "액션"],
+            "웃겨요": ["코미디"],
+            "로맨틱해요": ["로맨스"],
+            "설레요": ["로맨스"],
+            "통쾌해요": ["액션"],
+            "잔잔해요": ["드라마"],
+            "힐링돼요": ["드라마", "가족"],
             "밝은 분위기예요": ["코미디", "가족"],
             "어두운 분위기예요": ["스릴러", "범죄"],
           };
@@ -163,10 +182,7 @@ export default function HomePage() {
               sort: "popular",
             });
           } else {
-            response = await getMovies({
-              page_size: 8,
-              sort: "popular",
-            });
+            response = await getMovies({ page_size: 8, sort: "popular" });
           }
 
           const rateMap = await computeMovieMatchRates(response.movies);
@@ -274,11 +290,37 @@ export default function HomePage() {
           <>
             <section className="landing-hero">
               <div className="landing-hero-text">
-                <span className="landing-badge">Movie Match</span>
-                <h1>오늘의 영화, 한 번에 찾아보기</h1>
+                <span className="landing-badge">See or Not</span>
+                <h1>오늘의 취향, 한 번에 찾아보기</h1>
                 <p>
-                  대화로 추천 받고, 마음에 들면 바로 탐색하세요. 간단하지만 확실한 추천 흐름을 제공합니다.
+                  대화로 추천 받고, 마음에 들면 바로 탐색하세요. 간단하지만 확실한 추천
+                  흐름을 제공합니다.
                 </p>
+                <div className="hero-actions">
+                  <input
+                    className="search-input"
+                    type="text"
+                    placeholder="'감동적인 영화 추천해줘' 같은 자연어로 검색해보세요"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  />
+                  <button className="primary-btn" type="button" onClick={handleSearch}>
+                    맞춤 추천 받기
+                  </button>
+                </div>
+              </div>
+              <div className="landing-hero-side">
+                <div className="landing-hero-panel">
+                  <div className="panel-card">
+                    <p className="panel-title">간편한 추천 루틴</p>
+                    <p className="panel-desc">대화 → 후보 선택 → 바로 감상</p>
+                  </div>
+                  <div className="panel-card">
+                    <p className="panel-title">취향 조합</p>
+                    <p className="panel-desc">장르, 길이, 분위기까지 조합해서 추천</p>
+                  </div>
+                </div>
                 <div className="landing-actions">
                   <Link className="primary-btn" to="/chat">
                     대화 시작하기
@@ -291,36 +333,26 @@ export default function HomePage() {
                   </Link>
                 </div>
               </div>
-              <div className="landing-hero-panel">
-                <div className="panel-card">
-                  <p className="panel-title">간편한 추천 루틴</p>
-                  <p className="panel-desc">대화 → 후보 선택 → 바로 감상</p>
-                </div>
-                <div className="panel-card">
-                  <p className="panel-title">취향 조합</p>
-                  <p className="panel-desc">장르, 길이, 분위기까지 조합해서 추천</p>
-                </div>
-              </div>
             </section>
 
             <section className="landing-grid">
               <article className="landing-card">
-                <h2>대화로 추천받기</h2>
-                <p>지금의 기분이나 보고싶은 영화 분위기를 말해보세요.</p>
+                <h2>대화형 추천</h2>
+                <p>지금 기분이나 보고 싶은 분위기를 말해보세요.</p>
               </article>
               <article className="landing-card">
-                <h2>영화 둘러보기</h2>
-                <p>선호하는 장르, 개봉시기, 상영시간을 조합하여 영화를 검색할 수 있어요.</p>
+                <h2>취향 기반 탐색</h2>
+                <p>선호 장르, 길이, 분위기를 쉽게 조합할 수 있어요.</p>
               </article>
               <article className="landing-card">
-                <h2>다함께 추천받기</h2>
-                <p>다른 멤버들의 취향을 모아 모두가 만족하는 영화를 찾을 수 있어요.</p>
+                <h2>다함께 추천</h2>
+                <p>모임 멤버들의 취향을 모아 모두 만족하는 영화를 찾습니다.</p>
               </article>
             </section>
 
             <section className="landing-strip">
               <div className="strip-head">
-                <h2>이런 흐름으로 추천해요</h2>
+                <h2>이런 흐름으로 추천돼요</h2>
                 <p>복잡하지 않고 직관적인 단계로 구성했어요.</p>
               </div>
               <div className="strip-steps">
@@ -346,28 +378,7 @@ export default function HomePage() {
                   <p>가장 많이 찾는 질문들을 모아두었어요.</p>
                 </div>
                 <div className="landing-faq-list">
-                  {[
-                    {
-                      q: "볼래! 말래?는 어떤 서비스인가요?",
-                      a: "취향 데이터를 바탕으로 영화 추천과 탐색을 쉽게 도와주는 서비스입니다.",
-                    },
-                    {
-                      q: "대화 추천은 어떤 기준으로 나오나요?",
-                      a: "대화에 포함된 키워드와 감성 태그를 분석해 유사한 분위기의 작품을 추천해요.",
-                    },
-                    {
-                      q: "다함께 추천은 어떻게 이용하나요?",
-                      a: "멤버를 선택하면 모두의 취향을 고려해 만족도가 높은 영화를 보여줘요.",
-                    },
-                    {
-                      q: "취향 설정은 언제 필요한가요?",
-                      a: "개인화 추천과 매칭 점수를 정확히 보려면 취향 설정이 필요합니다.",
-                    },
-                    {
-                      q: "영화 데이터는 어떻게 업데이트되나요?",
-                      a: "최신 인기작과 평점 데이터를 기준으로 정기 업데이트하고 있어요.",
-                    },
-                  ].map((item, index) => {
+                  {FAQ_ITEMS.map((item, index) => {
                     const isOpen = openFaq === index;
                     return (
                       <div
@@ -396,108 +407,14 @@ export default function HomePage() {
           </>
         ) : (
           <>
-            <section className="section">
-              <div className="section-header">
-                <h2>나를 위한 추천</h2>
-                <div className="home-recommend-controls">
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="이전 페이지"
-                    onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
-                    disabled={safeRecommendedPage === 1}
-                  >
-                    {"◀"}
-                  </button>
-                  <span className="page-number-text" aria-live="polite">
-                    {safeRecommendedPage}/{recommendedTotalPages}
-                  </span>
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="다음 페이지"
-                    onClick={() =>
-                      setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))
-                    }
-                    disabled={safeRecommendedPage >= recommendedTotalPages}
-                  >
-                    {"▶"}
-                  </button>
-                </div>
-              </div>
-
-              {needsTasteSetup ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "3rem 1rem",
-                    backgroundColor: "#fff3cd",
-                    borderRadius: "8px",
-                    margin: "1rem 0",
-                    border: "1px solid #ffc107",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: "1.2rem",
-                      marginBottom: "1rem",
-                    color: "var(--text)",
-                    }}
-                  >
-                    취향 설정이 필요합니다
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "1rem",
-                      marginBottom: "1.5rem",
-                    color: "var(--text)",
-                    }}
-                  >
-                    나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
-                  </p>
-                  <button className="primary-btn" onClick={() => setShowTasteSurveyModal(true)}>
-                    취향 설정하기
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {loading && <p>로딩 중...</p>}
-
-                  {!loading && recommendedMovies.length > 0 && (
-                    <div className="movie-grid">
-                      {visibleRecommended.map((movie) => (
-                        <article className="card movie-tile" key={movie.id}>
-                          <img
-                            className="poster"
-                            src={
-                              movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"
-                            }
-                            alt={`${movie.title} 포스터`}
-                          />
-                          <div className="movie-info">
-                            <h3>{movie.title}</h3>
-                            <p className="probability home-match-probability">
-                              적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
-                            </p>
-                            <p className="muted synopsis-clamp">
-                              {movie.synopsis
-                                ? movie.synopsis.substring(0, 60) +
-                                  (movie.synopsis.length > 60 ? "..." : "")
-                                : "줄거리 정보가 없습니다."}
-                            </p>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
-
-            <section className="hero">
-              <div>
-                <h1>지금 기분에 맞는 영화를 찾아보세요</h1>
-                <p>취향 데이터와 상황 맥락을 결합해 만족 가능성까지 알려드려요.</p>
+            <section className="landing-hero">
+              <div className="landing-hero-text">
+                <span className="landing-badge">See or Not</span>
+                <h1>오늘의 취향, 한 번에 찾아보기</h1>
+                <p>
+                  대화로 추천 받고, 마음에 들면 바로 탐색하세요. 간단하지만 확실한 추천
+                  흐름을 제공합니다.
+                </p>
                 <div className="hero-actions">
                   <input
                     className="search-input"
@@ -510,6 +427,29 @@ export default function HomePage() {
                   <button className="primary-btn" type="button" onClick={handleSearch}>
                     맞춤 추천 받기
                   </button>
+                </div>
+              </div>
+              <div className="landing-hero-side">
+                <div className="landing-hero-panel">
+                  <div className="panel-card">
+                    <p className="panel-title">간편한 추천 루틴</p>
+                    <p className="panel-desc">대화 → 후보 선택 → 바로 감상</p>
+                  </div>
+                  <div className="panel-card">
+                    <p className="panel-title">취향 조합</p>
+                    <p className="panel-desc">장르, 길이, 분위기까지 조합해서 추천</p>
+                  </div>
+                </div>
+                <div className="landing-actions">
+                  <Link className="primary-btn" to="/chat">
+                    대화 시작하기
+                  </Link>
+                  <Link className="secondary-btn" to="/movies">
+                    영화 둘러보기
+                  </Link>
+                  <Link className="secondary-btn" to="/group">
+                    다함께 추천받기
+                  </Link>
                 </div>
               </div>
             </section>
@@ -539,32 +479,116 @@ export default function HomePage() {
                 {!searchLoading && !searchError && searchResults && searchResults.length > 0 && (
                   <div className="movie-grid">
                     {searchResults.map((movie) => (
-                      <article className="card movie-tile" key={movie.id}>
-                        <img
-                          className="poster"
-                          src={
-                            movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"
-                          }
-                          alt={`${movie.title} 포스터`}
-                        />
-                        <div className="movie-info">
-                          <h3>{movie.title}</h3>
-                          <p className="probability home-match-probability">
-                            종합 매칭 {searchMatchRates[movie.id] ?? 83}%
-                          </p>
-                          <p className="muted synopsis-clamp">
-                            {movie.synopsis
-                              ? movie.synopsis.substring(0, 60) +
-                                (movie.synopsis.length > 60 ? "..." : "")
-                              : "줄거리 정보가 없습니다."}
-                          </p>
-                        </div>
-                      </article>
+                      <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                        <article className="card movie-tile">
+                          <img
+                            className="poster"
+                            src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
+                            alt={`${movie.title} 포스터`}
+                          />
+                          <div className="movie-info">
+                            <h3>{movie.title}</h3>
+                            <p className="probability home-match-probability">
+                              종합 매칭 {searchMatchRates[movie.id] ?? 83}%
+                            </p>
+                            <p className="muted synopsis-clamp">
+                              {movie.synopsis
+                                ? movie.synopsis.substring(0, 60) +
+                                  (movie.synopsis.length > 60 ? "..." : "")
+                                : "줄거리 정보가 없습니다."}
+                            </p>
+                          </div>
+                        </article>
+                      </Link>
                     ))}
                   </div>
                 )}
               </section>
             )}
+
+            <section className="section">
+              <div className="section-header">
+                <h2>나를 위한 추천</h2>
+                <div className="home-recommend-controls">
+                  <button
+                    className="icon-btn page-arrow-btn"
+                    type="button"
+                    aria-label="이전 페이지"
+                    onClick={() => setRecommendedPage((prev) => Math.max(1, prev - 1))}
+                    disabled={safeRecommendedPage === 1}
+                  >
+                    {"◀"}
+                  </button>
+                  <span className="page-number-text" aria-live="polite">
+                    {safeRecommendedPage}/{recommendedTotalPages}
+                  </span>
+                  <button
+                    className="icon-btn page-arrow-btn"
+                    type="button"
+                    aria-label="다음 페이지"
+                    onClick={() => setRecommendedPage((prev) => Math.min(recommendedTotalPages, prev + 1))}
+                    disabled={safeRecommendedPage >= recommendedTotalPages}
+                  >
+                    {"▶"}
+                  </button>
+                </div>
+              </div>
+
+              {needsTasteSetup ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "3rem 1rem",
+                    backgroundColor: "var(--warning-soft)",
+                    borderRadius: "8px",
+                    margin: "1rem 0",
+                    border: "1px solid var(--warning)",
+                  }}
+                >
+                  <p style={{ fontSize: "1.2rem", marginBottom: "1rem", color: "var(--text)" }}>
+                    취향 설정이 필요합니다
+                  </p>
+                  <p style={{ fontSize: "1rem", marginBottom: "1.5rem", color: "var(--text)" }}>
+                    나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
+                  </p>
+                  <button className="primary-btn" onClick={() => setShowTasteSurveyModal(true)}>
+                    취향 설정하기
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {loading && <p>로딩 중...</p>}
+
+                  {!loading && recommendedMovies.length > 0 && (
+                    <div className="movie-grid">
+                      {visibleRecommended.map((movie) => (
+                        <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                          <article className="card movie-tile">
+                            <img
+                              className="poster"
+                              src={movie.poster_url || "https://via.placeholder.com/500x750?text=No+Image"}
+                              alt={`${movie.title} 포스터`}
+                            />
+                            <div className="movie-info">
+                              <h3>{movie.title}</h3>
+                              <p className="probability home-match-probability">
+                                적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
+                              </p>
+                              <p className="muted synopsis-clamp">
+                                {movie.synopsis
+                                  ? movie.synopsis.substring(0, 60) +
+                                    (movie.synopsis.length > 60 ? "..." : "")
+                                  : "줄거리 정보가 없습니다."}
+                              </p>
+                            </div>
+                          </article>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
           </>
         )}
         {showTasteSurveyModal && (

@@ -243,7 +243,7 @@
 
 .landing-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.85fr);
   gap: 24px;
   padding: 40px 32px;
   border-radius: var(--radius-lg);
@@ -286,15 +286,35 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
+}
+
+.landing-hero-side .landing-actions {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.landing-hero-side .landing-actions > .primary-btn,
+.landing-hero-side .landing-actions > .secondary-btn {
+  min-width: 150px;
 }
 
 .landing-hero-panel {
   display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.landing-hero-side {
+  display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .panel-card {
+  flex: 0 1 46%;
   border-radius: 16px;
   padding: 16px 18px;
   background: var(--bg-soft);

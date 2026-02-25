@@ -329,7 +329,7 @@
   transition: transform 0.35s ease;
   height: fit-content !important;
   flex: 0 0 auto;
-  align-content: start;
+  align-content: end;
 }
 
 .llm-recommend-page .movie-genres {
@@ -625,7 +625,7 @@
 /* Hover 전/후 기본정보 vs 상세정보 노출 */
 
 .llm-recommend-page .movie-card:hover .movie-info {
-  transform: translateY(-32%);
+  transform: translateY(0);
 }
 
 

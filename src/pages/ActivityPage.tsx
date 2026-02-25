@@ -736,351 +736,351 @@ export default function ActivityPage() {
       <main className="container activity-page">
         <div className="activity-top-grid">
           <section className="section card profile-card activity-top-card">
-          {/* <div className="page-title">
+            {/* <div className="page-title">
             <h1>프로필</h1>
             <p>프로필과 설정을 관리해요.</p>
           </div> */}
-          <div className="profile-header">
-            <div className="profile-info">
-              <div className="profile-top-row">
-                <div className="profile-summary">
-                <div className="profile-header-row">
-                  <div className="profile-avatar-block">
-                    <div className="profile-avatar is-image">
-                      <img
-                        className="profile-avatar-image"
-                        src={ticketIcon}
-                        alt={`${profile.nickname} 프로필`}
-                      />
+            <div className="profile-header">
+              <div className="profile-info">
+                <div className="profile-top-row">
+                  <div className="profile-summary">
+                    <div className="profile-header-row">
+                      <div className="profile-avatar-block">
+                        <div className="profile-avatar is-image">
+                          <img
+                            className="profile-avatar-image"
+                            src={ticketIcon}
+                            alt={`${profile.nickname} 프로필`}
+                          />
+                        </div>
+                        <h2 className="profile-nickname">{profile.nickname}</h2>
+                      </div>
+                      <button
+                        className="icon-btn settings-btn"
+                        type="button"
+                        aria-label="설정 열기"
+                        onClick={() => setSettingsOpen(true)}
+                      >
+                        ⚙
+                      </button>
                     </div>
-                    <h2 className="profile-nickname">{profile.nickname}</h2>
                   </div>
-                  <button
-                    className="icon-btn settings-btn"
-                    type="button"
-                    aria-label="설정 열기"
-                    onClick={() => setSettingsOpen(true)}
-                  >
-                    ⚙
-                  </button>
-                </div>
-                </div>
-                <div className="profile-divider" />
-                <div className="profile-meta">
-                  <div>
-                    <span className="muted">이름</span>
-                    <strong>{profile.realname}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">나이</span>
-                    <strong>{profile.age}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">성별</span>
-                    <strong>{profile.gender}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">아이디</span>
-                    <strong>{profile.id}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">이메일</span>
-                    <strong>{profile.email}</strong>
+                  <div className="profile-divider" />
+                  <div className="profile-meta">
+                    <div>
+                      <span className="muted">이름</span>
+                      <strong>{profile.realname}</strong>
+                    </div>
+                    <div>
+                      <span className="muted">나이</span>
+                      <strong>{profile.age}</strong>
+                    </div>
+                    <div>
+                      <span className="muted">성별</span>
+                      <strong>{profile.gender}</strong>
+                    </div>
+                    <div>
+                      <span className="muted">아이디</span>
+                      <strong>{profile.id}</strong>
+                    </div>
+                    <div>
+                      <span className="muted">이메일</span>
+                      <strong>{profile.email}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
-              {/* <div className="profile-actions">
+                {/* <div className="profile-actions">
                 <button className="ghost-btn" type="button" onClick={handleLogout}>
                   로그아웃
                 </button>
               </div> */}
+              </div>
             </div>
-          </div>
-          <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
-        </section>
+            <p className="muted profile-bio profile-bio-below">"{profile.bio}"</p>
+          </section>
 
           <section className="section card taste-preview-section activity-top-card">
-          <article className="taste-preview">
-            <div className="taste-preview-header with-cta">
-              <div>
-                <h2>취향 분석 대시보드</h2>
-                <p>최근 평가 기반 요약</p>
+            <article className="taste-preview">
+              <div className="taste-preview-header with-cta">
+                <div>
+                  <h2>취향 분석 대시보드</h2>
+                  <p>최근 평가 기반 요약</p>
+                </div>
+                <button
+                  className="secondary-btn taste-preview-top-cta"
+                  type="button"
+                  onClick={() => navigate("/taste-analysis")}
+                >
+                  상세보기
+                </button>
               </div>
-              <button
-                className="secondary-btn taste-preview-top-cta"
-                type="button"
-                onClick={() => navigate("/taste-analysis")}
-              >
-                상세보기
-              </button>
-            </div>
-            <div className="taste-preview-body taste-preview-grid">
-              <div className="taste-preview-main">
-                <p className="muted">선호 키워드</p>
-                <div className="tag-list" style={{ marginTop: 8 }}>
-                  <span className="tag">감정선</span>
-                  <span className="tag">몰입</span>
-                  <span className="tag">서사</span>
+              <div className="taste-preview-body taste-preview-grid">
+                <div className="taste-preview-main">
+                  <p className="muted">선호 키워드</p>
+                  <div className="tag-list" style={{ marginTop: 8 }}>
+                    <span className="tag">감정선</span>
+                    <span className="tag">몰입</span>
+                    <span className="tag">서사</span>
+                  </div>
+                </div>
+                <div className="taste-preview-side">
+                  <p className="muted">가장 높은 장르</p>
+                  <p className="probability">{topGenreLabel}</p>
                 </div>
               </div>
-              <div className="taste-preview-side">
-                <p className="muted">가장 높은 장르</p>
-                <p className="probability">{topGenreLabel}</p>
-              </div>
-            </div>
-            {/* <button
+              {/* <button
               className="primary-btn taste-preview-cta"
               type="button"
               onClick={() => navigate("/taste-analysis")}
             >
               자세히보기
             </button> */}
-          </article>
+            </article>
           </section>
         </div>
 
         <section className="section card activity-summary-card">
           <article className="taste-preview">
 
-          {/*  
+            {/*  
           <section className="page-title">
             <h1>내 활동</h1>
             <p>내가 본 영화와 남긴 리뷰를 관리해요.</p>
           </section> */}
 
-        
-          <div className="taste-preview-header">
-            <h2>활동 요약</h2>
-            <p>내가 본 영화와 남긴 리뷰를 관리해요.</p>
-            {/* <p>시청/리뷰/컬렉션 현황</p> */}
-          </div>  
-          <div className="activity-stats taste-preview-grid" id="activity-stats">
-            <div
-              className="stat taste-preview-main clickable hoverable"
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                requestScrollToSection("activity-stats", "posters");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  requestScrollToSection("activity-stats", "posters");
-                }
-              }}
-            >
-                <strong>{watchedCount}</strong>
-              <span>시청작</span>
-            </div>
-            <div
-              className="stat taste-preview-side clickable hoverable"
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                requestScrollToSection("activity-stats", "reviews");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  requestScrollToSection("activity-stats", "reviews");
-                }
-              }}
-            >
-              <strong>{reviewCount}</strong>
-              <span>리뷰</span>
-            </div>
-          </div>
-          {view === "posters" && (
-            <article className="section view-section" data-view="posters" id="posters-section">
-              <div
-                className="poster-search input-with-clear"
-                style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}
-              >
-                <input
-                  className="search-input"
-                  type="text"
-                  placeholder="시청함에서 영화 검색"
-                  value={watchedSearch}
-                  onChange={(event) => setWatchedSearch(event.target.value)}
-                  aria-label="시청함 영화 검색"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      setAppliedWatchedSearch(watchedSearch);
-                    }
-                  }}
-                />
-                {watchedSearch && (
-                  <button
-                    className="input-clear-btn"
-                    type="button"
-                    aria-label="검색어 지우기"
-                    onClick={() => {
-                      setWatchedSearch("");
-                      setAppliedWatchedSearch("");
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
-                <button
-                  className="primary-btn"
-                  type="button"
-                  onClick={() => setAppliedWatchedSearch(watchedSearch)}
-                >
-                  검색
-                </button>
-              </div>
-              {filteredPosterItems.length === 0 ? (
-                <p className="search-empty">검색 결과가 없어요.</p>
-              ) : (
-                <div className="poster-grid poster-grid-10">
-                  {visiblePosters.map((poster) => (
-                    <div key={poster.id} className="poster-card">
-                      <Link to={poster.to}>
-                        <img src={poster.src} alt={poster.alt} />
-                      </Link>
-                      <p className="poster-title">{poster.title}</p>
-                      <button
-                        className="poster-remove-btn"
-                        type="button"
-                        aria-label={`${poster.alt} 제거`}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          handleRemoveWatchedMovie(poster.movieId);
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {filteredPosterItems.length > WATCHED_PAGE_SIZE && (
-                <div className="poster-pagination">
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="이전 페이지"
-                    onClick={() =>
-                      setWatchedPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={safeWatchedPage === 1}
-                  >
-                    {"◀"}
-                  </button>
-                  <span className="page-number-text" aria-live="polite">
-                    {safeWatchedPage}/{watchedTotalPages}
-                  </span>
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="다음 페이지"
-                    onClick={() =>
-                      setWatchedPage((prev) =>
-                        Math.min(watchedTotalPages, prev + 1)
-                      )
-                    }
-                    disabled={safeWatchedPage >= watchedTotalPages}
-                  >
-                    {"▶"}
-                  </button>
-                </div>
-              )}
-            </article>
-          )}
 
-          {view === "reviews" && (
-            <article className="section view-section" data-view="reviews" id="reviews-section">
-            <div className="review-list activity-review-grid">
-                {visibleReviews.map((review) => {
-                  const visibilityMeta = getReviewVisibilityMeta(review.visibility);
-                  const reviewText = review.content ?? "";
-                  return (
-                  <div className="review-item" key={review.id}>
-                    <article
-                      className="card review-card review-card-toggle"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/movies/${review.movieId}#my-review`)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          navigate(`/movies/${review.movieId}#my-review`);
-                        }
+            <div className="taste-preview-header">
+              <h2>활동 요약</h2>
+              <p>내가 본 영화와 남긴 리뷰를 관리해요.</p>
+              {/* <p>시청/리뷰/컬렉션 현황</p> */}
+            </div>
+            <div className="activity-stats taste-preview-grid" id="activity-stats">
+              <div
+                className="stat taste-preview-main clickable hoverable"
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  requestScrollToSection("activity-stats", "posters");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    requestScrollToSection("activity-stats", "posters");
+                  }
+                }}
+              >
+                <strong>{watchedCount}</strong>
+                <span>시청작</span>
+              </div>
+              <div
+                className="stat taste-preview-side clickable hoverable"
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  requestScrollToSection("activity-stats", "reviews");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    requestScrollToSection("activity-stats", "reviews");
+                  }
+                }}
+              >
+                <strong>{reviewCount}</strong>
+                <span>리뷰</span>
+              </div>
+            </div>
+            {view === "posters" && (
+              <article className="section view-section" data-view="posters" id="posters-section">
+                <div
+                  className="poster-search input-with-clear"
+                  style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}
+                >
+                  <input
+                    className="search-input"
+                    type="text"
+                    placeholder="시청함에서 영화 검색"
+                    value={watchedSearch}
+                    onChange={(event) => setWatchedSearch(event.target.value)}
+                    aria-label="시청함 영화 검색"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        setAppliedWatchedSearch(watchedSearch);
+                      }
+                    }}
+                  />
+                  {watchedSearch && (
+                    <button
+                      className="input-clear-btn"
+                      type="button"
+                      aria-label="검색어 지우기"
+                      onClick={() => {
+                        setWatchedSearch("");
+                        setAppliedWatchedSearch("");
                       }}
                     >
-                      <Link
-                        className="review-detail-link"
-                        to={`/movies/${review.movieId}#my-review`}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        자세히보기
-                      </Link>
-                      <div className="movie-tile">
-                        <div className="review-poster-block">
-                          <img
-                            className="poster"
-                            src={review.poster}
-                            alt={`${review.title} 포스터`}
-                          />
-                        </div>
-                        <div className="movie-info">
-                          <h3 className="review-title-row">
-                            <span>{review.title}</span>
-                            <span
-                              className={`review-visibility-indicator ${visibilityMeta.className}`}
-                              role="img"
-                              aria-label={visibilityMeta.label}
-                              title={visibilityMeta.label}
-                            />
-                          </h3>
-                          <p className="muted">{review.dateLabel}</p>
-                          <p className="muted">평점 {formatReviewRating(review.rating)}점</p>
-                        </div>
+                      ✕
+                    </button>
+                  )}
+                  <button
+                    className="primary-btn"
+                    type="button"
+                    onClick={() => setAppliedWatchedSearch(watchedSearch)}
+                  >
+                    검색
+                  </button>
+                </div>
+                {filteredPosterItems.length === 0 ? (
+                  <p className="search-empty">검색 결과가 없어요.</p>
+                ) : (
+                  <div className="poster-grid poster-grid-10">
+                    {visiblePosters.map((poster) => (
+                      <div key={poster.id} className="poster-card">
+                        <Link to={poster.to}>
+                          <img src={poster.src} alt={poster.alt} />
+                        </Link>
+                        <p className="poster-title">{poster.title}</p>
+                        <button
+                          className="poster-remove-btn"
+                          type="button"
+                          aria-label={`${poster.alt} 제거`}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleRemoveWatchedMovie(poster.movieId);
+                          }}
+                        >
+                          ×
+                        </button>
                       </div>
-                      <p className="muted review-summary-text review-summary-full">
-                        {reviewText}
-                      </p>
-                    </article>
+                    ))}
+                  </div>
+                )}
+                {filteredPosterItems.length > WATCHED_PAGE_SIZE && (
+                  <div className="poster-pagination">
+                    <button
+                      className="icon-btn page-arrow-btn"
+                      type="button"
+                      aria-label="이전 페이지"
+                      onClick={() =>
+                        setWatchedPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={safeWatchedPage === 1}
+                    >
+                      {"◀"}
+                    </button>
+                    <span className="page-number-text" aria-live="polite">
+                      {safeWatchedPage}/{watchedTotalPages}
+                    </span>
+                    <button
+                      className="icon-btn page-arrow-btn"
+                      type="button"
+                      aria-label="다음 페이지"
+                      onClick={() =>
+                        setWatchedPage((prev) =>
+                          Math.min(watchedTotalPages, prev + 1)
+                        )
+                      }
+                      disabled={safeWatchedPage >= watchedTotalPages}
+                    >
+                      {"▶"}
+                    </button>
+                  </div>
+                )}
+              </article>
+            )}
+
+            {view === "reviews" && (
+              <article className="section view-section" data-view="reviews" id="reviews-section">
+                <div className="review-list activity-review-grid">
+                  {visibleReviews.map((review) => {
+                    const visibilityMeta = getReviewVisibilityMeta(review.visibility);
+                    const reviewText = review.content ?? "";
+                    return (
+                      <div className="review-item" key={review.id}>
+                        <article
+                          className="card review-card review-card-toggle"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/movies/${review.movieId}#my-review`)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              navigate(`/movies/${review.movieId}#my-review`);
+                            }
+                          }}
+                        >
+                          <Link
+                            className="review-detail-link"
+                            to={`/movies/${review.movieId}#my-review`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            자세히보기
+                          </Link>
+                          <div className="movie-tile">
+                            <div className="review-poster-block">
+                              <img
+                                className="poster"
+                                src={review.poster}
+                                alt={`${review.title} 포스터`}
+                              />
+                            </div>
+                            <div className="movie-info">
+                              <h3 className="review-title-row">
+                                <span>{review.title}</span>
+                                <span
+                                  className={`review-visibility-indicator ${visibilityMeta.className}`}
+                                  role="img"
+                                  aria-label={visibilityMeta.label}
+                                  title={visibilityMeta.label}
+                                />
+                              </h3>
+                              <p className="muted">{review.dateLabel}</p>
+                              <p className="muted">평점 {formatReviewRating(review.rating)}점</p>
+                            </div>
+                          </div>
+                          <p className="muted review-summary-text review-summary-full">
+                            {reviewText}
+                          </p>
+                        </article>
+                      </div>
+                    );
+                  })}
                 </div>
-                  );
-                })}
-              </div>
-              {mergedReviewItems.length > REVIEWS_PAGE_SIZE && (
-                <div className="pagination">
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="이전 페이지"
-                    onClick={() =>
-                      setReviewPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={safeReviewPage === 1}
-                  >
-                    {"◀"}
-                  </button>
-                  <span className="page-number-text" aria-live="polite">
-                    {safeReviewPage}/{reviewTotalPages}
-                  </span>
-                  <button
-                    className="icon-btn page-arrow-btn"
-                    type="button"
-                    aria-label="다음 페이지"
-                    onClick={() =>
-                      setReviewPage((prev) =>
-                        Math.min(reviewTotalPages, prev + 1)
-                      )
-                    }
-                    disabled={safeReviewPage >= reviewTotalPages}
-                  >
-                    {"▶"}
-                  </button>
-                </div>
-              )}
-            </article>
-          )}
+                {mergedReviewItems.length > REVIEWS_PAGE_SIZE && (
+                  <div className="pagination">
+                    <button
+                      className="icon-btn page-arrow-btn"
+                      type="button"
+                      aria-label="이전 페이지"
+                      onClick={() =>
+                        setReviewPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={safeReviewPage === 1}
+                    >
+                      {"◀"}
+                    </button>
+                    <span className="page-number-text" aria-live="polite">
+                      {safeReviewPage}/{reviewTotalPages}
+                    </span>
+                    <button
+                      className="icon-btn page-arrow-btn"
+                      type="button"
+                      aria-label="다음 페이지"
+                      onClick={() =>
+                        setReviewPage((prev) =>
+                          Math.min(reviewTotalPages, prev + 1)
+                        )
+                      }
+                      disabled={safeReviewPage >= reviewTotalPages}
+                    >
+                      {"▶"}
+                    </button>
+                  </div>
+                )}
+              </article>
+            )}
           </article>
         </section>
       </main>
@@ -1563,7 +1563,6 @@ const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
   visibility === "private"
     ? { className: "is-private", label: "비공개 리뷰" }
     : { className: "is-public", label: "공개 리뷰" };
-
 
 
 

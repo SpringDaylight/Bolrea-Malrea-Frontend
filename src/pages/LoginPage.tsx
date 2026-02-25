@@ -61,7 +61,7 @@ export default function LoginPage() {
       });
       setAccessToken(authResponse.access_token);
       window.dispatchEvent(new Event("mw_auth_change"));
-      navigate("/mypage");
+      navigate("/");
     } catch (error) {
       setLoginError(getLoginErrorMessage(error));
     } finally {

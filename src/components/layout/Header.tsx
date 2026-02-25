@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import logoToggle from "../../assets/logo-ticket-ver2.png";
 import { getAccessToken, setAccessToken } from "../../api/http";
 import { logout } from "../../api/auth";
+import { getCurrentUser } from "../../api/A7_profile";
 
 export default function Header() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -18,9 +19,21 @@ export default function Header() {
     };
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [nickname, setNickname] = useState("");
 
-  const syncProfile = useCallback(() => {
-    setIsLoggedIn(Boolean(getAccessToken()));
+  const syncProfile = useCallback(async () => {
+    const token = getAccessToken();
+    setIsLoggedIn(Boolean(token));
+    if (token) {
+      try {
+        const user = await getCurrentUser();
+        setNickname(user.nickname || user.name || "사용자");
+      } catch (err) {
+        console.error("Fetch user failed in Header:", err);
+      }
+    } else {
+      setNickname("");
+    }
   }, []);
 
   useEffect(() => {
@@ -43,10 +56,10 @@ export default function Header() {
         console.error("Logout failed:", err);
       } finally {
         setAccessToken(null);
-        
+
         // LLM 추천 캐시 삭제
         localStorage.removeItem('llm_recommend_state');
-        
+
         window.dispatchEvent(new Event("mw_auth_change"));
         window.location.href = "/";
       }
@@ -107,13 +120,22 @@ export default function Header() {
 
         <div className="top-actions">
           {isLoggedIn ? (
-            <button
-              className="profile-chip"
-              onClick={handleLogout}
-              style={{ padding: '0.4rem 0.8rem', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
-            >
-              로그아웃
-            </button>
+            <div className="profile-chip" style={{ padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+              <Link
+                to="/mypage"
+                style={{ color: 'inherit', textDecoration: 'none' }}
+                onClick={handleHeaderLinkClick("/mypage")}
+              >
+                {nickname}
+              </Link>
+              <span style={{ opacity: 0.5 }}>/</span>
+              <button
+                onClick={handleLogout}
+                style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+              >
+                로그아웃
+              </button>
+            </div>
           ) : (
             <>
               <Link className="profile-chip" to="/login" onClick={handleHeaderLinkClick("/login")}>

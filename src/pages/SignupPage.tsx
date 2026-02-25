@@ -275,7 +275,21 @@ export default function SignupPage() {
     if (result && userId) {
       try {
         const { saveUserPreference } = await import("../api/userPreferences");
-        const { userProfile, surveyPayload } = result;
+        const { userProfile } = result;
+        
+        // 장르 정리: 이모지 제거 후 '/' 분리
+        const processedGenres = processGenreTags(genres);
+        const processedAvoidGenres = processGenreTags(
+          avoidGenres.filter((g) => g !== "선택 없음 (중복 불가!)" && g !== "선택 없음 (중복불가!)" && g !== "선택 없음")
+        );
+        
+        // 이모지 제거
+        const removeEmoji = (text: string) => text.replace(/^[^\w\s가-힣/]+\s*/, "").trim();
+        const cleanedContext = removeEmoji(context);
+        const cleanedVibe = removeEmoji(vibe);
+        const cleanedKeywords = keywords.map(removeEmoji);
+        const cleanedOrigin = removeEmoji(origin);
+        
         await saveUserPreference({
           user_id: userId,
           preference_vector_json: {
@@ -284,11 +298,18 @@ export default function SignupPage() {
             direction_mood: userProfile.direction_mood,
             character_relationship: userProfile.character_relationship,
             ending_preference: userProfile.ending_preference,
-            taste_survey: surveyPayload,
           },
           boost_tags: userProfile.boost_tags,
           dislike_tags: userProfile.dislike_tags,
           penalty_tags: [],
+          
+          // Survey fields 추가
+          favorite_genres: processedGenres,
+          disliked_genres: processedAvoidGenres,
+          viewing_context: cleanedContext,
+          preferred_vibe: cleanedVibe,
+          interest_keywords: cleanedKeywords,
+          preferred_origin: cleanedOrigin,
         });
         console.log("User preference saved to database (normal signup)");
       } catch (dbError) {

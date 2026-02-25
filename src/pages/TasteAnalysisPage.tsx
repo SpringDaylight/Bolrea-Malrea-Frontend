@@ -723,6 +723,7 @@ export default function TasteAnalysisPage() {
         <TasteSurveyModal
           onClose={handleSurveyClose}
           onComplete={handleSurveyComplete}
+          initialData={surveyData || undefined}
         />
       )}
     </MainLayout>

@@ -89,20 +89,74 @@ const totalSurveySteps = 6;
 interface TasteSurveyModalProps {
   onClose: () => void;
   onComplete: () => void;
+  initialData?: {
+    favorite_genres?: string[];
+    disliked_genres?: string[];
+    viewing_context?: string;
+    preferred_vibe?: string;
+    interest_keywords?: string[];
+    preferred_origin?: string;
+  };
 }
 
 const normalizeKey = (value: string) => value.replace(/\s+/g, "").trim();
 const isAvoidNone = (value: string) =>
   avoidNoneAliases.some((label) => normalizeKey(label) === normalizeKey(value));
 
-export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyModalProps) {
+// 장르 옵션에서 이모지 제거하여 매칭
+const removeEmoji = (text: string) => text.replace(/^[^\w\s가-힣]+\s*/, "").trim();
+
+// DB 데이터를 UI 옵션 형식으로 변환 (이모지 포함)
+const mapGenreToOption = (genre: string): string => {
+  const normalized = removeEmoji(genre);
+  const option = genreLikeOptions.find(opt => removeEmoji(opt) === normalized);
+  return option || genre;
+};
+
+const mapContextToOption = (context: string): string => {
+  const normalized = removeEmoji(context);
+  const option = contextOptions.find(opt => removeEmoji(opt) === normalized);
+  return option || context;
+};
+
+const mapVibeToOption = (vibe: string): string => {
+  const normalized = removeEmoji(vibe);
+  const option = vibeOptions.find(opt => removeEmoji(opt) === normalized);
+  return option || vibe;
+};
+
+const mapKeywordToOption = (keyword: string): string => {
+  const normalized = removeEmoji(keyword);
+  const option = keywordOptions.find(opt => removeEmoji(opt) === normalized);
+  return option || keyword;
+};
+
+const mapOriginToOption = (origin: string): string => {
+  const normalized = removeEmoji(origin);
+  const option = originOptions.find(opt => removeEmoji(opt) === normalized);
+  return option || origin;
+};
+
+export default function TasteSurveyModal({ onClose, onComplete, initialData }: TasteSurveyModalProps) {
   const [surveyStep, setSurveyStep] = useState(0);
-  const [genres, setGenres] = useState<string[]>([]);
-  const [avoidGenres, setAvoidGenres] = useState<string[]>([]);
-  const [context, setContext] = useState("");
-  const [vibe, setVibe] = useState("");
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [origin, setOrigin] = useState("");
+  const [genres, setGenres] = useState<string[]>(() => 
+    initialData?.favorite_genres?.map(mapGenreToOption) || []
+  );
+  const [avoidGenres, setAvoidGenres] = useState<string[]>(() => 
+    initialData?.disliked_genres?.map(mapGenreToOption) || []
+  );
+  const [context, setContext] = useState(() => 
+    initialData?.viewing_context ? mapContextToOption(initialData.viewing_context) : ""
+  );
+  const [vibe, setVibe] = useState(() => 
+    initialData?.preferred_vibe ? mapVibeToOption(initialData.preferred_vibe) : ""
+  );
+  const [keywords, setKeywords] = useState<string[]>(() => 
+    initialData?.interest_keywords?.map(mapKeywordToOption) || []
+  );
+  const [origin, setOrigin] = useState(() => 
+    initialData?.preferred_origin ? mapOriginToOption(initialData.preferred_origin) : ""
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const toggleValueWithLimit = (

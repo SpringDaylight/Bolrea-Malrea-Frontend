@@ -2,7 +2,7 @@
  * 취향 설문 모달 컴포넌트
  * 로그인 필수 - DB에 직접 저장
  */
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
@@ -161,14 +161,6 @@ const mapGenresToOptions = (dbGenres: string[]): string[] => {
   return result;
 };
 
-// DB 데이터를 UI 옵션 형식으로 변환 (이모지 포함)
-const mapGenreToOption = (genre: string): string => {
-  // DB에 저장된 장르와 UI 옵션을 매칭 (이모지 제거 후 비교)
-  const normalized = removeEmoji(genre);
-  const option = genreLikeOptions.find(opt => removeEmoji(opt) === normalized);
-  return option || genre;
-};
-
 const mapContextToOption = (context: string): string => {
   const normalized = removeEmoji(context);
   const option = contextOptions.find(opt => removeEmoji(opt) === normalized);
@@ -226,38 +218,6 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
     initialData?.preferred_origin ? mapOriginToOption(initialData.preferred_origin) : ""
   );
   const [submitting, setSubmitting] = useState(false);
-  const hasLoadedServerRef = useRef(false);
-
-  useEffect(() => {
-    if (hasLoadedServerRef.current) return;
-    const isLoggedIn = Boolean(getAccessToken());
-    if (!isLoggedIn) return;
-
-    let isCancelled = false;
-    const loadSurvey = async () => {
-      try {
-        const currentUser = await getCurrentUser();
-        const preference = await getUserPreference(currentUser.id);
-        const survey = preference.preference_vector_json?.taste_survey;
-        if (!survey || isCancelled) return;
-        setGenres(survey.genres ?? []);
-        setAvoidGenres(survey.avoid_genres ?? []);
-        setKeywords(survey.keywords ?? []);
-        setVibe(survey.vibe ?? "");
-        setContext(survey.context ?? "");
-        setOrigin(survey.origin ?? "");
-        hasLoadedServerRef.current = true;
-      } catch (error) {
-        console.warn("Failed to load taste survey from server:", error);
-      }
-    };
-
-    loadSurvey();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
 
   const toggleValueWithLimit = (
     value: string,

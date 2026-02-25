@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { recommendMovies, explainRecommendation, type Movie } from '../api/llmRecommend';
 import MainLayout from '../components/layout/MainLayout';
@@ -55,7 +55,7 @@ export default function LLMRecommendPage() {
           return;
         }
         
-        // 24시간 이내 데이터만 복원 (옵션사항)
+        // 24시간 이내 데이터만 복원 (옵션)
         const ONE_DAY = 24 * 60 * 60 * 1000;
         if (Date.now() - state.timestamp < ONE_DAY) {
           setInput(state.input);
@@ -160,7 +160,7 @@ export default function LLMRecommendPage() {
     navigate(movie.detail_url);
   };
 
-  // 추가 추천 영화 선택 (메인 추천과 겹치지 않게, 가중치 비율로 5개)
+  // 추가 추천 영화 선정 (메인 추천과 겹치지 않게, 가중치 비율로 5개)
   const getAdditionalRecommendations = (): Movie[] => {
     if (!keywordCandidates.length && !vectorCandidates.length) return [];
     
@@ -290,7 +290,7 @@ export default function LLMRecommendPage() {
                 className="clear-btn"
                 title="결과 지우기"
               >
-                ×
+                ✕
               </button>
             )}
           </div>
@@ -303,8 +303,8 @@ export default function LLMRecommendPage() {
             <button onClick={() => setInput('아련한 로맨스 영화')}>
               아련한 로맨스 영화
             </button>
-            <button onClick={() => setInput('반전이 있는 스릴러')}>
-              반전이 있는 스릴러
+            <button onClick={() => setInput('반전이 있는 영화')}>
+              반전이 있는 영화
             </button>
             <button onClick={() => setInput('가족과 함께 보기 좋은 영화')}>
               가족과 함께 보기 좋은 영화
@@ -313,7 +313,7 @@ export default function LLMRecommendPage() {
         </div>
         {error && (
           <div className="error-box">
-            <p>에러: {error}</p>
+            <p>오류: {error}</p>
           </div>
         )}
 
@@ -335,7 +335,6 @@ export default function LLMRecommendPage() {
 
         {recommendations.length > 0 && !isLoading && (
           <div className="results-section">
-            <h2>추천 영화 ({recommendations.length}개)</h2>
             <div className="movie-grid">
               {recommendations.map((movie) => (
                 <div
@@ -344,48 +343,41 @@ export default function LLMRecommendPage() {
                 >
                   <div className="llm-flip-inner">
                     <div className="llm-flip-face llm-flip-front">
-                      {movie.poster_url ? (
-                        <img
-                          src={movie.poster_url}
-                          alt={movie.title}
-                          className="movie-poster"
-                        />
-                      ) : (
-                        <div className="movie-poster-placeholder">
-                          포스터 없음
-                        </div>
-                      )}
+                      <div className="movie-poster-wrap">
+                        {movie.satisfaction_probability !== undefined && (
+                          <span className="satisfaction-badge" data-reason={movie.reason || "추천 이유가 없습니다."}>
+                            💝 {(movie.satisfaction_probability * 100).toFixed(1)}%
+                          </span>
+                        )}
+                        {movie.poster_url ? (
+                          <img
+                            src={movie.poster_url}
+                            alt={movie.title}
+                            className="movie-poster"
+                          />
+                        ) : (
+                          <div className="movie-poster-placeholder">
+                            포스터 없음
+                          </div>
+                        )}
+                      </div>
                       <div className="movie-info">
                         <h3>{movie.title}</h3>
-                        <p className="movie-genres">{movie.genres.join(", ")}</p>
-                        <p className="movie-year">개봉 {movie.release_year}</p>
-                        {movie.rating && (
-                          <p className="movie-rating">평점 {movie.rating.toFixed(1)}</p>
-                        )}
-
-                        <div className="movie-satisfaction">
-                          {movie.satisfaction_probability !== undefined ? (
-                            <span className="satisfaction-label">
-                              내 취향 만족도 {(movie.satisfaction_probability * 100).toFixed(1)}%
-                            </span>
-                          ) : (
-                            <span className="satisfaction-label satisfaction-login-required">
-                              로그인해야 만족도를 볼 수 있어요
-                            </span>
+                        <p className="movie-genres">
+                          {movie.release_year} · {movie.genres.join(", ")}
+                          {movie.rating && (
+                            <span className="movie-rating-inline"> · 평점 {movie.rating.toFixed(1)}</span>
                           )}
+                        </p>
+                        <div className="movie-hover-details">
+                          <button
+                            className="explain-link"
+                            onClick={(e) => handleExplainClick(movie, e)}
+                            disabled={loadingExplanations[movie.movie_id]}
+                          >
+                            {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
+                          </button>
                         </div>
-
-                        {movie.reason && (
-                          <p className="movie-reason">추천 이유: {movie.reason}</p>
-                        )}
-
-                        <button
-                          className="explain-link"
-                          onClick={(e) => handleExplainClick(movie, e)}
-                          disabled={loadingExplanations[movie.movie_id]}
-                        >
-                          {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
-                        </button>
                       </div>
                     </div>
                     <div className="llm-flip-face llm-flip-back">
@@ -417,7 +409,7 @@ export default function LLMRecommendPage() {
         {useOrchestrator && !isLoading && additionalRecommendations.length > 0 && (
           <div className="additional-recommendations-wrapper">
             <div className="additional-recommendations-header">
-              <h2>키워드/감성 기반 영화도 함께 추천해드려요</h2>
+              <h2>✨ 비슷한 키워드 혹은 감성을 가진 영화들 또한 추천드려요</h2>
             </div>
             <div className="additional-movie-grid">
               {additionalRecommendations.map((movie) => (
@@ -441,11 +433,11 @@ export default function LLMRecommendPage() {
                     <div className="additional-movie-satisfaction">
                       {movie.satisfaction_probability !== undefined ? (
                         <span className="satisfaction-value">
-                          만족도 {(movie.satisfaction_probability * 100).toFixed(0)}%
+                          💝 {(movie.satisfaction_probability * 100).toFixed(0)}%
                         </span>
                       ) : (
                         <span className="satisfaction-login-hint">
-                          로그인 필요
+                          로그인 후 확인
                         </span>
                       )}
                     </div>
@@ -458,13 +450,15 @@ export default function LLMRecommendPage() {
         {!isLoading && !error && recommendations.length === 0 && !explanation && (
           <div className="empty-state">
             <div className="empty-icon">MOVIE</div>
-            <h3>영화를 추천받아보세요!</h3>
+            <h3>영화를 추천받아보세요</h3>
             <p>입력창에 원하는 영화나 분위기를 입력해보세요.</p>
           </div>
         )}
       </div>
-    </div>
+      </div>
     </MainLayout>
   );
 }
+
+
 

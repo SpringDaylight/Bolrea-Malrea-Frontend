@@ -10,6 +10,7 @@ export interface Review {
   movie_id: number;
   rating: number;
   content: string | null;
+  keywords?: string[];
   created_at: string;
   likes_count: number;
   dislikes_count?: number;
@@ -30,6 +31,7 @@ export interface Comment {
 export interface UpdateReviewRequest {
   rating?: number;
   content?: string | null;
+  keywords?: string[];
   is_public?: boolean;
 }
 
@@ -37,6 +39,7 @@ export interface CreateReviewRequest {
   movie_id: number;
   rating: number;
   content?: string | null;
+  keywords?: string[];
   is_public?: boolean;
 }
 

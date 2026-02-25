@@ -8,12 +8,6 @@ import { signup as signupApi } from "../api/auth";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
-import {
-  getStorageItem,
-  safeParseJson,
-  setJsonToStorage,
-  setStorageItem,
-} from "../utils/storage";
 
 const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -56,6 +50,7 @@ export default function SignupPage() {
   const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
   const [signupError, setSignupError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signupUserPk, setSignupUserPk] = useState<string | null>(null);
   const birthMonthRef = useRef<HTMLDivElement | null>(null);
   const birthDayRef = useRef<HTMLDivElement | null>(null);
   const birthMonthOptions = Array.from({ length: 12 }, (_, index) =>
@@ -218,7 +213,8 @@ export default function SignupPage() {
         birth_date: formattedBirthDate,
       };
 
-      await signupApi(payload);
+      const signupResponse = await signupApi(payload);
+      setSignupUserPk(signupResponse.id);
       window.dispatchEvent(new Event("mw_auth_change"));
 
       setSignupStep(0);
@@ -235,58 +231,60 @@ export default function SignupPage() {
     // 태그 전처리: 이모티콘 제거 및 '/' 분리
     const processedGenres = processGenreTags(genres);
     const processedAvoidGenres = processGenreTags(avoidGenres.filter(g => g !== avoidNoneLabel));
-    
-    // Save taste survey data
-    setJsonToStorage("mw_taste_genres", processedGenres);
-    setJsonToStorage("mw_taste_avoid_genres", processedAvoidGenres);
-    setStorageItem("mw_taste_context", context);
-    setStorageItem("mw_taste_vibe", vibe);
-    setJsonToStorage("mw_taste_keywords", keywords);
-    setJsonToStorage("mw_tast_keyword", keywords);
-    setStorageItem("mw_taste_origin", origin);
 
     // Analyze preference with ML
     try {
       const userText = `${vibe} ${keywords.join(', ')} ${processedGenres.join(', ')}`;
       const userDislikes = processedAvoidGenres.join(', ');
-      
+
       const { analyzePreference } = await import("../api/ml");
       const userProfile = await analyzePreference({
         text: userText,
         dislikes: userDislikes || undefined,
       });
 
-      setJsonToStorage("mw_user_profile", userProfile);
+      const surveyPayload = {
+        genres: processedGenres,
+        avoid_genres: processedAvoidGenres,
+        keywords,
+        vibe,
+        context,
+        origin,
+      };
+
+      return { surveyPayload, userProfile };
     } catch (error) {
       console.error("Failed to analyze preference:", error);
     }
 
     setSignupStep(null);
+    return null;
   };
 
   const handleStart = async () => {
-    await handleCompleteSurvey();
-    
+    const result = await handleCompleteSurvey();
+
     // 일반 회원가입 사용자도 DB에 저장
     const isLoggedIn = Boolean(getAccessToken());
-    const userProfileStr = getStorageItem("mw_user_profile");
-      
-    if (isLoggedIn && userProfileStr) {
+    let userId = signupUserPk;
+    if (isLoggedIn) {
+      const currentUser = await getCurrentUser();
+      userId = currentUser.id;
+    }
+
+    if (result && userId) {
       try {
-        const currentUser = await getCurrentUser();
-        const userProfile = safeParseJson<any | null>(userProfileStr, null);
-        if (!userProfile) {
-          throw new Error("Invalid user profile data.");
-        }
         const { saveUserPreference } = await import("../api/userPreferences");
+        const { userProfile, surveyPayload } = result;
         await saveUserPreference({
-          user_id: currentUser.id,
+          user_id: userId,
           preference_vector_json: {
             emotion_scores: userProfile.emotion_scores,
             narrative_traits: userProfile.narrative_traits,
             direction_mood: userProfile.direction_mood,
             character_relationship: userProfile.character_relationship,
             ending_preference: userProfile.ending_preference,
+            taste_survey: surveyPayload,
           },
           boost_tags: userProfile.boost_tags,
           dislike_tags: userProfile.dislike_tags,
@@ -297,7 +295,7 @@ export default function SignupPage() {
         console.error("Failed to save preference to database:", dbError);
       }
     }
-    
+
     navigate("/mypage");
   };
 

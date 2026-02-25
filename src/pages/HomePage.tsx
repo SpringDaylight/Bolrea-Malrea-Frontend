@@ -309,17 +309,14 @@ export default function HomePage() {
                 <div
                   style={{
                     textAlign: "center",
-                    padding: "3rem 1rem",
-                    backgroundColor: "var(--warning-soft)",
-                    borderRadius: "8px",
+                    padding: "1rem 0",
                     margin: "1rem 0",
-                    border: "1px solid var(--warning)",
                   }}
                 >
-                  <p style={{ fontSize: "1.2rem", marginBottom: "1rem", color: "var(--text)" }}>
+                  <p style={{ fontSize: "1.2rem", marginBottom: "0.75rem", color: "var(--text)" }}>
                     취향 설정이 필요합니다
                   </p>
-                  <p style={{ fontSize: "1rem", marginBottom: "1.5rem", color: "var(--text)" }}>
+                  <p style={{ fontSize: "1rem", marginBottom: "1rem", color: "var(--text)" }}>
                     나만의 맞춤 추천을 받으려면 취향을 설정해주세요.
                   </p>
                   <button className="primary-btn" onClick={() => setShowTasteSurveyModal(true)}>

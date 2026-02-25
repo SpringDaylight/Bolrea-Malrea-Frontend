@@ -23,6 +23,10 @@ const getUserSecondaryLabel = (user: GroupUserSearchItem) =>
   user.user_id?.trim() || user.id;
 
 export default function GroupPage() {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  const POSTER_FALLBACK = `data:image/svg+xml;utf8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450"><rect width="300" height="450" fill="#F3F6F8"/><rect x="24" y="24" width="252" height="402" rx="16" fill="#FFFFFF" stroke="#A6A8C4"/><text x="150" y="225" text-anchor="middle" fill="#7B7D93" font-family="sans-serif" font-size="18">No Image</text></svg>'
+  )}`;
   const [userQuery, setUserQuery] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectedMemberProfiles, setSelectedMemberProfiles] = useState<
@@ -30,6 +34,7 @@ export default function GroupPage() {
   >({});
   const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
   const [recommendedMovies, setRecommendedMovies] = useState<RecommendedMovie[]>([]);
+  const [flippedMovies, setFlippedMovies] = useState<Record<number, boolean>>({});
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
@@ -46,6 +51,13 @@ export default function GroupPage() {
   const showError = (message: string) => {
     setError(message);
     setErrorTick((prev) => prev + 1);
+  };
+
+  const toggleFlip = (movieId: number) => {
+    setFlippedMovies((prev) => ({
+      ...prev,
+      [movieId]: !prev[movieId],
+    }));
   };
 
   useEffect(() => {
@@ -454,43 +466,93 @@ export default function GroupPage() {
             <h2>추천 영화 ({recommendedMovies.length}개)</h2>
             <div className="group-result-grid">
               {recommendedMovies.map((movie) => (
-                <article key={movie.movie_id} className="card">
-                  <div className="movie-info">
-                    <h3>{movie.title}</h3>
-                    <p className="muted">
-                      {movie.release_year} · {movie.genres.join(", ")}
-                    </p>
-                    <p className="probability">
-                      그룹 만족도: {Math.round(movie.group_score * 100)}%
-                    </p>
-
-                    {movie.per_user_detail && movie.per_user_detail.length > 0 && (
-                      <div className="section" style={{ marginTop: 16 }}>
-                        <h4>멤버별 예상 반응</h4>
-                        {movie.per_user_detail.map((detail) => (
-                          <div
-                            key={detail.user_id}
-                            style={{
-                              marginTop: 12,
-                              paddingLeft: 12,
-                              borderLeft: "3px solid #ddd",
-                            }}
-                          >
-                            <p>
-                              <strong>{detail.name}</strong>: {Math.round(detail.probability * 100)}%
-                            </p>
-                            <p className="muted" style={{ marginTop: 4 }}>
-                              {detail.explanation}
-                            </p>
-                            {detail.top_factors.length > 0 && (
-                              <p className="muted" style={{ marginTop: 4, fontSize: "0.9em" }}>
-                                주요 요인: {detail.top_factors.join(", ")}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                <article
+                  key={movie.movie_id}
+                  className={`card group-flip-card ${flippedMovies[movie.movie_id] ? "is-flipped" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleFlip(movie.movie_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleFlip(movie.movie_id);
+                    }
+                  }}
+                >
+                  <div className="group-flip-inner">
+                    <div className="group-flip-face group-flip-front">
+                      <div className="group-movie-card">
+                        {(() => {
+                          const rawPoster = String(
+                            movie.poster_url ||
+                              (movie as unknown as { posterUrl?: string | null }).posterUrl ||
+                              (movie as unknown as { poster_path?: string | null }).poster_path ||
+                              (movie as unknown as { poster?: string | null }).poster ||
+                              ""
+                          ).trim();
+                          const posterSrc = rawPoster
+                            ? rawPoster.startsWith("http")
+                              ? rawPoster
+                              : rawPoster.startsWith("//")
+                                ? `https:${rawPoster}`
+                                : `${API_BASE_URL}${rawPoster.startsWith("/") ? "" : "/"}${rawPoster}`
+                            : "";
+                          return posterSrc ? (
+                            <img
+                              className="group-movie-poster"
+                              src={posterSrc}
+                              alt={`${movie.title} 포스터`}
+                              loading="lazy"
+                              onError={(event) => {
+                                const target = event.currentTarget;
+                                target.onerror = null;
+                                target.src = POSTER_FALLBACK;
+                              }}
+                            />
+                          ) : (
+                            <img
+                              className="group-movie-poster is-empty"
+                              src={POSTER_FALLBACK}
+                              alt=""
+                              aria-hidden="true"
+                            />
+                          );
+                        })()}
+                        <div className="movie-info">
+                          <h3>{movie.title}</h3>
+                          <p className="muted">
+                            {movie.release_year} · {movie.genres.join(", ")}
+                          </p>
+                          <p className="probability">
+                            그룹 만족도: {Math.round(movie.group_score * 100)}%
+                          </p>
+                        </div>
                       </div>
-                    )}
+                    </div>
+                    <div className="group-flip-face group-flip-back">
+                      <div className="group-flip-back-header">
+                        <h4>멤버별 예상 반응</h4>
+                      </div>
+                      <div className="group-flip-back-content">
+                        {movie.per_user_detail && movie.per_user_detail.length > 0 ? (
+                          movie.per_user_detail.map((detail) => (
+                            <div key={detail.user_id} className="group-user-reaction">
+                              <p>
+                                <strong>{detail.name}</strong>: {Math.round(detail.probability * 100)}%
+                              </p>
+                              <p className="muted">{detail.explanation}</p>
+                              {detail.top_factors.length > 0 && (
+                                <p className="muted">
+                                  주요 요인: {detail.top_factors.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="muted">멤버별 반응 데이터가 없습니다.</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </article>
               ))}

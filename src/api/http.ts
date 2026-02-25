@@ -125,12 +125,26 @@ export async function request<T>(
         }
       }
 
-      throw new Error(extractErrorDetail(payload, fallbackMessage));
+      const error = new Error(extractErrorDetail(payload, fallbackMessage));
+      (error as { status?: number; endpoint?: string }).status = response.status;
+      (error as { status?: number; endpoint?: string }).endpoint = endpoint;
+      throw error;
     }
 
     return await response.json();
   } catch (error) {
-    console.error('API Request Error:', error);
+    const status = (error as { status?: number }).status;
+    const errorEndpoint =
+      (error as { endpoint?: string }).endpoint ?? endpoint;
+    const message =
+      error instanceof Error ? error.message.toLowerCase() : "";
+    const isUserPreferenceNotFound =
+      status === 404 &&
+      errorEndpoint.startsWith("/api/user-preferences/") &&
+      message.includes("not found");
+    if (!isUserPreferenceNotFound) {
+      console.error('API Request Error:', error);
+    }
     throw error;
   }
 }

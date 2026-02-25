@@ -2,11 +2,12 @@
  * 취향 설문 모달 컴포넌트
  * SignupPage의 설문 로직을 복사
  */
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
+import { getUserPreference } from "../api/userPreferences";
 import {
   getArrayFromStorage,
   getStringFromStorage,
@@ -130,6 +131,38 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
     getStringFromStorage("mw_taste_origin").trim()
   );
   const [submitting, setSubmitting] = useState(false);
+  const hasLoadedServerRef = useRef(false);
+
+  useEffect(() => {
+    if (hasLoadedServerRef.current) return;
+    const isLoggedIn = Boolean(getAccessToken());
+    if (!isLoggedIn) return;
+
+    let isCancelled = false;
+    const loadSurvey = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        const preference = await getUserPreference(currentUser.id);
+        const survey = preference.preference_vector_json?.taste_survey;
+        if (!survey || isCancelled) return;
+        setGenres(survey.genres ?? []);
+        setAvoidGenres(survey.avoid_genres ?? []);
+        setKeywords(survey.keywords ?? []);
+        setVibe(survey.vibe ?? "");
+        setContext(survey.context ?? "");
+        setOrigin(survey.origin ?? "");
+        hasLoadedServerRef.current = true;
+      } catch (error) {
+        console.warn("Failed to load taste survey from server:", error);
+      }
+    };
+
+    loadSurvey();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const toggleValueWithLimit = (
     value: string,
@@ -181,14 +214,6 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
         avoidGenres.filter((g) => !isAvoidNone(g))
       );
 
-      // localStorage 저장
-      setJsonToStorage("mw_taste_genres", processedGenres);
-      setJsonToStorage("mw_taste_avoid_genres", processedAvoidGenres);
-      setStorageItem("mw_taste_context", context);
-      setStorageItem("mw_taste_vibe", vibe);
-      setJsonToStorage("mw_taste_keywords", keywords);
-      setStorageItem("mw_taste_origin", origin);
-
       // ML API: 취향 분석 수행
       const userText = `${vibe} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
       const userDislikes = processedAvoidGenres.join(", ");
@@ -198,8 +223,14 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
         dislikes: userDislikes || undefined,
       });
 
-      // 분석 결과 저장
-      setJsonToStorage("mw_user_profile", userProfile);
+      const surveyPayload = {
+        genres: processedGenres,
+        avoid_genres: processedAvoidGenres,
+        keywords,
+        vibe,
+        context,
+        origin,
+      };
 
       // 로그인한 사용자라면 DB에도 저장
       const isLoggedIn = Boolean(getAccessToken());
@@ -215,11 +246,21 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
             direction_mood: userProfile.direction_mood,
             character_relationship: userProfile.character_relationship,
             ending_preference: userProfile.ending_preference,
+            taste_survey: surveyPayload,
           },
           boost_tags: userProfile.boost_tags,
           dislike_tags: userProfile.dislike_tags,
           penalty_tags: [],
         });
+      } else {
+        // 비로그인 상태에서는 로컬에만 보관
+        setJsonToStorage("mw_taste_genres", processedGenres);
+        setJsonToStorage("mw_taste_avoid_genres", processedAvoidGenres);
+        setStorageItem("mw_taste_context", context);
+        setStorageItem("mw_taste_vibe", vibe);
+        setJsonToStorage("mw_taste_keywords", keywords);
+        setStorageItem("mw_taste_origin", origin);
+        setJsonToStorage("mw_user_profile", userProfile);
       }
 
       onComplete();

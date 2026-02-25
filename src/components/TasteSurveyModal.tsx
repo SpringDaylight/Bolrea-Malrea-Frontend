@@ -1,18 +1,12 @@
 ﻿/**
  * 취향 설문 모달 컴포넌트
- * SignupPage의 설문 로직을 복사
+ * 로그인 필수 - DB에 직접 저장
  */
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
-import {
-  getArrayFromStorage,
-  getStringFromStorage,
-  setJsonToStorage,
-  setStorageItem,
-} from "../utils/storage";
 
 const genreLikeOptions = [
   "💕 로맨스 / 로코",
@@ -101,34 +95,14 @@ const normalizeKey = (value: string) => value.replace(/\s+/g, "").trim();
 const isAvoidNone = (value: string) =>
   avoidNoneAliases.some((label) => normalizeKey(label) === normalizeKey(value));
 
-const readAvoidGenres = (): string[] => {
-  const stored = getArrayFromStorage("mw_taste_avoid_genres");
-  if (stored.some(isAvoidNone)) {
-    return [avoidNoneLabel];
-  }
-  return stored.filter((item) => !isAvoidNone(item));
-};
-
-const readKeywords = (): string[] => {
-  const stored = getArrayFromStorage("mw_taste_keywords");
-  if (stored.length > 0) return stored;
-  return getArrayFromStorage("mw_tast_keyword");
-};
-
 export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyModalProps) {
   const [surveyStep, setSurveyStep] = useState(0);
-  const [genres, setGenres] = useState<string[]>(() =>
-    getArrayFromStorage("mw_taste_genres")
-  );
-  const [avoidGenres, setAvoidGenres] = useState<string[]>(() => readAvoidGenres());
-  const [context, setContext] = useState(() =>
-    getStringFromStorage("mw_taste_context").trim()
-  );
-  const [vibe, setVibe] = useState(() => getStringFromStorage("mw_taste_vibe").trim());
-  const [keywords, setKeywords] = useState<string[]>(() => readKeywords());
-  const [origin, setOrigin] = useState(() =>
-    getStringFromStorage("mw_taste_origin").trim()
-  );
+  const [genres, setGenres] = useState<string[]>([]);
+  const [avoidGenres, setAvoidGenres] = useState<string[]>([]);
+  const [context, setContext] = useState("");
+  const [vibe, setVibe] = useState("");
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [origin, setOrigin] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const toggleValueWithLimit = (
@@ -175,19 +149,19 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      // 로그인 체크
+      const isLoggedIn = Boolean(getAccessToken());
+      if (!isLoggedIn) {
+        alert("로그인이 필요합니다.");
+        onClose();
+        return;
+      }
+
       // 장르 정리 및 이모지 제거 후 '/' 분리
       const processedGenres = processGenreTags(genres);
       const processedAvoidGenres = processGenreTags(
         avoidGenres.filter((g) => !isAvoidNone(g))
       );
-
-      // localStorage 저장
-      setJsonToStorage("mw_taste_genres", processedGenres);
-      setJsonToStorage("mw_taste_avoid_genres", processedAvoidGenres);
-      setStorageItem("mw_taste_context", context);
-      setStorageItem("mw_taste_vibe", vibe);
-      setJsonToStorage("mw_taste_keywords", keywords);
-      setStorageItem("mw_taste_origin", origin);
 
       // ML API: 취향 분석 수행
       const userText = `${vibe} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
@@ -198,29 +172,31 @@ export default function TasteSurveyModal({ onClose, onComplete }: TasteSurveyMod
         dislikes: userDislikes || undefined,
       });
 
-      // 분석 결과 저장
-      setJsonToStorage("mw_user_profile", userProfile);
+      // DB에 저장
+      const { saveUserPreference } = await import("../api/userPreferences");
+      const currentUser = await getCurrentUser();
 
-      // 로그인한 사용자라면 DB에도 저장
-      const isLoggedIn = Boolean(getAccessToken());
-      if (isLoggedIn) {
-        const { saveUserPreference } = await import("../api/userPreferences");
-        const currentUser = await getCurrentUser();
-
-        await saveUserPreference({
-          user_id: currentUser.id,
-          preference_vector_json: {
-            emotion_scores: userProfile.emotion_scores,
-            narrative_traits: userProfile.narrative_traits,
-            direction_mood: userProfile.direction_mood,
-            character_relationship: userProfile.character_relationship,
-            ending_preference: userProfile.ending_preference,
-          },
-          boost_tags: userProfile.boost_tags,
-          dislike_tags: userProfile.dislike_tags,
-          penalty_tags: [],
-        });
-      }
+      await saveUserPreference({
+        user_id: currentUser.id,
+        preference_vector_json: {
+          emotion_scores: userProfile.emotion_scores,
+          narrative_traits: userProfile.narrative_traits,
+          direction_mood: userProfile.direction_mood,
+          character_relationship: userProfile.character_relationship,
+          ending_preference: userProfile.ending_preference,
+        },
+        boost_tags: userProfile.boost_tags,
+        dislike_tags: userProfile.dislike_tags,
+        penalty_tags: [],
+        
+        // Survey fields 추가
+        favorite_genres: processedGenres,
+        disliked_genres: processedAvoidGenres,
+        viewing_context: context,
+        preferred_vibe: vibe,
+        interest_keywords: keywords,
+        preferred_origin: origin,
+      });
 
       onComplete();
     } catch (err) {

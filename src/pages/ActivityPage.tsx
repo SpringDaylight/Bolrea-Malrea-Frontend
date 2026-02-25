@@ -1351,7 +1351,7 @@ export default function ActivityPage() {
                 <input
                   id="password-current"
                   type="password"
-                  placeholder="********"
+                  placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                   value={currentPassword}
                   onChange={(event) => setCurrentPassword(event.target.value)}
                 />
@@ -1359,7 +1359,7 @@ export default function ActivityPage() {
                 <input
                   id="password-next"
                   type="password"
-                  placeholder="********"
+                  placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                   value={nextPassword}
                   onChange={(event) => setNextPassword(event.target.value)}
                 />
@@ -1367,7 +1367,7 @@ export default function ActivityPage() {
                 <input
                   id="password-confirm"
                   type="password"
-                  placeholder="********"
+                  placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                 />

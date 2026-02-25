@@ -524,7 +524,7 @@ export default function SignupPage() {
                     <input
                       id="signup-password"
                       type="password"
-                      placeholder="********"
+                      placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                       value={password}
                       onChange={(event) => {
                         setPassword(event.target.value);
@@ -554,7 +554,7 @@ export default function SignupPage() {
                     <input
                       id="signup-confirm"
                       type="password"
-                      placeholder="********"
+                      placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                       value={confirm}
                       onChange={(event) => {
                         setConfirm(event.target.value);

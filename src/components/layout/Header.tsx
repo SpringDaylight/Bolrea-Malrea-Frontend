@@ -80,7 +80,7 @@ export default function Header() {
             className={navClass}
             onClick={handleHeaderLinkClick("/llm-recommend")}
           >
-            🎯 AI 추천
+            AI 추천
           </NavLink>
           <NavLink
             to="/group"

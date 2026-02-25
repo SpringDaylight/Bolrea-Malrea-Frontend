@@ -1395,6 +1395,47 @@
   gap: 12px;
 }
 
+.profile-edit select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--text);
+  padding: 12px 40px 12px 14px;
+  font-weight: 600;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237B7D93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.profile-edit select:hover {
+  border-color: var(--a2-35);
+}
+
+.profile-edit select:focus-visible {
+  outline: none;
+  border-color: var(--a2-60);
+  box-shadow: var(--focus-ring);
+}
+
+.profile-edit input:read-only,
+.profile-edit textarea:read-only,
+.profile-edit select:disabled {
+  background: var(--bg);
+  color: var(--text-subtle);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
+.profile-edit input:read-only::placeholder,
+.profile-edit textarea:read-only::placeholder {
+  color: var(--text-subtle);
+}
+
 .profile-edit-actions {
   margin-top: 16px;
   display: flex;

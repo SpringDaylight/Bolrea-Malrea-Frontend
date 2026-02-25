@@ -412,11 +412,22 @@ export default function TasteAnalysisPage() {
   } = useTasteSurveyStorage(surveyRefreshKey);
   
   // DB 데이터 우선, 없으면 localStorage fallback
-  const displaySurveyData = surveyData || {
+  const displaySurveyData = surveyData ? {
+    favorite_genres: surveyData.favorite_genres || [],
+    disliked_genres: surveyData.disliked_genres || [],
+    viewing_context: surveyData.viewing_context || "",
+    preferred_vibe: surveyData.preferred_vibe 
+      ? surveyData.preferred_vibe.split("/").map(v => v.trim()).filter(v => v.length > 0)
+      : [],
+    interest_keywords: surveyData.interest_keywords.length > 0 && surveyData.interest_keywords[0].includes("/")
+      ? surveyData.interest_keywords[0].split("/").map(k => k.trim()).filter(k => k.length > 0)
+      : surveyData.interest_keywords,
+    preferred_origin: surveyData.preferred_origin || "",
+  } : {
     favorite_genres: selectedGenres,
     disliked_genres: avoidedGenres,
     viewing_context: tasteContext,
-    preferred_vibe: savedVibe,
+    preferred_vibe: savedVibe ? [savedVibe] : [],
     interest_keywords: savedKeywords,
     preferred_origin: tasteOrigin,
   };
@@ -508,9 +519,11 @@ export default function TasteAnalysisPage() {
                   </div>
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 분위기</h3>
-                    {displaySurveyData.preferred_vibe ? (
+                    {displaySurveyData.preferred_vibe.length > 0 ? (
                       <div className="tag-list">
-                        <span className="tag">{displaySurveyData.preferred_vibe}</span>
+                        {displaySurveyData.preferred_vibe.map((vibe) => (
+                          <span key={vibe} className="tag">{vibe}</span>
+                        ))}
                       </div>
                     ) : (
                       <p className="survey-summary-value is-empty">미설정</p>

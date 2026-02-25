@@ -106,6 +106,18 @@ const isAvoidNone = (value: string) =>
 // 장르 옵션에서 이모지 제거하여 매칭
 const removeEmoji = (text: string) => text.replace(/^[^\w\s가-힣]+\s*/, "").trim();
 
+// 배열의 각 항목에서 이모지 제거
+const removeEmojisFromArray = (arr: string[]): string[] => 
+  arr.map(removeEmoji);
+
+// 키워드 배열을 / 구분자로 결합
+const joinKeywords = (keywords: string[]): string[] => 
+  keywords.length > 0 ? [keywords.map(removeEmoji).join(" / ")] : [];
+
+// / 구분자로 된 문자열을 배열로 분리
+const splitKeywords = (keywordString: string): string[] => 
+  keywordString.split("/").map(k => k.trim()).filter(k => k.length > 0);
+
 // DB 데이터를 UI 옵션 형식으로 변환 (이모지 포함)
 const mapGenreToOption = (genre: string): string => {
   const normalized = removeEmoji(genre);
@@ -148,12 +160,23 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
   const [context, setContext] = useState(() => 
     initialData?.viewing_context ? mapContextToOption(initialData.viewing_context) : ""
   );
-  const [vibe, setVibe] = useState(() => 
-    initialData?.preferred_vibe ? mapVibeToOption(initialData.preferred_vibe) : ""
-  );
-  const [keywords, setKeywords] = useState<string[]>(() => 
-    initialData?.interest_keywords?.map(mapKeywordToOption) || []
-  );
+  const [vibe, setVibe] = useState<string[]>(() => {
+    if (!initialData?.preferred_vibe) return [];
+    // / 구분자로 분리된 경우 처리
+    const vibes = initialData.preferred_vibe.includes("/") 
+      ? splitKeywords(initialData.preferred_vibe)
+      : [initialData.preferred_vibe];
+    return vibes.map(mapVibeToOption);
+  });
+  const [keywords, setKeywords] = useState<string[]>(() => {
+    if (!initialData?.interest_keywords || initialData.interest_keywords.length === 0) return [];
+    // 첫 번째 항목이 / 구분자로 결합된 경우 분리
+    const firstItem = initialData.interest_keywords[0];
+    if (firstItem.includes("/")) {
+      return splitKeywords(firstItem).map(mapKeywordToOption);
+    }
+    return initialData.interest_keywords.map(mapKeywordToOption);
+  });
   const [origin, setOrigin] = useState(() => 
     initialData?.preferred_origin ? mapOriginToOption(initialData.preferred_origin) : ""
   );
@@ -175,6 +198,13 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
     });
   };
 
+  const toggleSingleValue = (
+    value: string,
+    setValue: Dispatch<SetStateAction<string>>
+  ) => {
+    setValue((prev) => (prev === value ? "" : value));
+  };
+
   const toggleAvoidGenre = (value: string) => {
     setAvoidGenres((prev) => {
       if (value === avoidNoneLabel) {
@@ -183,6 +213,10 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
       const withoutNone = prev.filter((item) => !isAvoidNone(item));
       if (withoutNone.includes(value)) {
         return withoutNone.filter((item) => item !== value);
+      }
+      // 최대 3개 제한
+      if (withoutNone.length >= 3) {
+        return withoutNone;
       }
       return [...withoutNone, value];
     });
@@ -211,14 +245,31 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
         return;
       }
 
+      // 최소 선택 검증
+      if (genres.length === 0) {
+        alert("좋아하는 장르를 최소 1개 이상 선택해주세요.");
+        setSubmitting(false);
+        return;
+      }
+
       // 장르 정리 및 이모지 제거 후 '/' 분리
       const processedGenres = processGenreTags(genres);
       const processedAvoidGenres = processGenreTags(
         avoidGenres.filter((g) => !isAvoidNone(g))
       );
 
+      // 이모지 제거
+      const cleanedGenres = removeEmojisFromArray(processedGenres);
+      const cleanedAvoidGenres = removeEmojisFromArray(processedAvoidGenres);
+      const cleanedContext = removeEmoji(context);
+      const cleanedVibes = removeEmojisFromArray(vibe);
+      const cleanedOrigin = removeEmoji(origin);
+      
+      // 키워드는 / 구분자로 결합
+      const cleanedKeywords = joinKeywords(keywords);
+
       // ML API: 취향 분석 수행
-      const userText = `${vibe} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
+      const userText = `${vibe.join(", ")} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
       const userDislikes = processedAvoidGenres.join(", ");
 
       const userProfile = await analyzePreference({
@@ -243,13 +294,13 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
         dislike_tags: userProfile.dislike_tags,
         penalty_tags: [],
         
-        // Survey fields 추가
-        favorite_genres: processedGenres,
-        disliked_genres: processedAvoidGenres,
-        viewing_context: context,
-        preferred_vibe: vibe,
-        interest_keywords: keywords,
-        preferred_origin: origin,
+        // Survey fields 추가 (이모지 제거됨)
+        favorite_genres: cleanedGenres,
+        disliked_genres: cleanedAvoidGenres,
+        viewing_context: cleanedContext,
+        preferred_vibe: cleanedVibes.join(" / "), // 복수 선택 가능하므로 / 구분자로 결합
+        interest_keywords: cleanedKeywords,
+        preferred_origin: cleanedOrigin,
       });
 
       onComplete();
@@ -288,7 +339,7 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
 
             {surveyStep === 1 && (
               <>
-                <h3 className="filter-title">가장 좋아하는 장르를 골라주세요 (최대 5개)</h3>
+                <h3 className="filter-title">가장 좋아하는 장르를 골라주세요 (최소 1개, 최대 5개)</h3>
                 <div className="tag-list">
                   {genreLikeOptions.map((genre) => (
                     <button
@@ -306,7 +357,7 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
 
             {surveyStep === 2 && (
               <>
-                <h3 className="filter-title">아쉽지만 선호하지 않는 장르도 알려주세요 (선택)</h3>
+                <h3 className="filter-title">아쉽지만 선호하지 않는 장르도 알려주세요 (최대 3개, 선택)</h3>
                 <div className="tag-list">
                   {genreAvoidOptions.map((genre) => (
                     <button
@@ -324,14 +375,14 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
 
             {surveyStep === 3 && (
               <>
-                <h3 className="filter-title">보통 영화를 언제, 어떻게 즐기시나요?</h3>
+                <h3 className="filter-title">보통 영화를 언제, 어떻게 즐기시나요? (1개 선택)</h3>
                 <div className="tag-list">
                   {contextOptions.map((option) => (
                     <button
                       key={option}
                       className={`filter-chip ${context === option ? "active" : ""}`}
                       type="button"
-                      onClick={() => setContext(option)}
+                      onClick={() => toggleSingleValue(option, setContext)}
                     >
                       {option}
                     </button>
@@ -342,14 +393,14 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
 
             {surveyStep === 4 && (
               <>
-                <h3 className="filter-title">어떤 분위기의 영화가 끌리시나요?</h3>
+                <h3 className="filter-title">어떤 분위기의 영화가 끌리시나요? (최대 2개)</h3>
                 <div className="tag-list">
                   {vibeOptions.map((option) => (
                     <button
                       key={option}
-                      className={`filter-chip ${vibe === option ? "active" : ""}`}
+                      className={`filter-chip ${vibe.includes(option) ? "active" : ""}`}
                       type="button"
-                      onClick={() => setVibe(option)}
+                      onClick={() => toggleValueWithLimit(option, setVibe, 2)}
                     >
                       {option}
                     </button>
@@ -378,14 +429,14 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
 
             {surveyStep === 6 && (
               <>
-                <h3 className="filter-title">주로 어디 나라 영화를 보시나요?</h3>
+                <h3 className="filter-title">주로 어디 나라 영화를 보시나요? (1개 선택)</h3>
                 <div className="tag-list">
                   {originOptions.map((option) => (
                     <button
                       key={option}
                       className={`filter-chip ${origin === option ? "active" : ""}`}
                       type="button"
-                      onClick={() => setOrigin(option)}
+                      onClick={() => toggleSingleValue(option, setOrigin)}
                     >
                       {option}
                     </button>

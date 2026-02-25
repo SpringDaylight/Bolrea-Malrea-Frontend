@@ -1,5 +1,5 @@
 body {
-  font-family: "jttbareunsaenghwal", sans-serif;
+  font-family: var(--font-base);
   font-weight: 400;
   font-style: normal;
   background: var(--bg);
@@ -133,7 +133,7 @@ body {
 }
 
 .section {
-  margin-top: 32px;
+  margin-top: var(--space-section);
   animation: rise 0.7s ease both;
 }
 
@@ -173,7 +173,7 @@ body {
 .page-title {
   display: grid;
   gap: 8px;
-  margin-bottom: 18px;
+  margin-bottom: var(--space-page-title);
 }
 
 .page-title.centered {

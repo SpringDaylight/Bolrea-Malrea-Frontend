@@ -2,12 +2,19 @@
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
+import PageTitle from "../components/common/PageTitle";
+import SectionHeader from "../components/common/SectionHeader";
+import MovieTileCard from "../components/movie/MovieTileCard";
+import LoadingState from "../components/common/LoadingState";
+import EmptyState from "../components/common/EmptyState";
 import { getMovie } from "../api/A2_movies";
 import { getCurrentUser, getCurrentUserReviews } from "../api/A7_profile";
 import { getCurrentUserWatchedMovies } from "../api/A8_watched";
 import { getTasteMap, type UserProfile } from "../api/ml";
 import { getUserPreference } from "../api/userPreferences";
 import { getAccessToken } from "../api/http";
+import { getStorageItem, safeParseJson } from "../utils/storage";
+import { useTasteSurveyStorage } from "../hooks/useTasteSurveyStorage";
 
 type RecentMovie = {
   movieId: number;
@@ -16,31 +23,6 @@ type RecentMovie = {
 };
 
 const POSTER_FALLBACK = "https://via.placeholder.com/500x750?text=No+Image";
-
-const getLocalStorageItem = (key: string) => {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return null;
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-
-const parseArrayFromStorage = (key: string): string[] => {
-  try {
-    const raw = getLocalStorageItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is string =>
-        typeof item === "string" && item.trim().length > 0
-    );
-  } catch {
-    return [];
-  }
-};
-
 
 const getFillStyle = (percent: number): CSSProperties =>
   ({ ["--fill" as string]: `${percent}%` } as CSSProperties);
@@ -114,9 +96,10 @@ export default function TasteAnalysisPage() {
           }
         } else {
           setWordCloudUserId(null);
-          const savedProfile = getLocalStorageItem("mw_user_profile");
+          const savedProfile = getStorageItem("mw_user_profile");
           if (savedProfile) {
-            const profile = JSON.parse(savedProfile) as UserProfile;
+            const profile = safeParseJson<UserProfile | null>(savedProfile, null);
+            if (!profile) return;
             setUserProfile(profile);
             if (profile.user_text) {
               await getTasteMap({
@@ -396,20 +379,16 @@ export default function TasteAnalysisPage() {
     setRefreshKey(Date.now());
   };
 
-  const savedKeywords = parseArrayFromStorage("mw_taste_keywords");
-  const savedVibe = (getLocalStorageItem("mw_taste_vibe") || "").trim();
-  const selectedGenres = parseArrayFromStorage("mw_taste_genres");
-  const avoidedGenres = parseArrayFromStorage("mw_taste_avoid_genres");
-  const tasteContext = (getLocalStorageItem("mw_taste_context") || "").trim();
-  const tasteOrigin = (getLocalStorageItem("mw_taste_origin") || "").trim();
-  const hasSurveyData =
-    Boolean(userProfile) ||
-    selectedGenres.length > 0 ||
-    avoidedGenres.length > 0 ||
-    savedKeywords.length > 0 ||
-    Boolean(savedVibe) ||
-    Boolean(tasteContext) ||
-    Boolean(tasteOrigin);
+  const {
+    savedKeywords,
+    savedVibe,
+    selectedGenres,
+    avoidedGenres,
+    tasteContext,
+    tasteOrigin,
+    hasSurveyData: hasStorageSurveyData,
+  } = useTasteSurveyStorage(surveyRefreshKey);
+  const hasSurveyData = Boolean(userProfile) || hasStorageSurveyData;
   const preferenceSlots = Array.from({ length: 5 }, (_, index) => {
     const slot = watchedGenreStats[index];
     if (!slot) {
@@ -422,7 +401,7 @@ export default function TasteAnalysisPage() {
     return (
       <MainLayout>
         <main className="container taste-analysis-page">
-          <p>취향 분석 중...</p>
+          <LoadingState message="취향 분석 중..." />
         </main>
       </MainLayout>
     );
@@ -431,10 +410,10 @@ export default function TasteAnalysisPage() {
   return (
     <MainLayout>
       <main className="container taste-analysis-page">
-        <section className="page-title">
-          <h1>취향 분석 상세</h1>
-          <p>나의 영화 취향을 확인해보세요!</p>
-        </section>
+        <PageTitle
+          title="취향 분석 상세"
+          description="나의 영화 취향을 확인해보세요!"
+        />
 
         <section className="section card taste-preview-section">
           <article className="taste-preview">
@@ -551,7 +530,7 @@ export default function TasteAnalysisPage() {
             <div className="taste-preview-header with-cta" style={{ position: 'relative' }}>
               <div>
                 <h2>취향 대시보드</h2>
-                <p>워드 클라우드 분석 결과</p>
+                {/* <p>워드 클라우드 분석 결과</p> */}
               </div>
               <button
                 type="button"
@@ -675,12 +654,12 @@ export default function TasteAnalysisPage() {
         </section>
 
         <section className="section">
-          <div className="section-header">
-            <h2>최근 가장 만족했던 영화</h2>
-            <p>최근 리뷰 중에서 4.5점 이상으로 평점을 저장했던 영화 4개를 보여줄게요</p>
-          </div>
+          <SectionHeader
+            title="최근 가장 만족했던 영화"
+            description="최근 리뷰 중에서 4.5점 이상으로 평점을 저장했던 영화 4개를 보여줄게요"
+          />
           {reviewsLoading ? (
-            <p className="muted">불러오는 중...</p>
+            <LoadingState message="불러오는 중..." />
           ) : recentHighRated.length > 0 ? (
             <div className="movie-grid">
               {recentHighRated.map((movie) => (
@@ -689,25 +668,18 @@ export default function TasteAnalysisPage() {
                   to={`/movies/${movie.movieId}`}
                   key={movie.movieId}
                 >
-                  <article className="card movie-tile">
-                    <img
-                      className="poster"
-                      src={movie.poster}
-                      alt={`${movie.title} 포스터`}
-                    />
-                    <div className="movie-info">
-                      <h3>{movie.title}</h3>
-                    </div>
-                  </article>
+                  <MovieTileCard title={movie.title} posterUrl={movie.poster} />
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="muted">
-              {isLoggedIn
-                ? "조건에 맞는 최근 리뷰가 없습니다."
-                : "로그인 후 확인할 수 있어요."}
-            </p>
+            <EmptyState
+              message={
+                isLoggedIn
+                  ? "조건에 맞는 최근 리뷰가 없습니다."
+                  : "로그인 후 확인할 수 있어요."
+              }
+            />
           )}
         </section>
       </main>

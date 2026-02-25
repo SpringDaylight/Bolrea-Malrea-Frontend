@@ -1,12 +1,17 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import SectionHeader from "../components/common/SectionHeader";
+import MovieTileCard from "../components/movie/MovieTileCard";
+import LoadingState from "../components/common/LoadingState";
+import EmptyState from "../components/common/EmptyState";
 import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
 } from "../api/A8_watched";
 import { getAccessToken } from "../api/http";
+import { setJsonToSession } from "../utils/storage";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
 
@@ -14,12 +19,12 @@ type MoviesPageSnapshot = {
   searchQuery: string;
   selectedSorts: string[];
   selectedGenres: string[];
-  selectedRuntime: string | null;
-  selectedYearRange: string | null;
+  selectedRuntime: string[];
+  selectedYearRange: string[];
   appliedSorts: string[];
   appliedGenres: string[];
-  appliedRuntime: string | null;
-  appliedYearRange: string | null;
+  appliedRuntime: string[];
+  appliedYearRange: string[];
   appliedQuery: string;
   currentPage: number;
   scrollY: number;
@@ -39,6 +44,13 @@ type GenreFilter = {
   queryGenres: string[];
 };
 
+
+type YearRangeFilter = {
+  value: string;
+  label: string;
+  min: number;
+  max?: number;
+};
 const genreFilters = [
   { value: "로맨스/로코", label: "로맨스/로코", queryGenres: ["로맨스"] },
   { value: "드라마/휴먼", label: "드라마/휴먼", queryGenres: ["드라마"] },
@@ -64,7 +76,7 @@ const runtimeFilters = [
   { value: "over-140", label: "140분 이상" },
 ] as const;
 
-const yearRangeFilters = [
+const yearRangeFilters: YearRangeFilter[] = [
   { value: "pre1950", label: "1950년 이전", min: 0, max: 1949 },
   { value: "1950s", label: "1950년-1959년", min: 1950, max: 1959 },
   { value: "1960s", label: "1960년-1969년", min: 1960, max: 1969 },
@@ -74,15 +86,8 @@ const yearRangeFilters = [
   { value: "2000s", label: "2000년-2009년", min: 2000, max: 2009 },
   { value: "2010s", label: "2010년-2019년", min: 2010, max: 2019 },
   { value: "2020plus", label: "2020년 이후", min: 2020 },
-] as const;
+];
 
-const getReleaseYear = (release?: string | null) => {
-  if (!release) return null;
-  const match = /\d{4}/.exec(release);
-  if (!match) return null;
-  const year = Number(match[0]);
-  return Number.isFinite(year) ? year : null;
-};
 
 const resolveFilterToGenres = (values: string[]) => {
   return Array.from(
@@ -101,9 +106,41 @@ const resolveGenresToFilterValues = (genres: string[]) => {
     .map((filter) => filter.value);
 };
 
+const resolveRuntimeRange = (value: string | null): {
+  runtime_min?: number;
+  runtime_max?: number;
+} => {
+  if (!value) return {};
+  switch (value) {
+    case "under-100":
+      return { runtime_max: 100 };
+    case "between-100-120":
+      return { runtime_min: 100, runtime_max: 120 };
+    case "between-120-140":
+      return { runtime_min: 120, runtime_max: 140 };
+    case "over-140":
+      return { runtime_min: 140 };
+    default:
+      return {};
+  }
+};
+
+const resolveYearRange = (value: string | null): {
+  year_min?: number;
+  year_max?: number;
+} => {
+  if (!value) return {};
+  const range = yearRangeFilters.find((filter) => filter.value === value);
+  if (!range) return {};
+  return {
+    year_min: range.min,
+    ...(typeof range.max === "number" ? { year_max: range.max } : {}),
+  };
+};
+
+
 export default function MoviesPage() {
   const navigate = useNavigate();
-  const navigationType = useNavigationType();
   const [searchParams] = useSearchParams();
   const isLoggedIn = Boolean(getAccessToken());
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -112,12 +149,12 @@ export default function MoviesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSorts, setSelectedSorts] = useState<string[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedRuntime, setSelectedRuntime] = useState<string | null>(null);
-  const [selectedYearRange, setSelectedYearRange] = useState<string | null>(null);
+  const [selectedRuntime, setSelectedRuntime] = useState<string[]>([]);
+  const [selectedYearRange, setSelectedYearRange] = useState<string[]>([]);
   const [appliedSorts, setAppliedSorts] = useState<string[]>([]);
   const [appliedGenres, setAppliedGenres] = useState<string[]>([]);
-  const [appliedRuntime, setAppliedRuntime] = useState<string | null>(null);
-  const [appliedYearRange, setAppliedYearRange] = useState<string | null>(null);
+  const [appliedRuntime, setAppliedRuntime] = useState<string[]>([]);
+  const [appliedYearRange, setAppliedYearRange] = useState<string[]>([]);
   const [appliedQuery, setAppliedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -165,57 +202,6 @@ export default function MoviesPage() {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(MOVIES_PAGE_SNAPSHOT_KEY);
-      if (!raw) return;
-      if (navigationType !== "POP") {
-        sessionStorage.removeItem(MOVIES_PAGE_SNAPSHOT_KEY);
-        return;
-      }
-      const parsed = JSON.parse(raw) as MoviesPageSnapshot;
-
-      if (!parsed || parsed.restoreOnReturn !== true) return;
-
-      const toStringArray = (value: unknown) =>
-        Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === "string")
-          : [];
-
-      setSearchQuery(typeof parsed.searchQuery === "string" ? parsed.searchQuery : "");
-      setSelectedSorts(toStringArray(parsed.selectedSorts));
-      setSelectedGenres(toStringArray(parsed.selectedGenres));
-      setSelectedRuntime(
-        typeof parsed.selectedRuntime === "string" ? parsed.selectedRuntime : null
-      );
-      setSelectedYearRange(
-        typeof parsed.selectedYearRange === "string" ? parsed.selectedYearRange : null
-      );
-      setAppliedSorts(toStringArray(parsed.appliedSorts));
-      setAppliedGenres(toStringArray(parsed.appliedGenres));
-      setAppliedRuntime(
-        typeof parsed.appliedRuntime === "string" ? parsed.appliedRuntime : null
-      );
-      setAppliedYearRange(
-        typeof parsed.appliedYearRange === "string" ? parsed.appliedYearRange : null
-      );
-      setAppliedQuery(typeof parsed.appliedQuery === "string" ? parsed.appliedQuery : "");
-      setCurrentPage(
-        Number.isFinite(parsed.currentPage) && parsed.currentPage > 0
-          ? Math.floor(parsed.currentPage)
-          : 1
-      );
-      setPendingScrollRestore(
-        Number.isFinite(parsed.scrollY) && parsed.scrollY >= 0
-          ? parsed.scrollY
-          : 0
-      );
-      shouldSkipSearchParamInitRef.current = true;
-    } catch (err) {
-      console.error("Failed to restore movies page state:", err);
-    }
-  }, [navigationType]);
-
-  useEffect(() => {
     if (shouldSkipSearchParamInitRef.current) {
       shouldSkipSearchParamInitRef.current = false;
       return;
@@ -240,7 +226,6 @@ export default function MoviesPage() {
       setCurrentPage(1);
     }
   }, [searchParams]);
-
   useEffect(() => {
     if (pendingScrollRestore === null) return;
     if (loading) return;
@@ -264,16 +249,31 @@ export default function MoviesPage() {
       setError(null);
       try {
         const sortKey = appliedSorts.length > 0 ? appliedSorts[0] : undefined;
-        const sort =
-          sortKey && sortKey !== "title"
-            ? (sortKey as "latest" | "popular" | "rating")
-            : undefined;
+        const sort = sortKey
+          ? (sortKey as "latest" | "popular" | "rating" | "title")
+          : undefined;
         const genres = appliedGenres.length > 0 ? appliedGenres.join(",") : undefined;
+        const runtimeRange =
+          appliedRuntime.length === 1
+            ? resolveRuntimeRange(appliedRuntime[0])
+            : {};
+        const yearRange =
+          appliedYearRange.length === 1
+            ? resolveYearRange(appliedYearRange[0])
+            : {};
+        const runtimeRangesParam =
+          appliedRuntime.length > 1 ? appliedRuntime.join(",") : undefined;
+        const yearRangesParam =
+          appliedYearRange.length > 1 ? appliedYearRange.join(",") : undefined;
 
         const response = await getMovies({
           query: appliedQuery || undefined,
           genres,
           sort,
+          runtime_ranges: runtimeRangesParam,
+          ...runtimeRange,
+          year_ranges: yearRangesParam,
+          ...yearRange,
           page: currentPage,
           page_size: 20,
         });
@@ -286,59 +286,8 @@ export default function MoviesPage() {
                 (movie.title ?? "").toLowerCase().includes(normalizedQuery)
               )
             : response.movies;
-        const filteredByRuntime =
-          appliedRuntime === "under-100"
-            ? filteredByTitle.filter(
-                (movie) => typeof movie.runtime === "number" && movie.runtime <= 100
-              )
-            : appliedRuntime === "between-100-120"
-              ? filteredByTitle.filter(
-                  (movie) =>
-                    typeof movie.runtime === "number" &&
-                    movie.runtime >= 100 &&
-                    movie.runtime <= 120
-                )
-              : appliedRuntime === "between-120-140"
-                ? filteredByTitle.filter(
-                    (movie) =>
-                      typeof movie.runtime === "number" &&
-                      movie.runtime >= 120 &&
-                      movie.runtime <= 140
-                  )
-                : appliedRuntime === "over-140"
-                  ? filteredByTitle.filter(
-                      (movie) => typeof movie.runtime === "number" && movie.runtime > 140
-                    )
-                  : filteredByTitle;
-        const filteredByYear = appliedYearRange
-          ? filteredByRuntime.filter((movie) => {
-              const year = getReleaseYear(movie.release);
-              if (!year) return false;
-              const range = yearRangeFilters.find(
-                (filter) => filter.value === appliedYearRange
-              );
-              if (!range) return true;
-              if (typeof range.min === "number" && year < range.min) return false;
-              if ("max" in range && typeof range.max === "number" && year > range.max)
-                return false;
-              return true;
-            })
-          : filteredByRuntime;
-        const nextMovies =
-          sortKey === "title"
-            ? [...filteredByYear].sort((a, b) =>
-                (a.title ?? "").localeCompare(b.title ?? "", "ko")
-              )
-            : filteredByYear;
-        setMovies(nextMovies);
-        const totalSource =
-          normalizedQuery.length > 0 || appliedRuntime || appliedYearRange
-            ? filteredByYear.length
-            : response.total;
-        const nextTotalPages = Math.max(
-          1,
-          Math.ceil(totalSource / response.page_size)
-        );
+        setMovies(filteredByTitle);
+        const nextTotalPages = Math.max(1, Math.ceil(response.total / response.page_size));
         setTotalPages(nextTotalPages);
       } catch (err) {
         if (isCancelled) return;
@@ -362,8 +311,7 @@ export default function MoviesPage() {
     appliedYearRange,
     currentPage,
   ]);
-
-  const handleSortSelect = (value: string) => {
+const handleSortSelect = (value: string) => {
     setSelectedSorts((prev) => {
       const nextSorts = prev[0] === value ? [] : [value];
       setAppliedSorts(nextSorts);
@@ -385,7 +333,9 @@ export default function MoviesPage() {
 
   const handleRuntimeToggle = (value: string) => {
     setSelectedRuntime((prev) => {
-      const nextSelected = prev === value ? null : value;
+      const nextSelected = prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value];
       setAppliedRuntime(nextSelected);
       setCurrentPage(1);
       return nextSelected;
@@ -394,7 +344,9 @@ export default function MoviesPage() {
 
   const handleYearRangeToggle = (value: string) => {
     setSelectedYearRange((prev) => {
-      const nextSelected = prev === value ? null : value;
+      const nextSelected = prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value];
       setAppliedYearRange(nextSelected);
       setCurrentPage(1);
       return nextSelected;
@@ -440,7 +392,7 @@ export default function MoviesPage() {
       scrollY: window.scrollY,
       restoreOnReturn,
     };
-    sessionStorage.setItem(MOVIES_PAGE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    setJsonToSession(MOVIES_PAGE_SNAPSHOT_KEY, snapshot);
   };
 
   const handleOpenMovieDetail = (movieId: number) => {
@@ -523,7 +475,7 @@ export default function MoviesPage() {
                   <button
                     key={filter.value}
                     className={`filter-chip ${
-                      selectedYearRange === filter.value ? "active" : ""
+                      selectedYearRange.includes(filter.value) ? "active" : ""
                     }`}
                     type="button"
                     onClick={() => handleYearRangeToggle(filter.value)}
@@ -540,7 +492,7 @@ export default function MoviesPage() {
                   <button
                     key={filter.value}
                     className={`filter-chip ${
-                      selectedRuntime === filter.value ? "active" : ""
+                      selectedRuntime.includes(filter.value) ? "active" : ""
                     }`}
                     type="button"
                     onClick={() => handleRuntimeToggle(filter.value)}
@@ -554,10 +506,7 @@ export default function MoviesPage() {
         </section>
 
         <section className="section">
-          <div className="section-header">
-            <h2>검색결과</h2>
-            {/* <p>선택한 기준으로 추천된 영화가 표시됩니다</p> */}
-          </div>
+          <SectionHeader title="검색결과" />
           <div className="movie-sort-links">
             {sortFilters.map((filter) => (
               <button
@@ -574,19 +523,24 @@ export default function MoviesPage() {
             ))}
           </div>
 
-          {loading && <p>로딩 중...</p>}
+          {loading && <LoadingState />}
           {error && <p className="error">{error}</p>}
 
           {!loading && !error && movies.length === 0 && (
-            <p>검색결과가 없습니다.</p>
+            <EmptyState message="검색결과가 없습니다." />
           )}
 
           {!loading && !error && movies.length > 0 && (
             <div className="movie-grid">
               {movies.map((movie) => (
-                <article
-                  className="card movie-tile movie-card-clickable"
+                <MovieTileCard
                   key={movie.id}
+                  className="movie-card-clickable"
+                  title={movie.title}
+                  posterUrl={
+                    movie.poster_url ||
+                    "https://via.placeholder.com/500x750?text=No+Image"
+                  }
                   role="button"
                   tabIndex={0}
                   onClick={() => handleOpenMovieDetail(movie.id)}
@@ -596,16 +550,7 @@ export default function MoviesPage() {
                       handleOpenMovieDetail(movie.id);
                     }
                   }}
-                >
-                  <img
-                    className="poster"
-                    src={
-                      movie.poster_url ||
-                      "https://via.placeholder.com/500x750?text=No+Image"
-                    }
-                    alt={`${movie.title} 포스터`}
-                  />
-                  <div className="movie-info">
+                  titleSlot={
                     <div className="movie-card-title-row">
                       <h3>{movie.title}</h3>
                       <button
@@ -623,24 +568,19 @@ export default function MoviesPage() {
                         시청함
                       </button>
                     </div>
-                    <p className="movie-rating">
-                      평점{" "}
-                      {typeof movie.avg_rating === "number"
-                        ? movie.avg_rating.toFixed(1)
-                        : "정보 없음"}{" "}
-                      ({movie.reviews_count ?? movie.review_count ?? 0})
-                    </p>
-                    <p className="muted synopsis-clamp">
-                      {movie.synopsis || "줄거리 정보가 없습니다."}
-                    </p>
-                    {/* <div className="meta-list">
-                      {movie.genres.slice(0, 3).map((genre) => (
-                        <span key={genre}>{genre}</span>
-                      ))}
-                      {movie.runtime && <span>{movie.runtime}분</span>}
-                    </div> */}
-                  </div>
-                </article>
+                  }
+                >
+                  <p className="movie-rating">
+                    평점{" "}
+                    {typeof movie.avg_rating === "number"
+                      ? movie.avg_rating.toFixed(1)
+                      : "정보 없음"}{" "}
+                    ({movie.reviews_count ?? movie.review_count ?? 0})
+                  </p>
+                  <p className="muted synopsis-clamp">
+                    {movie.synopsis || "줄거리 정보가 없습니다."}
+                  </p>
+                </MovieTileCard>
               ))}
             </div>
           )}
@@ -713,3 +653,12 @@ export default function MoviesPage() {
     </MainLayout>
   );
 }
+
+
+
+
+
+
+
+
+

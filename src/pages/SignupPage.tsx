@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import PageTitle from "../components/common/PageTitle";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
 import { signup as signupApi } from "../api/auth";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
+import {
+  getStorageItem,
+  safeParseJson,
+  setJsonToStorage,
+  setStorageItem,
+} from "../utils/storage";
 
 const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -230,13 +237,13 @@ export default function SignupPage() {
     const processedAvoidGenres = processGenreTags(avoidGenres.filter(g => g !== avoidNoneLabel));
     
     // Save taste survey data
-    localStorage.setItem("mw_taste_genres", JSON.stringify(processedGenres));
-    localStorage.setItem("mw_taste_avoid_genres", JSON.stringify(processedAvoidGenres));
-    localStorage.setItem("mw_taste_context", context);
-    localStorage.setItem("mw_taste_vibe", vibe);
-    localStorage.setItem("mw_taste_keywords", JSON.stringify(keywords));
-    localStorage.setItem("mw_tast_keyword", JSON.stringify(keywords));
-    localStorage.setItem("mw_taste_origin", origin);
+    setJsonToStorage("mw_taste_genres", processedGenres);
+    setJsonToStorage("mw_taste_avoid_genres", processedAvoidGenres);
+    setStorageItem("mw_taste_context", context);
+    setStorageItem("mw_taste_vibe", vibe);
+    setJsonToStorage("mw_taste_keywords", keywords);
+    setJsonToStorage("mw_tast_keyword", keywords);
+    setStorageItem("mw_taste_origin", origin);
 
     // Analyze preference with ML
     try {
@@ -249,7 +256,7 @@ export default function SignupPage() {
         dislikes: userDislikes || undefined,
       });
 
-      localStorage.setItem("mw_user_profile", JSON.stringify(userProfile));
+      setJsonToStorage("mw_user_profile", userProfile);
     } catch (error) {
       console.error("Failed to analyze preference:", error);
     }
@@ -262,12 +269,15 @@ export default function SignupPage() {
     
     // 일반 회원가입 사용자도 DB에 저장
     const isLoggedIn = Boolean(getAccessToken());
-    const userProfileStr = localStorage.getItem("mw_user_profile");
+    const userProfileStr = getStorageItem("mw_user_profile");
       
     if (isLoggedIn && userProfileStr) {
       try {
         const currentUser = await getCurrentUser();
-        const userProfile = JSON.parse(userProfileStr);
+        const userProfile = safeParseJson<any | null>(userProfileStr, null);
+        if (!userProfile) {
+          throw new Error("Invalid user profile data.");
+        }
         const { saveUserPreference } = await import("../api/userPreferences");
         await saveUserPreference({
           user_id: currentUser.id,
@@ -296,9 +306,7 @@ export default function SignupPage() {
   return (
     <MainLayout>
       <main className="container">
-        <section className="page-title centered">
-          <h1>회원가입</h1>
-        </section>
+        <PageTitle title="회원가입" centered />
 
         <section className="section">
           <article className="card auth-card">

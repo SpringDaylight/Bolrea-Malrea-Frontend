@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
+import PageTitle from "../components/common/PageTitle";
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");
@@ -8,10 +9,11 @@ export default function FindPasswordPage() {
   return (
     <MainLayout>
       <main className="container">
-        <section className="page-title centered">
-          <h1>비밀번호 찾기</h1>
-          <p>가입한 이메일로 비밀번호 재설정 링크를 보내드립니다.</p>
-        </section>
+        <PageTitle
+          title="비밀번호 찾기"
+          description="가입한 이메일로 비밀번호 재설정 링크를 보내드립니다."
+          centered
+        />
 
         <section className="section">
           <article className="card auth-card">

@@ -43,6 +43,10 @@ export default function Header() {
         console.error("Logout failed:", err);
       } finally {
         setAccessToken(null);
+        
+        // LLM 추천 캐시 삭제
+        localStorage.removeItem('llm_recommend_state');
+        
         window.dispatchEvent(new Event("mw_auth_change"));
         window.location.href = "/";
       }

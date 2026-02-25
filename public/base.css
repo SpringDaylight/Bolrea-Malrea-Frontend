@@ -507,8 +507,10 @@ textarea {
   padding: 14px 16px;
   background: var(--bg-soft);
   text-align: center;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  align-items: center;
 }
 
 .survey-summary-title {

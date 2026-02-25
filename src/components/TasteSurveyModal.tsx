@@ -104,22 +104,66 @@ const isAvoidNone = (value: string) =>
   avoidNoneAliases.some((label) => normalizeKey(label) === normalizeKey(value));
 
 // 장르 옵션에서 이모지 제거하여 매칭
-const removeEmoji = (text: string) => text.replace(/^[^\w\s가-힣]+\s*/, "").trim();
-
-// 배열의 각 항목에서 이모지 제거
-const removeEmojisFromArray = (arr: string[]): string[] => 
-  arr.map(removeEmoji);
-
-// 키워드 배열을 / 구분자로 결합
-const joinKeywords = (keywords: string[]): string[] => 
-  keywords.length > 0 ? [keywords.map(removeEmoji).join(" / ")] : [];
+const removeEmoji = (text: string) => text.replace(/^[^\w\s가-힣/]+\s*/, "").trim();
 
 // / 구분자로 된 문자열을 배열로 분리
 const splitKeywords = (keywordString: string): string[] => 
   keywordString.split("/").map(k => k.trim()).filter(k => k.length > 0);
 
+// DB에 저장된 장르 배열을 UI 옵션과 매칭
+// DB: ["로맨스", "로코"] -> UI: "💕 로맨스 / 로코"
+const mapGenresToOptions = (dbGenres: string[]): string[] => {
+  const result: string[] = [];
+  const used = new Set<number>();
+  
+  // 각 UI 옵션에 대해
+  for (const option of genreLikeOptions) {
+    const optionParts = processGenreTags([option]); // ["로맨스", "로코"]
+    
+    // DB 장르 중에서 이 옵션의 모든 부분이 연속으로 있는지 확인
+    let allFound = true;
+    const indices: number[] = [];
+    
+    for (const part of optionParts) {
+      const idx = dbGenres.findIndex((g, i) => !used.has(i) && g === part);
+      if (idx === -1) {
+        allFound = false;
+        break;
+      }
+      indices.push(idx);
+    }
+    
+    if (allFound && indices.length > 0) {
+      // 연속된 인덱스인지 확인
+      const sorted = [...indices].sort((a, b) => a - b);
+      let isConsecutive = true;
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] !== sorted[i-1] + 1) {
+          isConsecutive = false;
+          break;
+        }
+      }
+      
+      if (isConsecutive) {
+        result.push(option);
+        indices.forEach(i => used.add(i));
+      }
+    }
+  }
+  
+  // 매칭되지 않은 장르들은 개별적으로 추가
+  dbGenres.forEach((genre, idx) => {
+    if (!used.has(idx)) {
+      result.push(genre);
+    }
+  });
+  
+  return result;
+};
+
 // DB 데이터를 UI 옵션 형식으로 변환 (이모지 포함)
 const mapGenreToOption = (genre: string): string => {
+  // DB에 저장된 장르와 UI 옵션을 매칭 (이모지 제거 후 비교)
   const normalized = removeEmoji(genre);
   const option = genreLikeOptions.find(opt => removeEmoji(opt) === normalized);
   return option || genre;
@@ -152,10 +196,10 @@ const mapOriginToOption = (origin: string): string => {
 export default function TasteSurveyModal({ onClose, onComplete, initialData }: TasteSurveyModalProps) {
   const [surveyStep, setSurveyStep] = useState(0);
   const [genres, setGenres] = useState<string[]>(() => 
-    initialData?.favorite_genres?.map(mapGenreToOption) || []
+    initialData?.favorite_genres ? mapGenresToOptions(initialData.favorite_genres) : []
   );
   const [avoidGenres, setAvoidGenres] = useState<string[]>(() => 
-    initialData?.disliked_genres?.map(mapGenreToOption) || []
+    initialData?.disliked_genres ? mapGenresToOptions(initialData.disliked_genres) : []
   );
   const [context, setContext] = useState(() => 
     initialData?.viewing_context ? mapContextToOption(initialData.viewing_context) : ""
@@ -187,12 +231,35 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
     setList: Dispatch<SetStateAction<string[]>>,
     limit: number
   ) => {
+    console.log('toggleValueWithLimit called:', { value, limit });
     setList((prev) => {
+      console.log('Previous state:', prev);
+      if (prev.includes(value)) {
+        const newState = prev.filter((item) => item !== value);
+        console.log('Removing, new state:', newState);
+        return newState;
+      }
+      if (prev.length >= limit) {
+        console.log('Limit reached, not adding');
+        return prev;
+      }
+      const newState = [...prev, value];
+      console.log('Adding, new state:', newState);
+      return newState;
+    });
+  };
+
+  const toggleGenre = (value: string) => {
+    setGenres((prev) => {
       if (prev.includes(value)) {
         return prev.filter((item) => item !== value);
       }
-      if (prev.length >= limit) {
+      if (prev.length >= 5) {
         return prev;
+      }
+      // 싫어하는 장르에 있으면 제거
+      if (avoidGenres.includes(value)) {
+        setAvoidGenres((avoid) => avoid.filter((item) => item !== value));
       }
       return [...prev, value];
     });
@@ -217,6 +284,10 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
       // 최대 3개 제한
       if (withoutNone.length >= 3) {
         return withoutNone;
+      }
+      // 좋아하는 장르에 있으면 제거
+      if (genres.includes(value)) {
+        setGenres((liked) => liked.filter((item) => item !== value));
       }
       return [...withoutNone, value];
     });
@@ -252,21 +323,17 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
         return;
       }
 
-      // 장르 정리 및 이모지 제거 후 '/' 분리
+      // 장르 정리: 이모지 제거 후 '/' 분리
       const processedGenres = processGenreTags(genres);
       const processedAvoidGenres = processGenreTags(
         avoidGenres.filter((g) => !isAvoidNone(g))
       );
 
       // 이모지 제거
-      const cleanedGenres = removeEmojisFromArray(processedGenres);
-      const cleanedAvoidGenres = removeEmojisFromArray(processedAvoidGenres);
       const cleanedContext = removeEmoji(context);
-      const cleanedVibes = removeEmojisFromArray(vibe);
+      const cleanedVibes = vibe.map(removeEmoji);
+      const cleanedKeywords = keywords.map(removeEmoji);
       const cleanedOrigin = removeEmoji(origin);
-      
-      // 키워드는 / 구분자로 결합
-      const cleanedKeywords = joinKeywords(keywords);
 
       // ML API: 취향 분석 수행
       const userText = `${vibe.join(", ")} ${keywords.join(", ")} ${processedGenres.join(", ")}`;
@@ -294,12 +361,12 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
         dislike_tags: userProfile.dislike_tags,
         penalty_tags: [],
         
-        // Survey fields 추가 (이모지 제거됨)
-        favorite_genres: cleanedGenres,
-        disliked_genres: cleanedAvoidGenres,
+        // Survey fields 추가
+        favorite_genres: processedGenres, // ["로맨스", "로코", "코미디"]
+        disliked_genres: processedAvoidGenres,
         viewing_context: cleanedContext,
         preferred_vibe: cleanedVibes.join(" / "), // 복수 선택 가능하므로 / 구분자로 결합
-        interest_keywords: cleanedKeywords,
+        interest_keywords: [cleanedKeywords.join(" / ")], // 배열의 첫 번째 항목으로 결합
         preferred_origin: cleanedOrigin,
       });
 
@@ -346,7 +413,7 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
                       key={genre}
                       className={`filter-chip ${genres.includes(genre) ? "active" : ""}`}
                       type="button"
-                      onClick={() => toggleValueWithLimit(genre, setGenres, 5)}
+                      onClick={() => toggleGenre(genre)}
                     >
                       {genre}
                     </button>

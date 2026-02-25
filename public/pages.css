@@ -2143,3 +2143,34 @@
 
 
 
+
+/* 그룹 추천 로딩 상태 */
+.group-page .loading-box {
+  background: var(--bg-soft);
+  border-radius: var(--radius-lg);
+  padding: 3rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  margin-top: 1.5rem;
+}
+
+.group-page .spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.group-page .loading-box p {
+  color: var(--text-subtle);
+  font-size: 1rem;
+}

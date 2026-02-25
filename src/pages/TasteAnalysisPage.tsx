@@ -81,6 +81,7 @@ export default function TasteAnalysisPage() {
         if (isLoggedIn) {
           const currentUser = await getCurrentUser();
           setCurrentUserId(currentUser.id.toString());
+          setWordCloudUserId(currentUser.id.toString());
           const preference = await getUserPreference(currentUser.id);
           const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
             .sort(([, a], [, b]) => b - a)
@@ -157,7 +158,7 @@ export default function TasteAnalysisPage() {
       try {
         const token = getAccessToken();
         const response = await fetch(
-          `${API_BASE_URL}/api/user-preferences/${wordCloudUserId}/wordcloud`,
+          `${API_BASE_URL}/api/user-preferences/${wordCloudUserId}/wordcloud?type=boost`,
           {
             method: "GET",
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,

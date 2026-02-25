@@ -217,22 +217,7 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
       console.log('Keywords initialized: empty array');
       return [];
     }
-    // 첫 번째 항목이 컴마로 구분된 경우 분리
-    const firstItem = initialData.interest_keywords[0];
-    if (firstItem.includes(",")) {
-      // "성장 / 청춘, 디스토피아 / 아포칼립스, 타임루프 / 시간여행" -> 컴마로 분리
-      const keywordParts = firstItem.split(",").map(k => k.trim()).filter(k => k.length > 0);
-      const result: string[] = [];
-      
-      // 각 부분을 UI 옵션과 매칭
-      for (const part of keywordParts) {
-        const option = keywordOptions.find(opt => removeEmoji(opt) === part);
-        result.push(option || part);
-      }
-      
-      console.log('Keywords initialized from comma-separated:', result);
-      return result;
-    }
+    // 장르처럼 배열로 저장된 경우 각각 매칭
     const result = initialData.interest_keywords.map(mapKeywordToOption);
     console.log('Keywords initialized from array:', result);
     return result;
@@ -364,9 +349,6 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
       const { saveUserPreference } = await import("../api/userPreferences");
       const currentUser = await getCurrentUser();
 
-      // 키워드를 컴마로 구분하여 저장
-      const keywordString = cleanedKeywords.map(k => k.replace(/\s+/g, " ").trim()).join(", ");
-
       await saveUserPreference({
         user_id: currentUser.id,
         preference_vector_json: {
@@ -385,7 +367,7 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
         disliked_genres: processedAvoidGenres,
         viewing_context: cleanedContext,
         preferred_vibe: cleanedVibes.join(" / "), // 복수 선택 가능하므로 / 구분자로 결합
-        interest_keywords: [keywordString], // ["성장 / 청춘, 디스토피아 / 아포칼립스, 타임루프 / 시간여행"]
+        interest_keywords: cleanedKeywords, // ["성장 / 청춘", "디스토피아 / 아포칼립스", "타임루프 / 시간여행"]
         preferred_origin: cleanedOrigin,
       });
 

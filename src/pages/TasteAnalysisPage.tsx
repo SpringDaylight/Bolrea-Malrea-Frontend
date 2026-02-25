@@ -419,9 +419,7 @@ export default function TasteAnalysisPage() {
     preferred_vibe: surveyData.preferred_vibe 
       ? surveyData.preferred_vibe.split("/").map(v => v.trim()).filter(v => v.length > 0)
       : [],
-    interest_keywords: surveyData.interest_keywords.length > 0 && surveyData.interest_keywords[0].includes("/")
-      ? surveyData.interest_keywords[0].split("/").map(k => k.trim()).filter(k => k.length > 0)
-      : surveyData.interest_keywords,
+    interest_keywords: surveyData.interest_keywords || [],
     preferred_origin: surveyData.preferred_origin || "",
   } : {
     favorite_genres: selectedGenres,

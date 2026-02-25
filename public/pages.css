@@ -143,12 +143,13 @@
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 700;
-  background: var(--a2-18);
+  background: white; /* 하얀색 - 시청 안 함 */
 }
 
 .movies-page .movie-grid .movie-detail-watch-btn.is-active {
-  background: var(--a2-20);
-  color: var(--accent);
+  background: #e0e0e0; /* 회색 - 시청함 */
+  color: var(--text);
+  border-color: var(--a2-80);
 }
 
 .movies-page .movie-sort-link {
@@ -2085,12 +2086,13 @@
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 700;
-  background: var(--a2-18);
+  background: white; /* 하얀색 - 시청 안 함 */
 }
 
 .movie-detail-watch-btn.is-active {
-  background: var(--a2-20);
+  background: #e0e0e0; /* 회색 - 시청함 */
   color: var(--text);
+  border-color: var(--a2-80);
 }
 
 

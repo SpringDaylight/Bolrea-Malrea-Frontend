@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import TasteSurveyModal from "../components/TasteSurveyModal";
 import PageTitle from "../components/common/PageTitle";
@@ -30,6 +30,7 @@ const getFillStyle = (percent: number): CSSProperties =>
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function TasteAnalysisPage() {
+  const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentHighRated, setRecentHighRated] = useState<RecentMovie[]>([]);
@@ -59,6 +60,12 @@ export default function TasteAnalysisPage() {
   const [wordCloudUrl, setWordCloudUrl] = useState<string | null>(null);
   const wordCloudUrlRef = useRef<string | null>(null);
   const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate("/", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const handleSurveyOpen = () => setIsSurveyOpen(true);
   const handleSurveyClose = () => setIsSurveyOpen(false);
@@ -439,6 +446,10 @@ export default function TasteAnalysisPage() {
     }
     return { genre: slot.genre, percent: slot.percent };
   });
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   if (loading) {
     return (

@@ -107,6 +107,14 @@ const resolveGenresToFilterValues = (genres: string[]) => {
     .map((filter) => filter.value);
 };
 
+const parseCsvParam = (value: string | null) =>
+  value
+    ? value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
 const resolveRuntimeRange = (value: string | null): {
   runtime_min?: number;
   runtime_max?: number;
@@ -142,7 +150,7 @@ const resolveYearRange = (value: string | null): {
 
 export default function MoviesPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isLoggedIn = Boolean(getAccessToken());
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,6 +174,7 @@ export default function MoviesPage() {
     () => new Set()
   );
   const shouldSkipSearchParamInitRef = useRef(false);
+  const skipUrlSyncRef = useRef(false);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -216,24 +225,105 @@ export default function MoviesPage() {
     }
 
     const queryFromUrl = searchParams.get("query");
-    const genresFromUrl = searchParams.get("genres");
+    const genresFromUrl = parseCsvParam(searchParams.get("genres"));
+    const runtimeFromUrl = parseCsvParam(searchParams.get("runtime"));
+    const yearsFromUrl = parseCsvParam(searchParams.get("years"));
+    const sortFromUrl = searchParams.get("sort");
+    const pageFromUrl = Number(searchParams.get("page"));
+
+    const hasAnyParam =
+      Boolean(queryFromUrl) ||
+      genresFromUrl.length > 0 ||
+      runtimeFromUrl.length > 0 ||
+      yearsFromUrl.length > 0 ||
+      Boolean(sortFromUrl) ||
+      Number.isFinite(pageFromUrl);
+
+    if (!hasAnyParam) return;
+
+    skipUrlSyncRef.current = true;
 
     if (queryFromUrl) {
       setSearchQuery(queryFromUrl);
       setAppliedQuery(queryFromUrl);
     }
 
-    if (genresFromUrl) {
-      const genreList = genresFromUrl.split(",").map((genre) => genre.trim());
-      const selectedFilterValues = resolveGenresToFilterValues(genreList);
-      setSelectedGenres(selectedFilterValues.length > 0 ? selectedFilterValues : genreList);
-      setAppliedGenres(genreList);
+    if (genresFromUrl.length > 0) {
+      const selectedFilterValues = resolveGenresToFilterValues(genresFromUrl);
+      setSelectedGenres(selectedFilterValues.length > 0 ? selectedFilterValues : genresFromUrl);
+      setAppliedGenres(genresFromUrl);
     }
 
-    if (queryFromUrl || genresFromUrl) {
+    if (runtimeFromUrl.length > 0) {
+      setSelectedRuntime(runtimeFromUrl);
+      setAppliedRuntime(runtimeFromUrl);
+    }
+
+    if (yearsFromUrl.length > 0) {
+      setSelectedYearRange(yearsFromUrl);
+      setAppliedYearRange(yearsFromUrl);
+    }
+
+    if (sortFromUrl) {
+      setSelectedSorts([sortFromUrl]);
+      setAppliedSorts([sortFromUrl]);
+    }
+
+    if (Number.isFinite(pageFromUrl) && pageFromUrl > 0) {
+      setCurrentPage(pageFromUrl);
+    } else {
       setCurrentPage(1);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false;
+      return;
+    }
+
+    const params = new URLSearchParams();
+    const trimmedQuery = appliedQuery.trim();
+
+    if (trimmedQuery) {
+      params.set("query", trimmedQuery);
+    }
+
+    if (appliedGenres.length > 0) {
+      params.set("genres", appliedGenres.join(","));
+    }
+
+    if (appliedRuntime.length > 0) {
+      params.set("runtime", appliedRuntime.join(","));
+    }
+
+    if (appliedYearRange.length > 0) {
+      params.set("years", appliedYearRange.join(","));
+    }
+
+    if (appliedSorts.length > 0) {
+      params.set("sort", appliedSorts[0]);
+    }
+
+    if (currentPage > 1) {
+      params.set("page", String(currentPage));
+    }
+
+    const nextQuery = params.toString();
+    if (nextQuery === searchParams.toString()) return;
+
+    shouldSkipSearchParamInitRef.current = true;
+    setSearchParams(params, { replace: true });
+  }, [
+    appliedQuery,
+    appliedGenres,
+    appliedRuntime,
+    appliedYearRange,
+    appliedSorts,
+    currentPage,
+    searchParams,
+    setSearchParams,
+  ]);
   useEffect(() => {
     if (pendingScrollRestore === null) return;
     if (loading) return;

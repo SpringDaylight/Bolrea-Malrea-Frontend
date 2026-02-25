@@ -9,7 +9,6 @@ import TasteSurveyModal from "../components/TasteSurveyModal";
 import { getAccessToken } from "../api/http";
 
 const RECOMMENDED_PAGE_SIZE = 4;
-const RECOMMENDED_TOTAL = 12;
 
 const FAQ_ITEMS = [
   {

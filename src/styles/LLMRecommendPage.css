@@ -294,10 +294,7 @@
 .llm-recommend-page .movie-poster {
   width: 100%;
   height: 360px;
-  object-fit: contain;
-  width: 100%;
-  object-fit: contain;
-  width: 100%;
+  object-fit: cover;
   display: block;
 }
 
@@ -329,7 +326,7 @@
   transition: transform 0.35s ease;
   height: fit-content !important;
   flex: 0 0 auto;
-  align-content: start;
+  align-content: end;
 }
 
 .llm-recommend-page .movie-genres {
@@ -613,10 +610,8 @@
 }
 
 .llm-recommend-page .movie-poster {
-  object-fit: contain;
+  object-fit: cover;
   background: var(--bg);
-  width: 100%;
-  object-fit: contain;
   width: 100%;
   display: block;
 }
@@ -625,7 +620,7 @@
 /* Hover 전/후 기본정보 vs 상세정보 노출 */
 
 .llm-recommend-page .movie-card:hover .movie-info {
-  transform: translateY(-32%);
+  transform: translateY(0);
 }
 
 
@@ -742,4 +737,5 @@
 .llm-recommend-page .movie-poster,
 .llm-recommend-page .movie-poster-placeholder {
   height: 100% !important;
+  object-fit: cover;
 }

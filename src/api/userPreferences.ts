@@ -42,6 +42,15 @@ export interface UserPreference {
   persona_code?: string;
   boost_tags: string[];
   penalty_tags: string[];
+  
+  // Survey fields
+  favorite_genres?: string[];
+  disliked_genres?: string[];
+  viewing_context?: string;
+  preferred_vibe?: string;
+  interest_keywords?: string[];
+  preferred_origin?: string;
+  
   updated_at: string;
 }
 
@@ -52,6 +61,14 @@ export interface SaveUserPreferenceRequest {
   boost_tags?: string[];
   dislike_tags?: string[];
   penalty_tags?: string[];
+  
+  // Survey fields
+  favorite_genres?: string[];
+  disliked_genres?: string[];
+  viewing_context?: string;
+  preferred_vibe?: string;
+  interest_keywords?: string[];
+  preferred_origin?: string;
 }
 
 export interface UserPreferenceExistsResponse {

@@ -51,6 +51,7 @@
   --space-section: 32px;
   --space-page-title: 18px;
   --space-card: 18px;
+  --space-compact: 10px;
 }
 * {
   margin: 0;

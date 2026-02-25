@@ -779,6 +779,7 @@
   font-size: 0.72rem;
   word-break: keep-all;
   display: -webkit-box;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;

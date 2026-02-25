@@ -533,7 +533,15 @@ export default function GroupPage() {
                           );
                         })()}
                         <div className="movie-info">
-                          <h3>{movie.title}</h3>
+                          <h3>
+                            <a
+                              className="group-movie-title-link"
+                              href={`/movies/${movie.movie_id}`}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {movie.title}
+                            </a>
+                          </h3>
                           <p className="muted">
                             {movie.release_year} · {movie.genres.join(", ")}
                           </p>

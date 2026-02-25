@@ -1379,7 +1379,7 @@ export default function ActivityPage() {
                   aria-label="비밀번호 변경 닫기"
                   onClick={handlePasswordCancel}
                 >
-                  ??
+                  ✕
                 </button>
               </div>
               <div className="profile-edit">

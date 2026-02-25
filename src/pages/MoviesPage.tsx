@@ -9,6 +9,7 @@ import { getMovies, type Movie } from "../api/A2_movies";
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
+  deleteCurrentUserWatchedMovie,
 } from "../api/A8_watched";
 import { getAccessToken } from "../api/http";
 import { setJsonToSession } from "../utils/storage";
@@ -176,21 +177,28 @@ export default function MoviesPage() {
 
     const fetchWatchedMovies = async () => {
       try {
+        console.log('🔍 [MoviesPage] Fetching watched movies...');
         const response = await getCurrentUserWatchedMovies({
           page: 1,
           page_size: 100,
         });
         if (isCancelled) return;
-        setWatchedMovieIds(
-          new Set(
-            response.items.map((item) => Number(item.movie_id)).filter(
-              (id) => Number.isFinite(id)
-            )
-          )
+        
+        console.log('✅ [MoviesPage] Watched movies response:', response);
+        console.log('   Total watched:', response.total);
+        console.log('   Items count:', response.items.length);
+        
+        const movieIds = response.items.map((item) => Number(item.movie_id)).filter(
+          (id) => Number.isFinite(id)
         );
+        
+        console.log('   Movie IDs:', movieIds);
+        
+        setWatchedMovieIds(new Set(movieIds));
+        console.log('✅ [MoviesPage] Watched movie IDs set:', movieIds.length);
       } catch (err) {
         if (isCancelled) return;
-        console.error("Failed to fetch watched movies:", err);
+        console.error('❌ [MoviesPage] Failed to fetch watched movies:', err);
         setWatchedMovieIds(new Set());
       }
     };
@@ -364,15 +372,38 @@ const handleSortSelect = (value: string) => {
       return;
     }
 
+    const isWatched = watchedMovieIds.has(movie.id);
+    console.log('🔄 [MoviesPage] Toggling watched status:', {
+      movieId: movie.id,
+      movieTitle: movie.title,
+      currentStatus: isWatched ? 'watched' : 'not watched',
+      action: isWatched ? 'remove' : 'add'
+    });
+
     try {
-      await saveCurrentUserWatchedMovie({ movie_id: movie.id });
-      setWatchedMovieIds((prev) => {
-        const next = new Set(prev);
-        next.add(movie.id);
-        return next;
-      });
+      if (isWatched) {
+        // 이미 시청함 → 제거
+        console.log('   Calling deleteCurrentUserWatchedMovie...');
+        await deleteCurrentUserWatchedMovie(movie.id);
+        setWatchedMovieIds((prev) => {
+          const next = new Set(prev);
+          next.delete(movie.id);
+          console.log('   ✅ Removed from watched, new count:', next.size);
+          return next;
+        });
+      } else {
+        // 시청 안 함 → 추가
+        console.log('   Calling saveCurrentUserWatchedMovie...');
+        await saveCurrentUserWatchedMovie({ movie_id: movie.id });
+        setWatchedMovieIds((prev) => {
+          const next = new Set(prev);
+          next.add(movie.id);
+          console.log('   ✅ Added to watched, new count:', next.size);
+          return next;
+        });
+      }
     } catch (err) {
-      console.error("Failed to save watched movie:", err);
+      console.error("❌ Failed to toggle watched movie:", err);
     }
   };
 
@@ -562,6 +593,12 @@ const handleSortSelect = (value: string) => {
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
+                          console.log('🔘 [MoviesPage] Watch button clicked:', {
+                            movieId: movie.id,
+                            movieTitle: movie.title,
+                            isWatched: watchedMovieIds.has(movie.id),
+                            allWatchedIds: Array.from(watchedMovieIds)
+                          });
                           handleMarkWatched(movie);
                         }}
                       >

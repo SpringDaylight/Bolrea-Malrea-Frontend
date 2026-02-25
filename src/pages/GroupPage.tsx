@@ -461,7 +461,14 @@ export default function GroupPage() {
           </div>
         </section>
 
-        {recommendedMovies.length > 0 && (
+        {analyzing && (
+          <div className="loading-box">
+            <div className="spinner"></div>
+            <p>AI가 영화를 추천하고 있습니다...</p>
+          </div>
+        )}
+
+        {recommendedMovies.length > 0 && !analyzing && (
           <section className="section">
             <h2>추천 영화 ({recommendedMovies.length}개)</h2>
             <div className="group-result-grid">

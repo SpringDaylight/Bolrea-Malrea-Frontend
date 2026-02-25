@@ -56,6 +56,10 @@ export default function Header() {
         console.error("Logout failed:", err);
       } finally {
         setAccessToken(null);
+
+        // LLM 추천 캐시 삭제
+        localStorage.removeItem('llm_recommend_state');
+
         window.dispatchEvent(new Event("mw_auth_change"));
         window.location.href = "/";
       }
@@ -98,13 +102,13 @@ export default function Header() {
           >
             다함께
           </NavLink>
-          <NavLink
+          {/* <NavLink
             to="/moviemong"
             className={navClass}
             onClick={handleHeaderLinkClick("/moviemong")}
           >
             무비몽
-          </NavLink>
+          </NavLink> */}
           <NavLink
             to="/mypage"
             className={navClass}

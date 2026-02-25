@@ -9,6 +9,8 @@ import {
   setJsonToStorage,
   safeParseJson,
 } from '../utils/storage';
+import { getCurrentUser } from '../api/users';
+import { getAccessToken } from '../api/http';
 
 // localStorage 상태 저장
 const STORAGE_KEY = 'llm_recommend_state';
@@ -24,6 +26,7 @@ interface SavedState {
   keywordWeight: number;
   emotionWeight: number;
   timestamp: number;
+  userId?: string;  // 사용자 ID 추가
 }
 
 export default function LLMRecommendPage() {
@@ -46,22 +49,53 @@ export default function LLMRecommendPage() {
 
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
-    try {
-      const saved = getStorageItem(STORAGE_KEY);
-      if (saved) {
+    const restoreState = async () => {
+      try {
+        const saved = getStorageItem(STORAGE_KEY);
+        if (!saved) return;
+
         const state = safeParseJson<SavedState | null>(saved, null);
         if (!state) {
           removeStorageItem(STORAGE_KEY);
           return;
         }
+
+        // 로그인 상태 확인
+        const isLoggedIn = Boolean(getAccessToken());
         
-        // 24시간 이내 데이터만 복원 (옵션)
+        // 로그인 상태라면 현재 사용자 확인
+        if (isLoggedIn) {
+          try {
+            const currentUser = await getCurrentUser();
+            const currentUserId = currentUser.user_id || currentUser.id;
+            
+            // 저장된 userId와 현재 userId가 다르면 캐시 삭제
+            if (state.userId && state.userId !== currentUserId) {
+              console.log('User changed, clearing LLM recommendation cache');
+              removeStorageItem(STORAGE_KEY);
+              return;
+            }
+          } catch (err) {
+            // 사용자 정보를 가져올 수 없으면 (세션 만료 등) 캐시 삭제
+            console.log('Failed to get current user, clearing cache');
+            removeStorageItem(STORAGE_KEY);
+            return;
+          }
+        } else {
+          // 로그아웃 상태인데 userId가 저장되어 있으면 캐시 삭제
+          if (state.userId) {
+            console.log('User logged out, clearing LLM recommendation cache');
+            removeStorageItem(STORAGE_KEY);
+            return;
+          }
+        }
+        
+        // 24시간 이내 데이터만 복원
         const ONE_DAY = 24 * 60 * 60 * 1000;
         if (Date.now() - state.timestamp < ONE_DAY) {
           setInput(state.input);
           setRecommendations(state.recommendations);
           setExplanation(state.explanation);
-          // useOrchestrator는 항상 true로 복원하지 않음
           setKeywordCandidates(state.keywordCandidates || []);
           setVectorCandidates(state.vectorCandidates || []);
           setKeywordWeight(state.keywordWeight || 0);
@@ -70,39 +104,60 @@ export default function LLMRecommendPage() {
           // 오래된 데이터는 삭제
           removeStorageItem(STORAGE_KEY);
         }
+      } catch (err) {
+        console.error('Failed to restore state:', err);
+        removeStorageItem(STORAGE_KEY);
       }
-    } catch (err) {
-      console.error('Failed to restore state:', err);
-      removeStorageItem(STORAGE_KEY);
-    }
+    };
+
+    restoreState();
   }, []);
 
   // 상태 변경 시 localStorage에 저장
   useEffect(() => {
     // 추천 결과가 있을 때만 저장
     if (recommendations.length > 0) {
-      try {
-        const state: SavedState = {
-          input,
-          recommendations,
-          explanation,
-          useOrchestrator,
-          keywordCandidates,
-          vectorCandidates,
-          keywordWeight,
-          emotionWeight,
-          timestamp: Date.now()
-        };
-        setJsonToStorage(STORAGE_KEY, state);
-      } catch (err) {
-        console.error('Failed to save state:', err);
-      }
+      const saveState = async () => {
+        try {
+          // 현재 사용자 ID 가져오기
+          let userId: string | undefined;
+          if (getAccessToken()) {
+            try {
+              const currentUser = await getCurrentUser();
+              userId = currentUser.user_id || currentUser.id;
+            } catch (err) {
+              console.error('Failed to get user for cache:', err);
+            }
+          }
+
+          const state: SavedState = {
+            input,
+            recommendations,
+            explanation,
+            useOrchestrator,
+            keywordCandidates,
+            vectorCandidates,
+            keywordWeight,
+            emotionWeight,
+            timestamp: Date.now(),
+            userId  // 사용자 ID 포함
+          };
+          setJsonToStorage(STORAGE_KEY, state);
+        } catch (err) {
+          console.error('Failed to save state:', err);
+        }
+      };
+
+      saveState();
     }
   }, [input, recommendations, explanation, useOrchestrator, keywordCandidates, vectorCandidates, keywordWeight, emotionWeight]);
 
   const handleRecommend = async (value?: string) => {
     const query = (value ?? input).trim();
     if (!query || isLoading) return;
+
+    // 새로운 추천 시도 시 이전 캐시 삭제
+    removeStorageItem(STORAGE_KEY);
 
     setIsLoading(true);
     setError('');
@@ -337,67 +392,87 @@ export default function LLMRecommendPage() {
           <div className="results-section">
             <div className="movie-grid">
               {recommendations.map((movie) => (
-                <div
-                  key={movie.movie_id}
-                  className={`movie-card llm-flip-card ${visibleExplanations[movie.movie_id] ? "is-flipped" : ""}`}
-                >
-                  <div className="llm-flip-inner">
-                    <div className="llm-flip-face llm-flip-front">
-                      <div className="movie-poster-wrap">
-                        {movie.satisfaction_probability !== undefined && (
-                          <span className="satisfaction-badge" data-reason={movie.reason || "추천 이유가 없습니다."}>
-                            💝 {(movie.satisfaction_probability * 100).toFixed(1)}%
-                          </span>
-                        )}
-                        {movie.poster_url ? (
-                          <img
-                            src={movie.poster_url}
-                            alt={movie.title}
-                            className="movie-poster"
-                          />
-                        ) : (
-                          <div className="movie-poster-placeholder">
-                            포스터 없음
-                          </div>
-                        )}
+                <div key={movie.movie_id} className="movie-card llm-row-card">
+                  <button
+                    type="button"
+                    className="llm-row-poster"
+                    onClick={() => handleMovieClick(movie)}
+                    aria-label={`${movie.title} 상세 보기`}
+                  >
+                    {movie.poster_url ? (
+                      <img
+                        src={movie.poster_url}
+                        alt={movie.title}
+                        className="movie-poster"
+                      />
+                    ) : (
+                      <div className="movie-poster-placeholder">
+                        포스터 없음
                       </div>
-                      <div className="movie-info">
-                        <h3>{movie.title}</h3>
-                        <p className="movie-genres">
-                          {movie.release_year} · {movie.genres.join(", ")}
-                          {movie.rating && (
-                            <span className="movie-rating-inline"> · 평점 {movie.rating.toFixed(1)}</span>
-                          )}
-                        </p>
-                        <div className="movie-hover-details">
-                          <button
-                            className="explain-link"
-                            onClick={(e) => handleExplainClick(movie, e)}
-                            disabled={loadingExplanations[movie.movie_id]}
-                          >
-                            {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
-                          </button>
+                    )}
+                  </button>
+
+                  <div
+                    className={`llm-pref-card llm-flip-card llm-row-info ${visibleExplanations[movie.movie_id] ? "is-flipped" : ""}`}
+                  >
+                      <div className="llm-flip-inner">
+                        <div className="llm-flip-face llm-flip-front">
+                          <div className="movie-info">
+                            <h3>{movie.title}</h3>
+                            <p className="movie-genres">
+                              {movie.release_year} · {movie.genres.join(", ")}
+                              {movie.rating && (
+                                <span className="movie-rating-inline"> · 평점 {movie.rating.toFixed(1)}</span>
+                              )}
+                            </p>
+
+                        <div className="llm-satisfaction">
+                          <div className="llm-satisfaction-score">
+                            💝 내 취향 만족도: {(movie.satisfaction_probability !== undefined
+                              ? movie.satisfaction_probability * 100
+                              : 0
+                            ).toFixed(1)}%
+                          </div>
+                        </div>
+
+                            <div className="llm-reason-block">
+                              <p className="llm-satisfaction-reason">
+                                💡 {movie.reason || "추천 이유가 없습니다."}
+                              </p>
+                            </div>
+
+                            <div className="llm-row-cta">
+                              <button
+                                className="explain-link"
+                                onClick={(e) => handleExplainClick(movie, e)}
+                                disabled={loadingExplanations[movie.movie_id]}
+                              >
+                                {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="llm-flip-face llm-flip-back">
+                          <div className="movie-info">
+                            <div className="llm-flip-back-header">
+                              <h4>{movie.title}</h4>
+                              <button
+                                className="explain-link"
+                                onClick={(e) => handleExplainClick(movie, e)}
+                              >
+                                닫기
+                              </button>
+                            </div>
+                            <div className="llm-flip-back-content">
+                              {loadingExplanations[movie.movie_id] ? (
+                                <p className="muted">설명 생성 중...</p>
+                              ) : (
+                                <p>{expandedExplanations[movie.movie_id] || "설명이 없습니다."}</p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="llm-flip-face llm-flip-back">
-                      <div className="llm-flip-back-header">
-                        <h4>{movie.title}</h4>
-                        <button
-                          className="explain-link"
-                          onClick={(e) => handleExplainClick(movie, e)}
-                        >
-                          닫기
-                        </button>
-                      </div>
-                      <div className="llm-flip-back-content">
-                        {loadingExplanations[movie.movie_id] ? (
-                          <p className="muted">설명 생성 중...</p>
-                        ) : (
-                          <p>{expandedExplanations[movie.movie_id] || "설명이 없습니다."}</p>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
               ))}

@@ -26,6 +26,7 @@ import { getCurrentUser, getCurrentUserReviews, getUser } from "../api/A7_profil
 import {
   getCurrentUserWatchedMovies,
   saveCurrentUserWatchedMovie,
+  deleteCurrentUserWatchedMovie,
 } from "../api/A8_watched";
 import {
   explainPrediction,
@@ -777,10 +778,17 @@ export default function MovieDetailPage() {
     if (!currentUserPk) return;
 
     try {
-      await saveCurrentUserWatchedMovie({ movie_id: movie.id });
-      setIsMovieWatched(true);
+      if (isMovieWatched) {
+        // 이미 시청함 → 제거
+        await deleteCurrentUserWatchedMovie(movie.id);
+        setIsMovieWatched(false);
+      } else {
+        // 시청 안 함 → 추가
+        await saveCurrentUserWatchedMovie({ movie_id: movie.id });
+        setIsMovieWatched(true);
+      }
     } catch (err) {
-      console.error("Failed to save watched movie:", err);
+      console.error("Failed to toggle watched movie:", err);
     }
   };
 

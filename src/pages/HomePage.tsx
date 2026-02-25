@@ -4,13 +4,11 @@ import SectionHeader from "../components/common/SectionHeader";
 import MovieTileCard from "../components/movie/MovieTileCard";
 import LoadingState from "../components/common/LoadingState";
 import { Link, useNavigate } from "react-router-dom";
-import { getMovies, type Movie } from "../api/A2_movies";
-import { calculateMoviesMatchRates } from "../utils/matchRateCalculator";
+import { getQuickRecommendations, type PersonalizedMovie } from "../api/personalized";
 import TasteSurveyModal from "../components/TasteSurveyModal";
 import { getAccessToken } from "../api/http";
 
 const RECOMMENDED_PAGE_SIZE = 4;
-const RECOMMENDED_TOTAL = 12;
 
 const FAQ_ITEMS = [
   {
@@ -37,8 +35,7 @@ const FAQ_ITEMS = [
 
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
-  const [recommendedMatchRates, setRecommendedMatchRates] = useState<Record<number, number>>({});
+  const [recommendedMovies, setRecommendedMovies] = useState<PersonalizedMovie[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [recommendedPage, setRecommendedPage] = useState(1);
@@ -48,44 +45,20 @@ export default function HomePage() {
 
   const isLoggedIn = Boolean(getAccessToken());
 
-  const computeMovieMatchRates = async (movies: Movie[]) => {
-    try {
-      return await calculateMoviesMatchRates(movies);
-    } catch (error: any) {
-      if (isLoggedIn && (error?.message?.includes("404") || error?.message?.includes("not found"))) {
-        setNeedsTasteSetup(true);
-        return {};
-      }
-      throw error;
-    }
-  };
-
-  const fetchRecommendations = async (
-    params?: {
-      query?: string;
-      genres?: string;
-      category?: string;
-      sort?: "latest" | "popular" | "rating";
-      page?: number;
-      page_size?: number;
-    }
-  ) => {
+  const fetchRecommendations = async () => {
     setLoading(true);
     try {
-      const response = await getMovies({
-        page_size: params?.page_size ?? RECOMMENDED_TOTAL,
-        ...params,
-      });
-      const rateMap = await computeMovieMatchRates(response.movies);
-      setRecommendedMatchRates(rateMap);
-
-      const ordered = Object.keys(rateMap).length
-        ? [...response.movies].sort((a, b) => (rateMap[b.id] ?? 0) - (rateMap[a.id] ?? 0))
-        : response.movies;
-
-      setRecommendedMovies(ordered.slice(0, RECOMMENDED_TOTAL));
-    } catch (err) {
+      // 백엔드에서 모든 계산 완료된 추천 가져오기
+      const response = await getQuickRecommendations();
+      setRecommendedMovies(response.recommendations);
+      setNeedsTasteSetup(false);
+    } catch (err: any) {
       console.error("Failed to fetch recommendations:", err);
+      
+      // 404 에러 = 취향 설정 필요
+      if (err?.response?.status === 404) {
+        setNeedsTasteSetup(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -93,7 +66,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    void fetchRecommendations({ sort: "popular" });
+    void fetchRecommendations();
   }, [isLoggedIn]);
 
   useEffect(() => {
@@ -330,7 +303,7 @@ export default function HomePage() {
                   {!loading && recommendedMovies.length > 0 && (
                     <div className="movie-grid">
                       {visibleRecommended.map((movie) => (
-                        <Link className="card-link" to={`/movies/${movie.id}`} key={movie.id}>
+                        <Link className="card-link" to={`/movies/${movie.movie_id}`} key={movie.movie_id}>
                           <MovieTileCard
                             title={movie.title}
                             posterUrl={
@@ -339,7 +312,7 @@ export default function HomePage() {
                             }
                           >
                             <p className="probability home-match-probability">
-                              적합 확률 {recommendedMatchRates[movie.id] ?? 83}%
+                              적합 확률 {movie.match_rate}%
                             </p>
                             <p className="muted synopsis-clamp">
                               {movie.synopsis
@@ -363,7 +336,7 @@ export default function HomePage() {
             onComplete={() => {
               setShowTasteSurveyModal(false);
               setNeedsTasteSetup(false);
-              void fetchRecommendations({ sort: "popular" });
+              void fetchRecommendations();
             }}
           />
         )}

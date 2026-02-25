@@ -294,10 +294,7 @@
 .llm-recommend-page .movie-poster {
   width: 100%;
   height: 360px;
-  object-fit: contain;
-  width: 100%;
-  object-fit: contain;
-  width: 100%;
+  object-fit: cover;
   display: block;
 }
 
@@ -613,10 +610,8 @@
 }
 
 .llm-recommend-page .movie-poster {
-  object-fit: contain;
+  object-fit: cover;
   background: var(--bg);
-  width: 100%;
-  object-fit: contain;
   width: 100%;
   display: block;
 }
@@ -742,4 +737,5 @@
 .llm-recommend-page .movie-poster,
 .llm-recommend-page .movie-poster-placeholder {
   height: 100% !important;
+  object-fit: cover;
 }

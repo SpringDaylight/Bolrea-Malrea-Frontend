@@ -12,6 +12,15 @@ export interface EmotionScores {
   [key: string]: number;
 }
 
+export interface TasteSurveyPayload {
+  genres: string[];
+  avoid_genres: string[];
+  keywords: string[];
+  vibe: string;
+  context: string;
+  origin: string;
+}
+
 export interface EndingPreference {
   happy: number;
   open: number;
@@ -24,6 +33,7 @@ export interface PreferenceVector {
   direction_mood: EmotionScores;
   character_relationship: EmotionScores;
   ending_preference: EndingPreference;
+  taste_survey?: TasteSurveyPayload;
 }
 
 export interface UserPreference {

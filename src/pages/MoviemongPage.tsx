@@ -436,7 +436,7 @@ export default function MoviemongPage() {
               </>
             ) : (
               <div className="reviewmong-login-placeholder">
-                <h2>무비몽</h2>
+                {/* <h2>무비몽</h2> */}
                 <p className="muted login-required-text">로그인 후 이용해주세요.</p>
               </div>
             )}

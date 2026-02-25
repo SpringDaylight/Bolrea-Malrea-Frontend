@@ -48,6 +48,7 @@ export interface RecommendedMovie {
   title: string;
   genres: string[];
   release_year: number;
+  poster_url?: string | null;
   group_score: number;
   prefilter_score: number;
   per_user_detail?: UserDetail[];

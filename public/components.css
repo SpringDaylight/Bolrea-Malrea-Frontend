@@ -385,11 +385,18 @@
   all: unset;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 8px;
+  grid-template-columns: 1fr auto;
+  column-gap: 8px;
+  row-gap: 2px;
   align-items: center;
   padding: 8px 10px;
   border-radius: 10px;
+}
+
+.search-item span {
+  grid-column: 1 / -1;
+  color: var(--text-subtle);
+  font-size: 0.9em;
 }
 
 .search-item:hover,

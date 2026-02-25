@@ -26,7 +26,7 @@
   color: var(--text-subtle);
 }
 
-/* 검색 섹션 */
+/* ?롪틵????獄???*/
 .search-section {
   background: var(--bg-soft);
   border-radius: var(--radius-lg);
@@ -109,7 +109,7 @@
   cursor: not-allowed;
 }
 
-/* 예시 쿼리 */
+/* ???곕뻣 ?臾믩닑??*/
 .example-queries {
   display: flex;
   gap: 0.75rem;
@@ -140,7 +140,7 @@
   border-color: rgba(95, 135, 170, 0.35);
 }
 
-/* 에러 박스 */
+/* ??????꾩룆踰??*/
 .error-box {
   background: #fff3cd;
   border: 1px solid #ffc107;
@@ -155,7 +155,7 @@
   font-weight: 600;
 }
 
-/* 로딩 박스 */
+/* ?β돦裕녽??꾩룆踰??*/
 .loading-box {
   background: var(--bg-soft);
   border-radius: var(--radius-lg);
@@ -185,7 +185,7 @@
   font-size: 1rem;
 }
 
-/* 설명 섹션 */
+/* ???닿뎄 ?獄???*/
 .explanation-section {
   background: var(--bg-soft);
   border-radius: var(--radius-lg);
@@ -207,7 +207,7 @@
   white-space: pre-wrap;
 }
 
-/* 결과 섹션 */
+/* ?롪퍒????獄???*/
 .results-section {
   background: var(--bg-soft);
   border-radius: var(--radius-lg);
@@ -222,11 +222,10 @@
   font-size: 1.3rem;
 }
 
-/* 영화 그리드 - LLM 추천 페이지 전용 */
 .llm-recommend-page .movie-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
 }
 
 .llm-recommend-page .movie-container {
@@ -239,526 +238,111 @@
   background: #ffffff;
   border-radius: var(--radius-md);
   overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
   border: 1px solid var(--line);
-  display: flex;
-  flex-direction: row;
   min-height: 200px;
 }
 
-.llm-recommend-page .movie-card:hover {
-  transform: translateX(4px);
-  box-shadow: var(--shadow);
+.llm-flip-card {
+  perspective: 1200px;
+  height: 520px;
 }
 
-.llm-recommend-page .movie-poster {
-  width: 150px;
-  min-width: 150px;
+
+.llm-flip-face {
+  width: 100%;
   height: 100%;
-  object-fit: cover;
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
 }
 
-.llm-recommend-page .movie-poster-placeholder {
-  width: 150px;
-  min-width: 150px;
+.llm-flip-front {
   height: 100%;
-  background: var(--accent-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  color: var(--accent);
-}
-
-.llm-recommend-page .movie-info {
-  padding: 1.25rem;
-  flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.llm-recommend-page .movie-info h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
-  color: var(--text);
-  font-weight: 700;
-}
-
-.llm-recommend-page .movie-genres {
-  color: var(--accent);
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin: 0.25rem 0;
-}
-
-.llm-recommend-page .movie-year {
-  color: var(--text-subtle);
-  font-size: 0.85rem;
-  margin: 0.25rem 0;
-}
-
-.llm-recommend-page .movie-rating {
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 0.95rem;
-  margin: 0.25rem 0;
-}
-
-/* 유사도 바 */
-.llm-recommend-page .movie-similarity {
-  margin-top: auto;
-  padding-top: 0.75rem;
-}
-
-.llm-recommend-page .similarity-bar {
-  width: 100%;
-  height: 8px;
-  background: var(--line);
-  border-radius: 999px;
+  position: relative;
   overflow: hidden;
-  margin-bottom: 0.5rem;
 }
 
-.llm-recommend-page .similarity-fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.5s ease;
-}
-
-.llm-recommend-page .movie-similarity span {
-  font-size: 0.85rem;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* 빈 상태 */
-.empty-state {
+.llm-flip-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
   background: var(--bg-soft);
-  border-radius: var(--radius-lg);
-  padding: 4rem 2rem;
-  text-align: center;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--line);
-}
-
-.empty-icon {
-  font-size: 5rem;
-  margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text);
-}
-
-.empty-state p {
-  color: var(--text-subtle);
-  font-size: 0.95rem;
-}
-
-/* 반응형 */
-@media (max-width: 768px) {
-  .llm-recommend-page {
-    padding: 1rem 0;
-  }
-
-  .recommend-container {
-    padding: 0 1rem;
-  }
-
-  .recommend-header h1 {
-    font-size: 1.5rem;
-  }
-
-  .search-box {
-    flex-direction: column;
-  }
-
-  .recommend-btn {
-    width: 100%;
-  }
-
-  .llm-recommend-page .movie-card {
-    flex-direction: column;
-    min-height: auto;
-  }
-
-  .llm-recommend-page .movie-poster,
-  .llm-recommend-page .movie-poster-placeholder {
-    width: 100%;
-    height: 250px;
-  }
-
-  .example-queries {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .example-queries button {
-    width: 100%;
-  }
-}
-
-/* 오케스트레이터 옵션 */
-.orchestrator-option {
-  padding: 0.75rem;
-  background-color: var(--bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.checkbox-label input[type="checkbox"] {
-  margin-top: 0.25rem;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"]:disabled {
-  cursor: not-allowed;
-}
-
-.checkbox-text {
+  border-radius: inherit;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
+  gap: 12px;
 }
 
-.option-hint {
-  font-size: 0.85rem;
-  color: var(--text-subtle);
-  font-weight: normal;
-}
-
-/* 개별 추천 이유 */
-.llm-recommend-page .movie-reason {
-  font-size: 0.85rem;
-  color: var(--accent);
-  margin: 0.5rem 0;
-  padding: 0.5rem;
-  background-color: var(--accent-soft);
-  border-radius: var(--radius-sm);
-  line-height: 1.4;
-}
-
-/* 액션 버튼 카드 */
-.action-card {
-  background: #ffffff;
-  border-radius: var(--radius-md);
-  padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--line);
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.explain-btn {
-  flex: 1;
-  min-width: 150px;
-  padding: 10px 14px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.explain-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.explain-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.satisfaction-btn {
-  flex: 1;
-  min-width: 150px;
-  padding: 10px 14px;
-  background: var(--text-subtle);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.satisfaction-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.satisfaction-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.llm-explanation {
-  width: 100%;
-  margin-top: 0.5rem;
-  padding: 1rem;
-  background: var(--accent-soft);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid var(--accent);
-}
-
-.llm-explanation p {
-  margin: 0;
-  line-height: 1.6;
-  color: var(--text);
-  white-space: pre-wrap;
-}
-
-.similarity-label {
-  font-size: 0.85rem;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* 후보군 섹션 */
-.candidates-section {
-  margin-top: 1.5rem;
-}
-
-.candidates-section h2 {
-  color: var(--text);
-  margin-bottom: 1.25rem;
-  font-size: 1.3rem;
-}
-
-.weight-info {
-  background: var(--accent-soft);
-  border-left: 4px solid var(--accent);
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: var(--radius-md);
-}
-
-.weight-info p {
-  margin: 0;
-  color: var(--text);
-}
-
-.candidate-group {
-  background: var(--bg-soft);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
-  margin-bottom: 1.5rem;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--line);
-}
-
-.candidate-group h3 {
-  margin: 0 0 0.5rem 0;
-  color: var(--accent);
-  font-size: 1.1rem;
-}
-
-.candidate-description {
-  color: var(--text-subtle);
-  margin: 0 0 1.25rem 0;
-  font-size: 0.9rem;
-}
-
-.candidate-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.candidate-card {
-  background: #ffffff;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid var(--line);
-}
-
-.candidate-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-}
-
-.candidate-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.candidate-card.not-selected {
-  opacity: 0.7;
-}
-
-.candidate-poster {
-  width: 100%;
-  height: 250px;
-  object-fit: cover;
-}
-
-.candidate-poster-placeholder {
-  width: 100%;
-  height: 250px;
-  background: var(--accent-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  color: var(--accent);
-}
-
-.candidate-info {
-  padding: 1rem;
-}
-
-.candidate-info h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-  color: var(--text);
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.candidate-genres {
-  color: var(--accent);
-  font-size: 0.8rem;
-  margin: 0.25rem 0;
-  font-weight: 600;
-}
-
-.candidate-score {
+.llm-flip-back-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 0.75rem 0;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
-.score-badge {
-  background: var(--accent);
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.llm-flip-back-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
-.selected-badge {
-  background: var(--accent);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.not-selected-badge {
-  background: var(--text-subtle);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.not-selected-reason {
-  font-size: 0.8rem;
-  color: var(--text-subtle);
-  margin: 0.5rem 0 0 0;
-  padding: 0.5rem;
-  background-color: var(--bg);
-  border-radius: var(--radius-sm);
-  line-height: 1.3;
-}
-
-/* 반응형 - 후보군 */
-@media (max-width: 768px) {
-  .candidate-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 추가 추천 섹션 */
-.additional-recommendations-wrapper {
-  background: var(--bg-soft);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--line);
-  margin-top: 2rem;
-}
-
-.additional-recommendations-header {
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.additional-recommendations-header h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.additional-movie-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
-}
-
-.additional-movie-card {
-  background: #ffffff;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-}
-
-.additional-movie-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.additional-movie-poster {
+.llm-recommend-page .movie-poster {
   width: 100%;
-  aspect-ratio: 2/3;
+  height: 360px;
   object-fit: cover;
+  display: block;
 }
 
-.additional-movie-poster-placeholder {
+.llm-recommend-page .movie-poster-placeholder {
   width: 100%;
-  aspect-ratio: 2/3;
+  height: 360px;
   background: var(--accent-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
+  font-size: 3rem;
   color: var(--accent);
+  width: 100%;
+}
+
+.llm-recommend-page .movie-info {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-soft);
+  border-top: 1px solid rgba(166, 168, 196, 0.5);
+  margin-top: 0;
+  padding: 0.65rem 0.75rem 0.5rem;
+  min-height: 0 !important;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  background: var(--bg-soft);
+  border-top: 1px solid rgba(166, 168, 196, 0.5);
+  transition: transform 0.35s ease;
+  height: fit-content !important;
+  flex: 0 0 auto;
+  align-content: end;
+}
+
+.llm-recommend-page .movie-genres {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+.llm-recommend-page .movie-rating-inline {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .additional-movie-info {
-  padding: 0.75rem;
+  padding: 0.85rem 0.9rem 0.95rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -767,7 +351,7 @@
 
 .additional-movie-info h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--text);
   font-weight: 600;
   line-height: 1.3;
@@ -779,10 +363,10 @@
 }
 
 .additional-movie-genres {
-  color: var(--accent);
-  font-size: 0.75rem;
+  color: var(--text-subtle);
+  font-size: 0.78rem;
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -791,24 +375,94 @@
 
 .additional-movie-satisfaction {
   margin-top: auto;
-  padding-top: 0.5rem;
+  padding-top: 0.55rem;
   border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .satisfaction-value {
   font-size: 0.8rem;
   color: var(--accent);
   font-weight: 600;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .satisfaction-login-hint {
   font-size: 0.75rem;
   color: var(--text-subtle);
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* 반응형 - 추가 추천 */
+.additional-recommendations-wrapper {
+  margin-top: 2rem;
+  padding: 1.75rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+}
+
+.additional-recommendations-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.additional-recommendations-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text);
+  font-weight: 700;
+  text-align: center;
+}
+
+.additional-movie-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.additional-movie-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.additional-movie-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-1);
+}
+
+.additional-movie-poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  background: var(--a2-08);
+}
+
+.additional-movie-poster-placeholder {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ?꾩룇瑗???- ?怨뺣뼺? ?怨뺣뾼??*/
 @media (max-width: 1200px) {
   .additional-movie-grid {
     grid-template-columns: repeat(4, 1fr);
@@ -837,7 +491,7 @@
   }
 }
 
-/* 만족도 표시 스타일 개선 */
+/* 嶺뚮씭??????戮?뻣 ??????띠룇裕뉓땻?*/
 .movie-satisfaction {
   margin: 0.75rem 0;
   padding: 0.5rem;
@@ -856,7 +510,7 @@
   color: var(--text-subtle);
 }
 
-/* AI 설명 버튼을 영화 카드 안에 통합 */
+/* AI ???닿뎄 ?뺢퀗??????⑤????곸궠?獄????고뱺 ???? */
 .llm-recommend-page .movie-info .explain-btn {
   margin-top: 0.75rem;
   width: 100%;
@@ -883,7 +537,7 @@
 .llm-recommend-page .movie-info .llm-explanation {
   width: 100%;
   margin-top: 0.75rem;
-  padding: 1rem;
+  padding: 0.85rem;
   background: var(--accent-soft);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--accent);
@@ -895,4 +549,193 @@
   color: var(--text);
   white-space: pre-wrap;
   font-size: 0.9rem;
+}
+
+
+
+.explain-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 0;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  width: auto;
+  align-self: center;
+  cursor: pointer;
+}
+
+.explain-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .llm-recommend-page .movie-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .llm-recommend-page .movie-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .llm-recommend-page .movie-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
+
+
+/* AI 추천 카드 hover 인터랙션 */
+.llm-recommend-page .movie-card {
+  overflow: hidden;
+}
+
+.llm-flip-front {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.llm-recommend-page .movie-poster {
+  object-fit: cover;
+  background: var(--bg);
+  width: 100%;
+  display: block;
+}
+
+
+/* Hover 전/후 기본정보 vs 상세정보 노출 */
+
+.llm-recommend-page .movie-card:hover .movie-info {
+  transform: translateY(0);
+}
+
+
+.llm-recommend-page .movie-hover-details {
+  margin-top: 0;
+  max-height: 0;
+  height: 0;
+  min-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  transition: max-height 0.35s ease, opacity 0.35s ease, margin-top 0.35s ease;
+}
+
+.llm-recommend-page .movie-card:hover .movie-hover-details {
+  max-height: 220px;
+  opacity: 1;
+  margin-top: 0.5rem;
+  height: auto;
+}
+
+.movie-poster-wrap {
+  display: flex;
+  flex: 1;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.satisfaction-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent);
+  border: 1px solid rgba(166, 168, 196, 0.5);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: help;
+}
+
+.satisfaction-badge::after {
+  content: attr(data-reason);
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text);
+  border: 1px solid rgba(166, 168, 196, 0.5);
+  box-shadow: 0 6px 18px var(--ink-12);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: normal;
+  z-index: 3;
+}
+
+.satisfaction-badge:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.llm-flip-inner {
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease;
+}
+
+.llm-flip-card.is-flipped .llm-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.llm-recommend-page .movie-card .movie-info {
+  height: fit-content !important;
+  display: grid !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+}
+
+/* LLM 카드 레이아웃 보정: 포스터/정보 영역 고정 */
+.llm-flip-card {
+  height: 560px;
+}
+
+.llm-flip-front {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.llm-flip-front {
+  position: absolute;
+  inset: 0;
+}
+
+.movie-poster-wrap {
+  height: 100%;
+}
+
+.llm-recommend-page .movie-poster,
+.llm-recommend-page .movie-poster-placeholder {
+  height: 100% !important;
+  object-fit: cover;
 }

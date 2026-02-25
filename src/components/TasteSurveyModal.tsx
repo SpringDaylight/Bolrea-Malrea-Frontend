@@ -2,7 +2,7 @@
  * 취향 설문 모달 컴포넌트
  * 로그인 필수 - DB에 직접 저장
  */
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { analyzePreference } from "../api/ml";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
@@ -226,6 +226,38 @@ export default function TasteSurveyModal({ onClose, onComplete, initialData }: T
     initialData?.preferred_origin ? mapOriginToOption(initialData.preferred_origin) : ""
   );
   const [submitting, setSubmitting] = useState(false);
+  const hasLoadedServerRef = useRef(false);
+
+  useEffect(() => {
+    if (hasLoadedServerRef.current) return;
+    const isLoggedIn = Boolean(getAccessToken());
+    if (!isLoggedIn) return;
+
+    let isCancelled = false;
+    const loadSurvey = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        const preference = await getUserPreference(currentUser.id);
+        const survey = preference.preference_vector_json?.taste_survey;
+        if (!survey || isCancelled) return;
+        setGenres(survey.genres ?? []);
+        setAvoidGenres(survey.avoid_genres ?? []);
+        setKeywords(survey.keywords ?? []);
+        setVibe(survey.vibe ?? "");
+        setContext(survey.context ?? "");
+        setOrigin(survey.origin ?? "");
+        hasLoadedServerRef.current = true;
+      } catch (error) {
+        console.warn("Failed to load taste survey from server:", error);
+      }
+    };
+
+    loadSurvey();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const toggleValueWithLimit = (
     value: string,

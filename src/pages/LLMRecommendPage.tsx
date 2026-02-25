@@ -392,67 +392,87 @@ export default function LLMRecommendPage() {
           <div className="results-section">
             <div className="movie-grid">
               {recommendations.map((movie) => (
-                <div
-                  key={movie.movie_id}
-                  className={`movie-card llm-flip-card ${visibleExplanations[movie.movie_id] ? "is-flipped" : ""}`}
-                >
-                  <div className="llm-flip-inner">
-                    <div className="llm-flip-face llm-flip-front">
-                      <div className="movie-poster-wrap">
-                        {movie.satisfaction_probability !== undefined && (
-                          <span className="satisfaction-badge" data-reason={movie.reason || "추천 이유가 없습니다."}>
-                            💝 {(movie.satisfaction_probability * 100).toFixed(1)}%
-                          </span>
-                        )}
-                        {movie.poster_url ? (
-                          <img
-                            src={movie.poster_url}
-                            alt={movie.title}
-                            className="movie-poster"
-                          />
-                        ) : (
-                          <div className="movie-poster-placeholder">
-                            포스터 없음
-                          </div>
-                        )}
+                <div key={movie.movie_id} className="movie-card llm-row-card">
+                  <button
+                    type="button"
+                    className="llm-row-poster"
+                    onClick={() => handleMovieClick(movie)}
+                    aria-label={`${movie.title} 상세 보기`}
+                  >
+                    {movie.poster_url ? (
+                      <img
+                        src={movie.poster_url}
+                        alt={movie.title}
+                        className="movie-poster"
+                      />
+                    ) : (
+                      <div className="movie-poster-placeholder">
+                        포스터 없음
                       </div>
-                      <div className="movie-info">
-                        <h3>{movie.title}</h3>
-                        <p className="movie-genres">
-                          {movie.release_year} · {movie.genres.join(", ")}
-                          {movie.rating && (
-                            <span className="movie-rating-inline"> · 평점 {movie.rating.toFixed(1)}</span>
-                          )}
-                        </p>
-                        <div className="movie-hover-details">
-                          <button
-                            className="explain-link"
-                            onClick={(e) => handleExplainClick(movie, e)}
-                            disabled={loadingExplanations[movie.movie_id]}
-                          >
-                            {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
-                          </button>
+                    )}
+                  </button>
+
+                  <div
+                    className={`llm-pref-card llm-flip-card llm-row-info ${visibleExplanations[movie.movie_id] ? "is-flipped" : ""}`}
+                  >
+                      <div className="llm-flip-inner">
+                        <div className="llm-flip-face llm-flip-front">
+                          <div className="movie-info">
+                            <h3>{movie.title}</h3>
+                            <p className="movie-genres">
+                              {movie.release_year} · {movie.genres.join(", ")}
+                              {movie.rating && (
+                                <span className="movie-rating-inline"> · 평점 {movie.rating.toFixed(1)}</span>
+                              )}
+                            </p>
+
+                        <div className="llm-satisfaction">
+                          <div className="llm-satisfaction-score">
+                            💝 내 취향 만족도: {(movie.satisfaction_probability !== undefined
+                              ? movie.satisfaction_probability * 100
+                              : 0
+                            ).toFixed(1)}%
+                          </div>
+                        </div>
+
+                            <div className="llm-reason-block">
+                              <p className="llm-satisfaction-reason">
+                                💡 {movie.reason || "추천 이유가 없습니다."}
+                              </p>
+                            </div>
+
+                            <div className="llm-row-cta">
+                              <button
+                                className="explain-link"
+                                onClick={(e) => handleExplainClick(movie, e)}
+                                disabled={loadingExplanations[movie.movie_id]}
+                              >
+                                {loadingExplanations[movie.movie_id] ? "AI 설명 불러오는 중..." : "AI 상세설명 보기"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="llm-flip-face llm-flip-back">
+                          <div className="movie-info">
+                            <div className="llm-flip-back-header">
+                              <h4>{movie.title}</h4>
+                              <button
+                                className="explain-link"
+                                onClick={(e) => handleExplainClick(movie, e)}
+                              >
+                                닫기
+                              </button>
+                            </div>
+                            <div className="llm-flip-back-content">
+                              {loadingExplanations[movie.movie_id] ? (
+                                <p className="muted">설명 생성 중...</p>
+                              ) : (
+                                <p>{expandedExplanations[movie.movie_id] || "설명이 없습니다."}</p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="llm-flip-face llm-flip-back">
-                      <div className="llm-flip-back-header">
-                        <h4>{movie.title}</h4>
-                        <button
-                          className="explain-link"
-                          onClick={(e) => handleExplainClick(movie, e)}
-                        >
-                          닫기
-                        </button>
-                      </div>
-                      <div className="llm-flip-back-content">
-                        {loadingExplanations[movie.movie_id] ? (
-                          <p className="muted">설명 생성 중...</p>
-                        ) : (
-                          <p>{expandedExplanations[movie.movie_id] || "설명이 없습니다."}</p>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
               ))}

@@ -27,6 +27,19 @@ export default function GroupPage() {
   const POSTER_FALLBACK = `data:image/svg+xml;utf8,${encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450"><rect width="300" height="450" fill="#F3F6F8"/><rect x="24" y="24" width="252" height="402" rx="16" fill="#FFFFFF" stroke="#A6A8C4"/><text x="150" y="225" text-anchor="middle" fill="#7B7D93" font-family="sans-serif" font-size="18">No Image</text></svg>'
   )}`;
+  const resolvePosterUrl = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    if (/^(https?:)?\/\//i.test(trimmed)) {
+      return trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+    }
+    if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+      return trimmed;
+    }
+    const base = API_BASE_URL.replace(/\/+$/, "");
+    const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return `${base}${path}`;
+  };
   const [userQuery, setUserQuery] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectedMemberProfiles, setSelectedMemberProfiles] = useState<
@@ -497,13 +510,7 @@ export default function GroupPage() {
                               (movie as unknown as { poster?: string | null }).poster ||
                               ""
                           ).trim();
-                          const posterSrc = rawPoster
-                            ? rawPoster.startsWith("http")
-                              ? rawPoster
-                              : rawPoster.startsWith("//")
-                                ? `https:${rawPoster}`
-                                : `${API_BASE_URL}${rawPoster.startsWith("/") ? "" : "/"}${rawPoster}`
-                            : "";
+                          const posterSrc = rawPoster ? resolvePosterUrl(rawPoster) : "";
                           return posterSrc ? (
                             <img
                               className="group-movie-poster"

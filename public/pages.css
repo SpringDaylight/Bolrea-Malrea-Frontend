@@ -1390,6 +1390,18 @@
   inset: 0;
 }
 
+.profile-edit {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-edit-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .support-card {
   padding: 22px;
 }

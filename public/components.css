@@ -472,6 +472,13 @@
 
 .survey-summary-card .tag-list {
   justify-content: center;
+  align-items: flex-start; /* 태그들이 위쪽에 정렬 */
+  width: 100%; /* 전체 너비 사용 */
+}
+
+.survey-summary-card .tag {
+  flex-shrink: 0; /* 태그가 줄어들지 않음 */
+  height: fit-content; /* 내용에 맞는 높이만 */
 }
 .modal {
   position: fixed;

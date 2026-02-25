@@ -41,6 +41,17 @@ export default function TasteAnalysisPage() {
   const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState<number | null>(null);
+  
+  // Survey data from DB
+  const [surveyData, setSurveyData] = useState<{
+    favorite_genres: string[];
+    disliked_genres: string[];
+    viewing_context: string;
+    preferred_vibe: string;
+    interest_keywords: string[];
+    preferred_origin: string;
+  } | null>(null);
+  
   // WordCloud state
   const [wordCloudUserId, setWordCloudUserId] = useState<string | null>(null);
   const [wordCloudLoading, setWordCloudLoading] = useState(false);
@@ -65,6 +76,17 @@ export default function TasteAnalysisPage() {
           setCurrentUserId(currentUser.id.toString());
           setWordCloudUserId(currentUser.id.toString());
           const preference = await getUserPreference(currentUser.id);
+          
+          // Survey data 저장
+          setSurveyData({
+            favorite_genres: preference.favorite_genres || [],
+            disliked_genres: preference.disliked_genres || [],
+            viewing_context: preference.viewing_context || "",
+            preferred_vibe: preference.preferred_vibe || "",
+            interest_keywords: preference.interest_keywords || [],
+            preferred_origin: preference.preferred_origin || "",
+          });
+          
           const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 3)
@@ -96,6 +118,7 @@ export default function TasteAnalysisPage() {
           }
         } else {
           setWordCloudUserId(null);
+          setSurveyData(null);
           const savedProfile = getStorageItem("mw_user_profile");
           if (savedProfile) {
             const profile = safeParseJson<UserProfile | null>(savedProfile, null);
@@ -388,7 +411,27 @@ export default function TasteAnalysisPage() {
     tasteOrigin,
     hasSurveyData: hasStorageSurveyData,
   } = useTasteSurveyStorage(surveyRefreshKey);
-  const hasSurveyData = Boolean(userProfile) || hasStorageSurveyData;
+  
+  // DB 데이터 우선, 없으면 localStorage fallback
+  const displaySurveyData = surveyData ? {
+    favorite_genres: surveyData.favorite_genres || [],
+    disliked_genres: surveyData.disliked_genres || [],
+    viewing_context: surveyData.viewing_context || "",
+    preferred_vibe: surveyData.preferred_vibe 
+      ? surveyData.preferred_vibe.split("/").map(v => v.trim()).filter(v => v.length > 0)
+      : [],
+    interest_keywords: surveyData.interest_keywords || [],
+    preferred_origin: surveyData.preferred_origin || "",
+  } : {
+    favorite_genres: selectedGenres,
+    disliked_genres: avoidedGenres,
+    viewing_context: tasteContext,
+    preferred_vibe: savedVibe ? [savedVibe] : [],
+    interest_keywords: savedKeywords,
+    preferred_origin: tasteOrigin,
+  };
+  
+  const hasSurveyData = Boolean(userProfile) || Boolean(surveyData) || hasStorageSurveyData;
   const preferenceSlots = Array.from({ length: 5 }, (_, index) => {
     const slot = watchedGenreStats[index];
     if (!slot) {
@@ -437,9 +480,9 @@ export default function TasteAnalysisPage() {
                 <div className="survey-summary-grid">
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 장르</h3>
-                    {selectedGenres.length > 0 ? (
+                    {displaySurveyData.favorite_genres.length > 0 ? (
                       <div className="tag-list">
-                        {selectedGenres.map((genre) => (
+                        {displaySurveyData.favorite_genres.map((genre) => (
                           <span key={genre} className="tag">
                             {genre}
                           </span>
@@ -451,9 +494,9 @@ export default function TasteAnalysisPage() {
                   </div>
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">싫어하는 장르</h3>
-                    {avoidedGenres.length > 0 ? (
+                    {displaySurveyData.disliked_genres.length > 0 ? (
                       <div className="tag-list">
-                        {avoidedGenres.map((genre) => (
+                        {displaySurveyData.disliked_genres.map((genre) => (
                           <span key={genre} className="tag">
                             {genre}
                           </span>
@@ -465,27 +508,31 @@ export default function TasteAnalysisPage() {
                   </div>
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">주로 영화를 볼 때에는?</h3>
-                    <p
-                      className={`survey-summary-value ${tasteContext ? "" : "is-empty"
-                        }`}
-                    >
-                      {tasteContext || "미설정"}
-                    </p>
+                    {displaySurveyData.viewing_context ? (
+                      <div className="tag-list">
+                        <span className="tag">{displaySurveyData.viewing_context}</span>
+                      </div>
+                    ) : (
+                      <p className="survey-summary-value is-empty">미설정</p>
+                    )}
                   </div>
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 분위기</h3>
-                    <p
-                      className={`survey-summary-value ${savedVibe ? "" : "is-empty"
-                        }`}
-                    >
-                      {savedVibe || "미설정"}
-                    </p>
+                    {displaySurveyData.preferred_vibe.length > 0 ? (
+                      <div className="tag-list">
+                        {displaySurveyData.preferred_vibe.map((vibe) => (
+                          <span key={vibe} className="tag">{vibe}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="survey-summary-value is-empty">미설정</p>
+                    )}
                   </div>
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 소재</h3>
-                    {savedKeywords.length > 0 ? (
+                    {displaySurveyData.interest_keywords.length > 0 ? (
                       <div className="tag-list">
-                        {savedKeywords.map((keyword) => (
+                        {displaySurveyData.interest_keywords.map((keyword) => (
                           <span key={keyword} className="tag">
                             {keyword}
                           </span>
@@ -497,12 +544,13 @@ export default function TasteAnalysisPage() {
                   </div>
                   <div className="survey-summary-card">
                     <h3 className="survey-summary-title">좋아하는 영화 나라</h3>
-                    <p
-                      className={`survey-summary-value ${tasteOrigin ? "" : "is-empty"
-                        }`}
-                    >
-                      {tasteOrigin || "미설정"}
-                    </p>
+                    {displaySurveyData.preferred_origin ? (
+                      <div className="tag-list">
+                        <span className="tag">{displaySurveyData.preferred_origin}</span>
+                      </div>
+                    ) : (
+                      <p className="survey-summary-value is-empty">미설정</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -687,6 +735,7 @@ export default function TasteAnalysisPage() {
         <TasteSurveyModal
           onClose={handleSurveyClose}
           onComplete={handleSurveyComplete}
+          initialData={surveyData || undefined}
         />
       )}
     </MainLayout>

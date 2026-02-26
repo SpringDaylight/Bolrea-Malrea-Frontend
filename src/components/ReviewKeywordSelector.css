@@ -1,4 +1,4 @@
-.review-keyword-selector {
+﻿.review-keyword-selector {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -86,3 +86,4 @@
 .keyword-chip-label {
   font-weight: 500;
 }
+

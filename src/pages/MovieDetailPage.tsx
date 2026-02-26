@@ -1138,7 +1138,7 @@ export default function MovieDetailPage() {
                   · {genreSummary} ·{" "}
                   {movie.runtime ? `${movie.runtime}분` : "정보 없음"}
                 </p>
-                <div className="section" style={{ marginTop: 18 }}>
+                <div className="section synopsis-card" style={{ marginTop: 18 }}>
                   <h3>줄거리</h3>
                   <p className="muted synopsis-text">
                     {movieSynopsis}

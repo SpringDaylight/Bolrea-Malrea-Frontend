@@ -105,7 +105,7 @@ export default function LoginPage() {
               <input
                 id="login-password"
                 type="password"
-                placeholder="********"
+                placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                 value={password}
                 onChange={(event) => {
                   setPassword(event.target.value);

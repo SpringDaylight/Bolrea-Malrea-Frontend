@@ -144,7 +144,9 @@ export default function ActivityPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isGenderSelectOpen, setIsGenderSelectOpen] = useState(false);
   const pendingScrollTarget = useRef<string | null>(null);
+  const genderSelectRef = useRef<HTMLDivElement | null>(null);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
   const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
@@ -178,6 +180,20 @@ export default function ActivityPage() {
       return true;
     });
   }, [savedReviews]);
+
+  useEffect(() => {
+    if (!isGenderSelectOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (genderSelectRef.current && !genderSelectRef.current.contains(event.target)) {
+        setIsGenderSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isGenderSelectOpen]);
   const topGenreLabel =
     topWatchedGenres.length > 0
       ? topWatchedGenres.join(" · ")
@@ -1253,20 +1269,40 @@ export default function ActivityPage() {
                   aria-readonly="true"
                 />
                 <label htmlFor="profile-gender-input">성별</label>
-                <select
-                  id="profile-gender-input"
-                  value={editDraft.gender}
-                  onChange={(event) =>
-                    setEditDraft((prev) => ({
-                      ...prev,
-                      gender: event.target.value,
-                    }))
-                  }
-                >
-                  <option>선택 안함</option>
-                  <option>여성</option>
-                  <option>남성</option>
-                </select>
+                <div className="option-select" ref={genderSelectRef}>
+                  <button
+                    id="profile-gender-input"
+                    type="button"
+                    className={`option-select-trigger ${
+                      !editDraft.gender || editDraft.gender === "선택 안함" ? "is-placeholder" : ""
+                    }`}
+                    onClick={() => setIsGenderSelectOpen((prev) => !prev)}
+                  >
+                    <span>{editDraft.gender || "선택 안함"}</span>
+                    <span className="option-select-arrow">▾</span>
+                  </button>
+                  {isGenderSelectOpen && (
+                    <div className="option-select-list">
+                      {["선택 안함", "여성", "남성"].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className="option-select-item"
+                          onClick={() => {
+                            setEditDraft((prev) => ({
+                              ...prev,
+                              gender: option,
+                            }));
+                            setIsGenderSelectOpen(false);
+                          }}
+                        >
+                          <strong>{option}</strong>
+                          {(editDraft.gender || "선택 안함") === option && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <label htmlFor="profile-id-input">아이디</label>
                 <input
                   id="profile-id-input"
@@ -1343,7 +1379,7 @@ export default function ActivityPage() {
                   aria-label="비밀번호 변경 닫기"
                   onClick={handlePasswordCancel}
                 >
-                  ??
+                  ✕
                 </button>
               </div>
               <div className="profile-edit">
@@ -1351,7 +1387,7 @@ export default function ActivityPage() {
                 <input
                   id="password-current"
                   type="password"
-                  placeholder="********"
+                  placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                   value={currentPassword}
                   onChange={(event) => setCurrentPassword(event.target.value)}
                 />
@@ -1359,7 +1395,7 @@ export default function ActivityPage() {
                 <input
                   id="password-next"
                   type="password"
-                  placeholder="********"
+                  placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                   value={nextPassword}
                   onChange={(event) => setNextPassword(event.target.value)}
                 />
@@ -1367,7 +1403,7 @@ export default function ActivityPage() {
                 <input
                   id="password-confirm"
                   type="password"
-                  placeholder="********"
+                  placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                 />

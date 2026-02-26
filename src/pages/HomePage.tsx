@@ -115,17 +115,7 @@ export default function HomePage() {
                     <p className="panel-desc">장르, 길이, 분위기까지 조합해서 추천</p>
                   </div>
                 </div>
-                <div className="landing-actions">
-                  <Link className="primary-btn" to="/llm-recommend">
-                    대화 시작하기
-                  </Link>
-                  <Link className="secondary-btn" to="/movies">
-                    영화 둘러보기
-                  </Link>
-                  <Link className="secondary-btn" to="/group">
-                    다함께 추천받기
-                  </Link>
-                </div>
+                <div className="landing-actions" />
               </div>
             </section>
 
@@ -221,17 +211,7 @@ export default function HomePage() {
                     <p className="panel-desc">장르, 길이, 분위기까지 조합해서 추천</p>
                   </div>
                 </div>
-                <div className="landing-actions">
-                  <Link className="primary-btn" to="/llm-recommend">
-                    대화 시작하기
-                  </Link>
-                  <Link className="secondary-btn" to="/movies">
-                    영화 둘러보기
-                  </Link>
-                  <Link className="secondary-btn" to="/group">
-                    다함께 추천받기
-                  </Link>
-                </div>
+                <div className="landing-actions" />
               </div>
               <div className="landing-hero-search">
                 <input

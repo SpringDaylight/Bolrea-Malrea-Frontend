@@ -1,3 +1,4 @@
+﻿/* ========== Page-specific styles ========== */
 .profile-chip {
   padding: 8px 14px;
   border-radius: 999px;
@@ -7,16 +8,13 @@
 }
 
 .activity-page,
+
+/* ===== Group Page ===== */
 .group-page {
   max-width: 1350px;
   margin: 0 auto;
-}
-
-.activity-page,
-.group-page {
   color: var(--text);
 }
-
 .activity-page .muted,
 .group-page .muted,
 .activity-page .ghost-btn,
@@ -41,10 +39,6 @@
   justify-content: flex-end;
   margin: 0;
   z-index: 2;
-}
-
-.movie-detail-main-card {
-  position: relative;
 }
 
 .signup-birthdate-row {
@@ -81,6 +75,7 @@
   animation: warnPop 0.28s ease-out, warnShake 0.42s ease-out 0.08s;
 }
 
+/* ===== Responsive ===== */
 @media (prefers-reduced-motion: reduce) {
   .group-page .error,
   .movie-detail-page .error {
@@ -88,6 +83,7 @@
   }
 }
 
+/* ===== Movies Page ===== */
 .movies-page .movie-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -143,11 +139,11 @@
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 700;
-  background: white; /* 하얀색 - 시청 안 함 */
+  background: white; /* 시청 전 */
 }
 
 .movies-page .movie-grid .movie-detail-watch-btn.is-active {
-  background: #e0e0e0; /* 회색 - 시청함 */
+  background: #e0e0e0; /* 시청함 */
   color: var(--text);
   border-color: var(--a2-80);
 }
@@ -170,8 +166,7 @@
   color: var(--text);
 }
 
-.movies-page .movie-sort-link:hover,
-.movies-page .movie-sort-link:focus-visible {
+.movies-page .movie-sort-link:hover {
   color: var(--text);
   font-weight: 700;
   text-decoration: underline;
@@ -179,6 +174,10 @@
 }
 
 .movies-page .movie-sort-link:focus-visible {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
   outline: var(--focus-outline);
   outline-offset: 2px;
   border-radius: 6px;
@@ -191,6 +190,7 @@
   text-underline-offset: 4px;
 }
 
+/* ===== Home Page ===== */
 .home-page .movie-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -224,8 +224,11 @@
 }
 
 .home-page .synopsis-clamp {
+  /* stylelint-disable-next-line value-no-vendor-prefix */
   display: -webkit-box;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-line-clamp: 2;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -238,6 +241,7 @@
   color: var(--text);
 }
 
+/* ===== Landing (Guest) ===== */
 .landing-page {
   color: var(--text);
 }
@@ -344,8 +348,8 @@
 
 .landing-hero-panel {
   display: flex;
-  flex-direction: row;
-  gap: 6px;
+  flex-direction: column;
+  gap: 10px;
   align-items: flex-start;
   justify-content: flex-end;
   width: 100%;
@@ -359,7 +363,8 @@
 }
 
 .panel-card {
-  flex: 0 1 calc((100% - 6px) / 2);
+  flex: 0 0 auto;
+  width: 100%;
   border-radius: 16px;
   padding: 16px 18px;
   background: var(--bg-soft);
@@ -421,7 +426,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 18px;
+  margin-top: var(--space-card);
 }
 
 .strip-step {
@@ -532,10 +537,6 @@
   .strip-steps {
     grid-template-columns: 1fr;
   }
-
-  .landing-faq {
-    padding: 0;
-  }
 }
 
 .hero-chat {
@@ -544,10 +545,11 @@
   gap: 12px;
 }
 
+/* ===== Chat / Hero ===== */
 .chat-thread {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-compact);
   padding: 14px;
   border-radius: 16px;
   border: 1px solid var(--line);
@@ -584,6 +586,7 @@
   flex-wrap: wrap;
 }
 
+/* ===== Taste Analysis ===== */
 .taste-analysis-page .movie-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -641,13 +644,14 @@
   cursor: pointer;
 }
 
-.movies-page .movie-card-clickable:hover,
-.movies-page .movie-card-clickable:focus-visible {
+.movies-page .movie-card-clickable:hover {
   transform: none;
   box-shadow: none;
 }
 
 .movies-page .movie-card-clickable:focus-visible {
+  transform: none;
+  box-shadow: none;
   outline: var(--focus-outline);
   outline-offset: 4px;
 }
@@ -675,8 +679,11 @@
 }
 
 .movies-page .synopsis-clamp {
+  /* stylelint-disable-next-line value-no-vendor-prefix */
   display: -webkit-box;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-line-clamp: 3;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -731,6 +738,7 @@
 }
 
 .group-select {
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -835,6 +843,14 @@
 .group-search-column {
   display: grid;
   gap: 14px;
+  position: relative;
+  z-index: 5;
+}
+
+.group-page .section.card {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
 }
 
 .group-result-grid {
@@ -842,6 +858,8 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   justify-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .group-result-grid > .card.group-flip-card {
@@ -895,7 +913,10 @@
 
 .group-flip-back-content {
   overflow-y: auto;
-  max-height: 220px;
+  max-height: none;
+  height: 100%;
+  align-content: start;
+  min-height: 0;
   padding-right: 6px;
   display: grid;
   gap: 12px;
@@ -937,6 +958,19 @@
 
 .group-movie-card .movie-info h3 {
   margin: 0;
+}
+
+.group-movie-title-link {
+  color: inherit;
+  text-decoration: none;
+  font-weight: inherit;
+  transition: color 0.2s ease, font-weight 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.group-movie-title-link:hover {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .group-movie-card .movie-info .probability,
@@ -986,7 +1020,7 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 2000;
+  z-index: 9999;
 }
 
 .group-selected-members.is-inline {
@@ -1141,12 +1175,8 @@
 
 .activity-stats.taste-preview-grid .stat {
   padding: 12px 14px;
-}
-
-.activity-stats.taste-preview-grid .stat {
   border: none;
 }
-
 .taste-preview {
   display: grid;
   gap: 20px;
@@ -1303,8 +1333,7 @@
 .settings-modal .modal-footer,
 .settings-modal .link-list,
 .settings-modal .sns-grid,
-.settings-modal .profile-actions,
-.settings-modal .support-actions {
+.settings-modal .profile-actions {
   justify-content: center;
   text-align: center;
 }
@@ -1315,6 +1344,8 @@
   gap: 12px;
   margin: 12px 0 0;
   justify-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .settings-modal .auth-actions.support-actions {
@@ -1395,6 +1426,47 @@
   gap: 12px;
 }
 
+.profile-edit select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--text);
+  padding: 12px 40px 12px 14px;
+  font-weight: 600;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237B7D93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.profile-edit select:hover {
+  border-color: var(--a2-35);
+}
+
+.profile-edit select:focus-visible {
+  outline: none;
+  border-color: var(--a2-60);
+  box-shadow: var(--focus-ring);
+}
+
+.profile-edit input:read-only,
+.profile-edit textarea:read-only,
+.profile-edit select:disabled {
+  background: var(--bg);
+  color: var(--text-subtle);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
+.profile-edit input:read-only::placeholder,
+.profile-edit textarea:read-only::placeholder {
+  color: var(--text-subtle);
+}
+
 .profile-edit-actions {
   margin-top: 16px;
   display: flex;
@@ -1404,6 +1476,52 @@
 
 .support-card {
   padding: 22px;
+}
+
+.support-faq-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.support-faq-item {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+
+.support-faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.support-faq-item .faq-plus {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.support-faq-item.is-open {
+  background: var(--a2-08);
+  border-color: var(--a2-45);
+}
+
+.support-faq-answer {
+  padding: 0 20px 18px;
+  color: var(--text-subtle);
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .support-header {
@@ -1516,6 +1634,7 @@
   }
 }
 
+/* ===== Moviemong ===== */
 .reviewmong-page .section {
   margin-top: 0;
 }
@@ -1674,7 +1793,9 @@
   overflow-x: scroll;
   overflow-y: hidden;
   padding: 4px 42px 6px 42px;
+  /* stylelint-disable-next-line property-no-unknown */
   scrollbar-width: thin;
+  /* stylelint-disable-next-line property-no-unknown */
   scrollbar-color: var(--ink-35) transparent;
   cursor: grab;
   touch-action: pan-x;
@@ -1713,6 +1834,7 @@
   display: block;
   position: relative;
   appearance: none;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-appearance: none;
   border-radius: 14px;
   border: 1px solid var(--line);
@@ -1924,7 +2046,6 @@
   justify-content: center;
 }
 
-
 .taste-hero {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -2098,20 +2219,18 @@
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 700;
-  background: white; /* 하얀색 - 시청 안 함 */
+  background: white; /* 시청 전 */
 }
 
 .movie-detail-watch-btn.is-active {
-  background: #e0e0e0; /* 회색 - 시청함 */
+  background: #e0e0e0; /* 시청함 */
   color: var(--text);
   border-color: var(--a2-80);
 }
 
-
 .movie-detail-page .probability {
   color: var(--text);
 }
-
 
 .movie-detail-page .movie-info h2 {
   color: var(--text);
@@ -2121,18 +2240,24 @@
   color: var(--text);
 }
 
+.movie-detail-page .synopsis-card {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+
 .movie-detail-login-link {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-
-
 .movie-detail-page {
   color: var(--text);
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* stylelint-disable-next-line property-no-unknown */
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -2146,23 +2271,20 @@
 }
 
 .movie-detail-main-card {
+  position: relative;
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
 }
 
-
-
-
-
-/* 그룹 추천 로딩 상태 */
+/* 洹몃９ 異붿쿇 濡쒕뵫 ?곹깭 */
 .group-page .loading-box {
   background: var(--bg-soft);
   border-radius: var(--radius-lg);
   padding: 3rem;
   text-align: center;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   border: 1px solid var(--line);
   margin-top: 1.5rem;
 }
@@ -2186,3 +2308,4 @@
   color: var(--text-subtle);
   font-size: 1rem;
 }
+

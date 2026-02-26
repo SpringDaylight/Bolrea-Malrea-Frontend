@@ -6,15 +6,23 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const ACCESS_TOKEN_KEY = 'mw_access_token';
+let hasForcedLogout = false;
+
+function notifyAuthChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event("mw_auth_change"));
+}
 
 export function setAccessToken(token: string | null) {
   if (!token) {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem("mw_user_pk");
     localStorage.removeItem("mw_user_id");
+    notifyAuthChange();
     return;
   }
   localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  notifyAuthChange();
 }
 
 export function getAccessToken(): string | null {
@@ -77,6 +85,15 @@ async function tryRefreshToken(): Promise<boolean> {
   }
 }
 
+function forceLogout() {
+  if (hasForcedLogout) return;
+  hasForcedLogout = true;
+  setAccessToken(null);
+  if (typeof window !== "undefined") {
+    window.location.replace("/");
+  }
+}
+
 export async function request<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -109,6 +126,7 @@ export async function request<T>(
       if (refreshed) {
         return request<T>(endpoint, options, false);
       }
+      forceLogout();
     }
 
     if (!response.ok) {

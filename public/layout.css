@@ -1,4 +1,4 @@
-body {
+﻿body {
   font-family: var(--font-base);
   font-weight: 400;
   font-style: normal;
@@ -215,8 +215,4 @@ body {
   color: var(--accent);
   font-weight: 600;
 }
-
-
-
-
 

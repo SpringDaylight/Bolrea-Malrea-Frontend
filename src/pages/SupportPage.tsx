@@ -152,7 +152,7 @@ const faqList: SupportItem[] = [
   },
 ];
 
-export default function SupportPage() {
+export function SupportPage() {
   const { pathname } = useLocation();
   const [openId, setOpenId] = useState<number | null>(null);
   const isNotice = pathname === "/notice";
@@ -227,4 +227,6 @@ export default function SupportPage() {
     </MainLayout>
   );
 }
+
+export default SupportPage;
 

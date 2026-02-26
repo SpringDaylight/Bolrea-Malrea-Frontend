@@ -13,7 +13,7 @@ import SignupPage from "./pages/SignupPage";
 import FindIdPage from "./pages/FindIdPage";
 import FindPasswordPage from "./pages/FindPasswordPage";
 // import KakaoCallbackPage from "./pages/KakaoCallbackPage";
-import SupportPage from "./pages/SupportPage";
+import { SupportPage } from "./pages/SupportPage";
 import MoviemongPage from "./pages/MoviemongPage";
 import LLMRecommendPage from "./pages/LLMRecommendPage";
 

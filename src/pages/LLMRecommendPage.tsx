@@ -35,9 +35,12 @@ export default function LLMRecommendPage() {
   const lastAutoQueryRef = useRef<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [explanation, setExplanation] = useState('');
   const [error, setError] = useState('');
+  const [inlineWarning, setInlineWarning] = useState<string | null>(null);
+  const [warningTick, setWarningTick] = useState(0);
   const useOrchestrator = true;  // 항상 오케스트레이터 모드 사용
   const [keywordCandidates, setKeywordCandidates] = useState<Movie[]>([]);
   const [vectorCandidates, setVectorCandidates] = useState<Movie[]>([]);
@@ -49,6 +52,16 @@ export default function LLMRecommendPage() {
 
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
+    const syncAuthState = () => {
+      setIsLoggedIn(Boolean(getAccessToken()));
+    };
+
+    syncAuthState();
+
+    const handleAuthChange = () => syncAuthState();
+    window.addEventListener("mw_auth_change", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+
     const restoreState = async () => {
       try {
         const saved = getStorageItem(STORAGE_KEY);
@@ -111,7 +124,23 @@ export default function LLMRecommendPage() {
     };
 
     restoreState();
+
+    return () => {
+      window.removeEventListener("mw_auth_change", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setInlineWarning(null);
+    }
+  }, [isLoggedIn]);
+
+  const showInlineWarning = (message: string) => {
+    setInlineWarning(message);
+    setWarningTick((prev) => prev + 1);
+  };
 
   // 상태 변경 시 localStorage에 저장
   useEffect(() => {
@@ -153,6 +182,11 @@ export default function LLMRecommendPage() {
   }, [input, recommendations, explanation, useOrchestrator, keywordCandidates, vectorCandidates, keywordWeight, emotionWeight]);
 
   const handleRecommend = async (value?: string) => {
+    if (!isLoggedIn) {
+      setError('');
+      showInlineWarning("로그인 후 이용해주세요.");
+      return;
+    }
     const query = (value ?? input).trim();
     if (!query || isLoading) return;
 
@@ -329,10 +363,10 @@ export default function LLMRecommendPage() {
                 rows={3}
                 disabled={isLoading}
               />
-            
+             
             <button 
               onClick={handleRecommendClick} 
-              disabled={!input.trim() || isLoading}
+              disabled={isLoading || (isLoggedIn && !input.trim())}
               className="recommend-btn"
             >
               {isLoading ? '추천 중...' : '추천받기'}
@@ -349,7 +383,6 @@ export default function LLMRecommendPage() {
               </button>
             )}
           </div>
-
           <div className="example-queries">
             <p>예시:</p>
             <button onClick={() => setInput('겨울밤 분위기의 영화')}>
@@ -365,6 +398,11 @@ export default function LLMRecommendPage() {
               가족과 함께 보기 좋은 영화
             </button>
           </div>
+          {inlineWarning && (
+            <p className="ai-inline-warning" key={`ai-warning-${warningTick}`}>
+              {inlineWarning}
+            </p>
+          )}
         </div>
         {error && (
           <div className="error-box">

@@ -6,7 +6,7 @@
 }
 
 .recommend-container {
-  max-width: 1200px;
+  max-width: 1350px;
   margin: 0 auto;
   padding: 0 1.5rem;
 }
@@ -25,6 +25,17 @@
 .recommend-header p {
   font-size: 1rem;
   color: var(--text-subtle);
+}
+
+.ai-inline-warning {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  animation: warnPop 0.28s ease-out;
 }
 
 .search-section {

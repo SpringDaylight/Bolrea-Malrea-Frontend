@@ -47,18 +47,19 @@
   gap: 8px;
 }
 
-.group-page .error {
-  margin: 4px 0 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--a2-80);
-  border-left: 4px solid var(--a2-80);
-  background: var(--a2-20);
+.group-page .error,
+.group-inline-warning {
+  margin: 6px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--text);
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 700;
   line-height: 1.35;
-  animation: warnPop 0.28s ease-out, warnShake 0.42s ease-out 0.08s;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  animation: warnPop 0.28s ease-out;
 }
 
 .movie-detail-page .error {
@@ -996,15 +997,28 @@
 }
 
 .group-search-row {
+  position: relative;
   display: flex;
   gap: 10px;
   align-items: stretch;
+}
+
+.group-action-stack {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  width: 100px;
 }
 
 .group-search-input {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
+  margin-right: 110px;
 }
 
 .group-search-field input {
@@ -1012,6 +1026,10 @@
 }
 
 .group-analyze-btn {
+  white-space: nowrap;
+}
+
+.group-reset-btn {
   white-space: nowrap;
 }
 

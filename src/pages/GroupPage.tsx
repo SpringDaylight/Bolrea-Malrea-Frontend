@@ -6,7 +6,7 @@ import { analyzePreference, simulateGroup, type GroupSimulationResult } from "..
 import { getCurrentUser } from "../api/users";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
 import { getAccessToken } from "../api/http";
-import { getJsonFromSession, setJsonToSession } from "../utils/storage";
+import { getJsonFromSession, removeSessionItem, setJsonToSession } from "../utils/storage";
 import { useTasteSurveyStorage } from "../hooks/useTasteSurveyStorage";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
@@ -66,11 +66,42 @@ export default function GroupPage() {
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
+  const [inlineWarning, setInlineWarning] = useState<string | null>(null);
+  const [warningTick, setWarningTick] = useState(0);
+  const [hasSearchAttempt, setHasSearchAttempt] = useState(false);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const [currentUserId, setCurrentUserId] = useState("");
-  const isLoggedIn = Boolean(getAccessToken());
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsLoggedIn(Boolean(getAccessToken()));
+    };
+
+    syncAuthState();
+
+    const handleAuthChange = () => syncAuthState();
+    window.addEventListener("mw_auth_change", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("mw_auth_change", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setInlineWarning(null);
+    }
+  }, [isLoggedIn]);
+
+  const showInlineWarning = (message: string) => {
+    setInlineWarning(message);
+    setWarningTick((prev) => prev + 1);
+  };
 
   useEffect(() => {
     const snapshot = getJsonFromSession<GroupPageSnapshot | null>(
@@ -242,18 +273,28 @@ export default function GroupPage() {
       setUserSearchResults([]);
       setUserSearchError(null);
       setUserSearchLoading(false);
+      setHasSearchAttempt(false);
+      return;
+    }
+    if (!isLoggedIn) {
+      setUserSearchResults([]);
+      setUserSearchError(null);
+      setUserSearchLoading(false);
+      setHasSearchAttempt(false);
       return;
     }
     if (!userQuery.trim()) {
       setUserSearchResults([]);
       setUserSearchError(null);
       setUserSearchLoading(false);
+      setHasSearchAttempt(false);
       return;
     }
 
     let isCancelled = false;
     const timer = setTimeout(() => {
       setUserSearchLoading(true);
+      setHasSearchAttempt(true);
       searchGroupUsers(userQuery, 20)
         .then((results) => {
           if (isCancelled) return;
@@ -280,9 +321,13 @@ export default function GroupPage() {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [isUserSearchOpen, userQuery]);
+  }, [isUserSearchOpen, userQuery, isLoggedIn]);
 
   const handleAnalyze = async () => {
+    if (!isLoggedIn) {
+      showInlineWarning("로그인 후 이용해주세요.");
+      return;
+    }
     if (selectedMembers.length === 0) {
       showError(userRequiredMessage);
       return;
@@ -413,6 +458,35 @@ export default function GroupPage() {
     }
   };
 
+  const handleReset = () => {
+    setUserQuery("");
+    setSelectedMembers([]);
+    setSelectedMemberProfiles({});
+    setRecommendedMovies([]);
+    setGroupResult(null);
+    setFlippedMovies({});
+    setUserSearchResults([]);
+    setUserSearchError(null);
+    setUserSearchLoading(false);
+    setIsUserSearchOpen(false);
+    setError(null);
+    setInlineWarning(null);
+    removeSessionItem(GROUP_PAGE_SNAPSHOT_KEY);
+  };
+
+  const canReset = isLoggedIn && recommendedMovies.length > 0;
+  const inlineSearchMessage = inlineWarning
+    ? inlineWarning
+    : userSearchError
+      ? userSearchError
+      : isUserSearchOpen &&
+          hasSearchAttempt &&
+          !userSearchLoading &&
+          userQuery.trim().length > 0 &&
+          userResults.length === 0
+        ? "검색 결과가 없습니다."
+        : null;
+
   return (
     <MainLayout>
       <main className="container group-page">
@@ -439,59 +513,84 @@ export default function GroupPage() {
                       type="text"
                       placeholder="이름/닉네임/아이디로 검색하세요"
                       value={userQuery}
-                      onClick={() => setIsUserSearchOpen(true)}
-                      onFocus={() => setIsUserSearchOpen(true)}
-                      onChange={(event) => setUserQuery(event.target.value)}
+                      onClick={() => {
+                        setIsUserSearchOpen(true);
+                        if (!isLoggedIn) showInlineWarning("로그인 후 이용해주세요.");
+                      }}
+                      onFocus={() => {
+                        setIsUserSearchOpen(true);
+                        if (!isLoggedIn) showInlineWarning("로그인 후 이용해주세요.");
+                      }}
+                      onChange={(event) => {
+                        if (!isLoggedIn) {
+                          showInlineWarning("로그인 후 이용해주세요.");
+                          return;
+                        }
+                        setInlineWarning(null);
+                        setUserQuery(event.target.value);
+                      }}
                     />
-                    {isUserSearchOpen && (
-                      <div className="search-results group-user-results">
-                        {userSearchLoading && (
-                          <div className="search-empty">사용자를 조회하는 중입니다.</div>
-                        )}
-                        {!userSearchLoading && userSearchError && (
-                          <div className="search-empty">{userSearchError}</div>
-                        )}
-                        {!userSearchLoading &&
-                          !userSearchError &&
-                          userResults.length === 0 && (
-                            <div className="search-empty">검색 결과가 없습니다.</div>
+                    {isUserSearchOpen &&
+                      isLoggedIn &&
+                      (userSearchLoading || userResults.length > 0) && (
+                        <div className="search-results group-user-results">
+                          {userSearchLoading && (
+                            <div className="search-empty">사용자를 조회하는 중입니다.</div>
                           )}
-                        {userResults.map((user) => {
-                          const userId = getUserId(user);
-                          const nickname = getUserDisplayName(user);
-                          const secondary = getUserSecondaryLabel(user);
-                          return (
-                            <button
-                              className={`search-item ${
-                                selectedMembers.includes(userId) ? "active" : ""
-                              }`}
-                              type="button"
-                              key={userId}
-                              onClick={() =>
-                                handleMemberToggle(userId, {
-                                  nickname,
-                                  name: secondary || nickname,
-                                })
-                              }
-                            >
-                              <strong>{nickname}</strong>
-                              <span>{secondary}</span>
-                              {selectedMembers.includes(userId) && <span>✓</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
+                          {!userSearchLoading &&
+                            userResults.map((user) => {
+                              const userId = getUserId(user);
+                              const nickname = getUserDisplayName(user);
+                              const secondary = getUserSecondaryLabel(user);
+                              return (
+                                <button
+                                  className={`search-item ${
+                                    selectedMembers.includes(userId) ? "active" : ""
+                                  }`}
+                                  type="button"
+                                  key={userId}
+                                  onClick={() =>
+                                    handleMemberToggle(userId, {
+                                      nickname,
+                                      name: secondary || nickname,
+                                    })
+                                  }
+                                >
+                                  <strong>{nickname}</strong>
+                                  <span>{secondary}</span>
+                                  {selectedMembers.includes(userId) && <span>✓</span>}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                  </div>
+                  <div className="group-action-stack">
+                    <button
+                      className="primary-btn group-analyze-btn"
+                      onClick={handleAnalyze}
+                      disabled={analyzing}
+                      type="button"
+                    >
+                      {analyzing ? "추천 받는 중..." : "추천받기"}
+                    </button>
+                    {canReset && (
+                      <button
+                        className="secondary-btn group-reset-btn"
+                        onClick={handleReset}
+                        disabled={analyzing || !canReset}
+                        type="button"
+                      >
+                        초기화
+                      </button>
                     )}
                   </div>
-                  <button
-                    className="primary-btn group-analyze-btn"
-                    onClick={handleAnalyze}
-                    disabled={analyzing}
-                    type="button"
-                  >
-                    {analyzing ? "추천 받는 중..." : "추천받기"}
-                  </button>
                 </div>
+                {inlineSearchMessage && (
+                  <p className="group-inline-warning" key={`group-warning-${warningTick}`}>
+                    {inlineSearchMessage}
+                  </p>
+                )}
               </div>
 
               {selectedMembers.length > 0 && (

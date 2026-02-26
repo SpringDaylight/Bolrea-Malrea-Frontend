@@ -2,15 +2,26 @@
 import MainLayout from "../components/layout/MainLayout";
 import PageTitle from "../components/common/PageTitle";
 import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
-import { analyzePreference, simulateGroup } from "../api/ml";
+import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
 import { getCurrentUser } from "../api/users";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
 import { getAccessToken } from "../api/http";
+import { getJsonFromSession, setJsonToSession } from "../utils/storage";
 import { useTasteSurveyStorage } from "../hooks/useTasteSurveyStorage";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
 const maxMembersMessage = `최대 ${maxMembers}명까지 선택할 수 있어요.`;
+const GROUP_PAGE_SNAPSHOT_KEY = "mw_group_page_snapshot";
+
+type GroupPageSnapshot = {
+  userQuery: string;
+  selectedMembers: string[];
+  selectedMemberProfiles: Record<string, { nickname: string; name: string }>;
+  recommendedMovies: RecommendedMovie[];
+  groupResult: GroupSimulationResult | null;
+  flippedMovies: Record<number, boolean>;
+};
 
 // 그룹 추천 설정
 const RECOMMEND_TOP_K = 6;  // 추천 영화 개수 (3개, 6개, 10개 등으로 변경 가능)
@@ -51,6 +62,7 @@ export default function GroupPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
+  const [groupResult, setGroupResult] = useState<GroupSimulationResult | null>(null);
   const [userSearchResults, setUserSearchResults] = useState<GroupUserSearchItem[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState<string | null>(null);
@@ -59,6 +71,30 @@ export default function GroupPage() {
   const isLoggedIn = Boolean(getAccessToken());
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
+
+  useEffect(() => {
+    const snapshot = getJsonFromSession<GroupPageSnapshot | null>(
+      GROUP_PAGE_SNAPSHOT_KEY,
+      null
+    );
+    if (!snapshot) return;
+    if (snapshot.userQuery) setUserQuery(snapshot.userQuery);
+    if (snapshot.selectedMembers.length > 0) {
+      setSelectedMembers(snapshot.selectedMembers);
+    }
+    if (Object.keys(snapshot.selectedMemberProfiles).length > 0) {
+      setSelectedMemberProfiles(snapshot.selectedMemberProfiles);
+    }
+    if (snapshot.recommendedMovies.length > 0) {
+      setRecommendedMovies(snapshot.recommendedMovies);
+    }
+    if (snapshot.groupResult) {
+      setGroupResult(snapshot.groupResult);
+    }
+    if (Object.keys(snapshot.flippedMovies).length > 0) {
+      setFlippedMovies(snapshot.flippedMovies);
+    }
+  }, []);
   const tasteSurvey = useTasteSurveyStorage();
 
   const showError = (message: string) => {
@@ -136,6 +172,25 @@ export default function GroupPage() {
     }));
     hasAutoSelectedRef.current = true;
   }, [currentUserId, currentUserNickname, isLoggedIn]);
+
+  useEffect(() => {
+    const snapshot: GroupPageSnapshot = {
+      userQuery,
+      selectedMembers,
+      selectedMemberProfiles,
+      recommendedMovies,
+      groupResult,
+      flippedMovies,
+    };
+    setJsonToSession(GROUP_PAGE_SNAPSHOT_KEY, snapshot);
+  }, [
+    userQuery,
+    selectedMembers,
+    selectedMemberProfiles,
+    recommendedMovies,
+    groupResult,
+    flippedMovies,
+  ]);
 
   const handleMemberToggle = (userId: string, profile?: { nickname: string; name: string }) => {
     const alreadySelected = selectedMembers.includes(userId);
@@ -295,11 +350,12 @@ export default function GroupPage() {
         };
       });
 
-      await simulateGroup({
+      const groupSimulation = await simulateGroup({
         members: membersPayload as any,
         movie_profile: baseProfile as any,
         strategy: "least_misery",
       });
+      setGroupResult(groupSimulation as GroupSimulationResult);
 
       // 사용자 데이터 구성 (영화 추천용)
       const users: GroupUser[] = selectedMembers.map((memberId) => {

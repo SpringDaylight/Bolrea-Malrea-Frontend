@@ -184,33 +184,28 @@ export default function SupportPage() {
             </div>
           </div>
 
-          <div className="support-table">
-            <div className="support-row support-head">
-              <span>번호</span>
-              <span>질문</span>
-              <span>보기</span>
-            </div>
+          <div className="support-faq-list">
             {items.map((item) => {
               const isOpen = openId === item.id;
               const detailId = `support-detail-${item.id}`;
               return (
-                <Fragment key={item.id}>
-                  <div className="support-row">
-                    <span>{item.id}</span>
+                <div
+                  key={item.id}
+                  className={`support-faq-item ${isOpen ? "is-open" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="support-faq-question"
+                    aria-expanded={isOpen}
+                    aria-controls={detailId}
+                    onClick={() => setOpenId(isOpen ? null : item.id)}
+                  >
                     <span>{item.question}</span>
-                    <button
-                      type="button"
-                      className="support-view-btn"
-                      aria-expanded={isOpen}
-                      aria-controls={detailId}
-                      onClick={() => setOpenId(isOpen ? null : item.id)}
-                    >
-                      {isOpen ? "닫기" : "보기"}
-                    </button>
-                  </div>
+                    <span className="faq-plus">{isOpen ? "−" : "+"}</span>
+                  </button>
                   {isOpen && (
                     <div
-                      className="support-detail"
+                      className="support-faq-answer"
                       id={detailId}
                       role="region"
                       aria-label={`${item.question} 상세`}
@@ -223,7 +218,7 @@ export default function SupportPage() {
                       </ul>
                     </div>
                   )}
-                </Fragment>
+                </div>
               );
             })}
           </div>

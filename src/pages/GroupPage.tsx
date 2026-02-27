@@ -328,8 +328,8 @@ export default function GroupPage() {
       showInlineWarning("로그인 후 이용해주세요.");
       return;
     }
-    if (selectedMembers.length === 0) {
-      showError(userRequiredMessage);
+    if (selectedMembers.length < 2) {
+      showError("회원 사용자를 2명 이상 선택해주세요.");
       return;
     }
 
@@ -486,6 +486,8 @@ export default function GroupPage() {
           userResults.length === 0
         ? "검색 결과가 없습니다."
         : null;
+  const shouldShowMemberPanel =
+    selectedMembers.length > 0 || Boolean(formError) || Boolean(userRequiredError);
 
   return (
     <MainLayout>
@@ -497,12 +499,6 @@ export default function GroupPage() {
 
         <section className="section card">
           <div className="form-grid">
-            {formError && (
-              <p className="error" key={`form-error-${errorTick}`}>
-                {formError}
-              </p>
-            )}
-
             <div className="group-search-column">
               <div className="group-search-field">
                 <label>영화 같이 볼 회원 검색하기
@@ -593,33 +589,34 @@ export default function GroupPage() {
                 )}
               </div>
 
-              {selectedMembers.length > 0 && (
+              {shouldShowMemberPanel && (
                 <div className="group-selected-members is-inline">
-                  <div className="tag-list">
-                    {selectedMemberItems.map((member) => (
-                      <span key={member.id} className="tag group-selected-tag">
-                        {member.nickname}
-                        <button
-                          className="group-selected-remove"
-                          type="button"
-                          aria-label={`${member.nickname} 선택 해제`}
-                          onClick={() => handleMemberToggle(member.id)}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+                  {selectedMemberItems.length > 0 && (
+                    <div className="tag-list">
+                      {selectedMemberItems.map((member) => (
+                        <span key={member.id} className="tag group-selected-tag">
+                          {member.nickname}
+                          <button
+                            className="group-selected-remove"
+                            type="button"
+                            aria-label={`${member.nickname} 선택 해제`}
+                            onClick={() => handleMemberToggle(member.id)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="muted">선택된 회원: {selectedMembers.length}명</p>
+                  {(formError || userRequiredError) && (
+                    <p className="error" key={`member-error-${errorTick}`}>
+                      {formError || userRequiredError}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
-
-            {userRequiredError && (
-              <p className="error" key={`user-error-${errorTick}`}>
-                {userRequiredError}
-              </p>
-            )}
             
             {analyzing && (
               <p className="muted" style={{ marginTop: 8, fontSize: "0.9em" }}>

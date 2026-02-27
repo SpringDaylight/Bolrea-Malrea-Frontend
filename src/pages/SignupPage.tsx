@@ -9,19 +9,19 @@ import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
 import { getAccessToken } from "../api/http";
 
-const genreLikeOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
+const genreLikeOptions = ["💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
 const avoidNoneLabel = "🆗 없음 (다 잘 봐요!)";
 
-const genreAvoidOptions = [ "💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리", avoidNoneLabel];
+const genreAvoidOptions = ["💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리", avoidNoneLabel];
 
-const contextOptions = [ "🧘 혼자 몰입파", "💑 연인/친구와 함께", "👨👩👧👦 가족과 오순도순", "🌙 자기 전 가볍게", "🍿 주말에 각 잡고 진득하게"];
+const contextOptions = ["🧘 혼자 몰입파", "💑 연인/친구와 함께", "👨👩👧👦 가족과 오순도순", "🌙 자기 전 가볍게", "🍿 주말에 각 잡고 진득하게"];
 
-const vibeOptions = [ "🤣 가볍고 유쾌한", "😭 감동적이고 여운 남는", "🤯 충격적이고 파격적인", "🌿 잔잔하고 힐링되는", "🧠 철학적이고 생각하게 만드는", "🌃 어둡고 피폐한"];
+const vibeOptions = ["🤣 가볍고 유쾌한", "😭 감동적이고 여운 남는", "🤯 충격적이고 파격적인", "🌿 잔잔하고 힐링되는", "🧠 철학적이고 생각하게 만드는", "🌃 어둡고 피폐한"];
 
-const keywordOptions = [ "✨ 성장 / 청춘", "🤝 가족 / 우정", "💼 전문직 / 직업물", "📜 실화 기반", "🧟 디스토피아 / 아포칼립스", "🔄 타임루프 / 시간여행", "🎮 게임 / 가상세계", "🔎 본격 추리", "🎵 음악 / 예술", "⚽ 스포츠"];
+const keywordOptions = ["✨ 성장 / 청춘", "🤝 가족 / 우정", "💼 전문직 / 직업물", "📜 실화 기반", "🧟 디스토피아 / 아포칼립스", "🔄 타임루프 / 시간여행", "🎮 게임 / 가상세계", "🔎 본격 추리", "🎵 음악 / 예술", "⚽ 스포츠"];
 
-const originOptions = [ "🇰🇷 한국 영화", "🇺🇸 미국/할리우드", "🇯🇵 일본 영화/애니", "🇪🇺 유럽/기타 해외", "🎞️ 고전 명작"];
+const originOptions = ["🇰🇷 한국 영화", "🇺🇸 미국/할리우드", "🇯🇵 일본 영화/애니", "🇪🇺 유럽/기타 해외", "🎞️ 고전 명작"];
 
 const totalSurveySteps = 6;
 type SignupField = "name" | "birthDate" | "nickname" | "userId" | "email" | "password" | "confirm";
@@ -178,7 +178,7 @@ export default function SignupPage() {
       nextErrors.birthDate = "내용을 입력해주세요.";
     }
     if (!nickname.trim()) nextErrors.nickname = "내용을 입력해주세요.";
-    
+
     if (!userId.trim()) nextErrors.userId = "내용을 입력해주세요.";
     if (!email.trim()) nextErrors.email = "내용을 입력해주세요.";
     if (!password.trim()) nextErrors.password = "내용을 입력해주세요.";
@@ -276,20 +276,20 @@ export default function SignupPage() {
       try {
         const { saveUserPreference } = await import("../api/userPreferences");
         const { userProfile } = result;
-        
+
         // 장르 정리: 이모지 제거 후 '/' 분리
         const processedGenres = processGenreTags(genres);
         const processedAvoidGenres = processGenreTags(
           avoidGenres.filter((g) => g !== "선택 없음 (중복 불가!)" && g !== "선택 없음 (중복불가!)" && g !== "선택 없음")
         );
-        
+
         // 이모지 제거
         const removeEmoji = (text: string) => text.replace(/^[^\w\s가-힣/]+\s*/, "").trim();
         const cleanedContext = removeEmoji(context);
         const cleanedVibe = removeEmoji(vibe);
         const cleanedKeywords = keywords.map(removeEmoji);
         const cleanedOrigin = removeEmoji(origin);
-        
+
         await saveUserPreference({
           user_id: userId,
           preference_vector_json: {
@@ -302,7 +302,7 @@ export default function SignupPage() {
           boost_tags: userProfile.boost_tags,
           dislike_tags: userProfile.dislike_tags,
           penalty_tags: [],
-          
+
           // Survey fields 추가
           favorite_genres: processedGenres,
           disliked_genres: processedAvoidGenres,
@@ -494,86 +494,86 @@ export default function SignupPage() {
               </div>
               {fieldErrors.nickname && <p className="field-error-text">{fieldErrors.nickname}</p>}
               <>
-                  <label htmlFor="signup-userid">아이디</label>
-                  <div className="input-with-clear">
-                    <input
-                      id="signup-userid"
-                      type="text"
-                      placeholder="아이디"
-                      value={userId}
-                      onChange={(event) => {
-                        setuserId(event.target.value);
-                        clearFieldError("userId");
-                        setSignupError("");
-                      }}
-                    />
-                    {userId && (
-                      <button
-                        type="button"
-                        className="input-clear-btn"
-                        aria-label="아이디 입력 지우기"
-                        onClick={() => clearInputValue("userId", setuserId)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                  {fieldErrors.userId && <p className="field-error-text">{fieldErrors.userId}</p>}
-                  <label htmlFor="signup-password">비밀번호</label>
-                  <div className="input-with-clear">
-                    <input
-                      id="signup-password"
-                      type="password"
-                      placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
-                      value={password}
-                      onChange={(event) => {
-                        setPassword(event.target.value);
-                        clearFieldError("password");
-                        clearFieldError("confirm");
-                        setSignupError("");
-                      }}
-                    />
-                    {password && (
-                      <button
-                        type="button"
-                        className="input-clear-btn"
-                        aria-label="비밀번호 입력 지우기"
-                        onClick={() =>
-                          clearInputValue("password", setPassword, {
-                            alsoClearErrors: ["confirm"],
-                          })
-                        }
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                  {fieldErrors.password && <p className="field-error-text">{fieldErrors.password}</p>}
-                  <label htmlFor="signup-confirm">비밀번호 확인</label>
-                  <div className="input-with-clear">
-                    <input
-                      id="signup-confirm"
-                      type="password"
-                      placeholder="8~20자, 영문 대/소문자·숫자·특수문자 중 2가지 이상"
-                      value={confirm}
-                      onChange={(event) => {
-                        setConfirm(event.target.value);
-                        clearFieldError("confirm");
-                        setSignupError("");
-                      }}
-                    />
-                    {confirm && (
-                      <button
-                        type="button"
-                        className="input-clear-btn"
-                        aria-label="비밀번호 확인 입력 지우기"
-                        onClick={() => clearInputValue("confirm", setConfirm)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                  {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
+                <label htmlFor="signup-userid">아이디</label>
+                <div className="input-with-clear">
+                  <input
+                    id="signup-userid"
+                    type="text"
+                    placeholder="아이디"
+                    value={userId}
+                    onChange={(event) => {
+                      setuserId(event.target.value);
+                      clearFieldError("userId");
+                      setSignupError("");
+                    }}
+                  />
+                  {userId && (
+                    <button
+                      type="button"
+                      className="input-clear-btn"
+                      aria-label="아이디 입력 지우기"
+                      onClick={() => clearInputValue("userId", setuserId)}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {fieldErrors.userId && <p className="field-error-text">{fieldErrors.userId}</p>}
+                <label htmlFor="signup-password">비밀번호</label>
+                <div className="input-with-clear">
+                  <input
+                    id="signup-password"
+                    type="password"
+                    placeholder="********"
+                    value={password}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      clearFieldError("password");
+                      clearFieldError("confirm");
+                      setSignupError("");
+                    }}
+                  />
+                  {password && (
+                    <button
+                      type="button"
+                      className="input-clear-btn"
+                      aria-label="비밀번호 입력 지우기"
+                      onClick={() =>
+                        clearInputValue("password", setPassword, {
+                          alsoClearErrors: ["confirm"],
+                        })
+                      }
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {fieldErrors.password && <p className="field-error-text">{fieldErrors.password}</p>}
+                <label htmlFor="signup-confirm">비밀번호 확인</label>
+                <div className="input-with-clear">
+                  <input
+                    id="signup-confirm"
+                    type="password"
+                    placeholder="********"
+                    value={confirm}
+                    onChange={(event) => {
+                      setConfirm(event.target.value);
+                      clearFieldError("confirm");
+                      setSignupError("");
+                    }}
+                  />
+                  {confirm && (
+                    <button
+                      type="button"
+                      className="input-clear-btn"
+                      aria-label="비밀번호 확인 입력 지우기"
+                      onClick={() => clearInputValue("confirm", setConfirm)}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {fieldErrors.confirm && <p className="field-error-text">{fieldErrors.confirm}</p>}
               </>
               <label htmlFor="signup-email">이메일</label>
               <div className="input-with-clear">
@@ -678,9 +678,8 @@ export default function SignupPage() {
                         {genreLikeOptions.map((genre) => (
                           <button
                             key={genre}
-                            className={`filter-chip ${
-                              genres.includes(genre) ? "active" : ""
-                            }`}
+                            className={`filter-chip ${genres.includes(genre) ? "active" : ""
+                              }`}
                             type="button"
                             onClick={() =>
                               toggleValueWithLimit(genre, setGenres, 5)
@@ -702,9 +701,8 @@ export default function SignupPage() {
                         {genreAvoidOptions.map((genre) => (
                           <button
                             key={`avoid-${genre}`}
-                            className={`filter-chip ${
-                              avoidGenres.includes(genre) ? "active" : ""
-                            }`}
+                            className={`filter-chip ${avoidGenres.includes(genre) ? "active" : ""
+                              }`}
                             type="button"
                             onClick={() => toggleAvoidGenre(genre)}
                           >
@@ -724,9 +722,8 @@ export default function SignupPage() {
                         {contextOptions.map((option) => (
                           <button
                             key={option}
-                            className={`filter-chip ${
-                              context === option ? "active" : ""
-                            }`}
+                            className={`filter-chip ${context === option ? "active" : ""
+                              }`}
                             type="button"
                             onClick={() => setContext(option)}
                           >
@@ -746,9 +743,8 @@ export default function SignupPage() {
                         {vibeOptions.map((option) => (
                           <button
                             key={option}
-                            className={`filter-chip ${
-                              vibe === option ? "active" : ""
-                            }`}
+                            className={`filter-chip ${vibe === option ? "active" : ""
+                              }`}
                             type="button"
                             onClick={() => setVibe(option)}
                           >
@@ -768,9 +764,8 @@ export default function SignupPage() {
                         {keywordOptions.map((keyword) => (
                           <button
                             key={keyword}
-                            className={`filter-chip ${
-                              keywords.includes(keyword) ? "active" : ""
-                            }`}
+                            className={`filter-chip ${keywords.includes(keyword) ? "active" : ""
+                              }`}
                             type="button"
                             onClick={() =>
                               toggleValue(keyword, keywords, setKeywords)
@@ -790,9 +785,8 @@ export default function SignupPage() {
                         {originOptions.map((option) => (
                           <button
                             key={option}
-                            className={`filter-chip ${
-                              origin === option ? "active" : ""
-                            }`}
+                            className={`filter-chip ${origin === option ? "active" : ""
+                              }`}
                             type="button"
                             onClick={() => setOrigin(option)}
                           >

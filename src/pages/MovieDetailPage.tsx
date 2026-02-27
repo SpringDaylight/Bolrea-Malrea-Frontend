@@ -1138,7 +1138,7 @@ export default function MovieDetailPage() {
                   · {genreSummary} ·{" "}
                   {movie.runtime ? `${movie.runtime}분` : "정보 없음"}
                 </p>
-                <div className="section synopsis-card" style={{ marginTop: 18 }}>
+                <div className="section card synopsis-card" style={{ marginTop: 18 }}>
                   <h3>줄거리</h3>
                   <p className="muted synopsis-text">
                     {movieSynopsis}
@@ -1152,51 +1152,53 @@ export default function MovieDetailPage() {
               </div>
             </div>
 
-            <div className="section" style={{ marginTop: 18 }}>
-              {/* <h3>나와의 적합도</h3> */}
-              {mlLoading ? (
-                <p className="muted">분석 중...</p>
-              ) : prediction ? (
-                <>
-                  <p className="probability">
-                    {`이 영화는 ${currentUserNickname}님과 ${Math.round(
-                      prediction.match_rate
-                    )}% 잘 맞아요`}
-                  </p>
-                  {explanation ? (
-                    <>
-                      <p className="muted" style={{ marginTop: 8, marginBottom: 12 }}>
-                        {explanation.explanation}
-                      </p>
+            {isLoggedIn && (
+              <div className="section card match-card" style={{ marginTop: 18 }}>
+                {/* <h3>나와의 적합도</h3> */}
+                {mlLoading ? (
+                  <p className="muted">분석 중...</p>
+                ) : prediction ? (
+                  <>
+                    <p className="probability">
+                      {`이 영화는 ${currentUserNickname}님과 ${Math.round(
+                        prediction.match_rate
+                      )}% 잘 맞아요`}
+                    </p>
+                    {explanation ? (
+                      <>
+                        <p className="muted" style={{ marginTop: 8, marginBottom: 12 }}>
+                          {explanation.explanation}
+                        </p>
+                        <ul className="list">
+                          {explanation.key_factors.slice(0, 3).map((factor, idx) => (
+                            <li key={idx}>
+                              {factor.label}: {Math.round(factor.score * 100)}% 일치
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : (
                       <ul className="list">
-                        {explanation.key_factors.slice(0, 3).map((factor, idx) => (
-                          <li key={idx}>
-                            {factor.label}: {Math.round(factor.score * 100)}% 일치
-                          </li>
-                        ))}
+                        <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
+                        <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
+                        <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
                       </ul>
-                    </>
-                  ) : (
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="probability">
+                      {`이 영화는 ${currentUserNickname}님과 83% 잘 맞아요`}
+                    </p>
                     <ul className="list">
                       <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
                       <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
                       <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
                     </ul>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p className="probability">
-                    {`이 영화는 ${currentUserNickname}님과 83% 잘 맞아요`}
-                  </p>
-                  <ul className="list">
-                    <li>거대한 세계관과 몰입도 높은 전개를 선호하셨어요.</li>
-                    <li>가족 서사가 중심인 작품을 좋아하셨어요.</li>
-                    <li>유사 취향 사용자 반응이 긍정적이었어요.</li>
-                  </ul>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {prediction && prediction.breakdown.dislike_penalty > 0 && (
               <div className="section" style={{ marginTop: 18 }}>

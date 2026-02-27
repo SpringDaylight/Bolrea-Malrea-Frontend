@@ -483,7 +483,7 @@ export default function GroupPage() {
           hasSearchAttempt &&
           !userSearchLoading &&
           userQuery.trim().length > 0 &&
-          userResults.length === 0
+          userSearchResults.length === 0
         ? "검색 결과가 없습니다."
         : null;
   const shouldShowMemberPanel =

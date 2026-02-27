@@ -1215,10 +1215,11 @@ export default function MovieDetailPage() {
           </article>
         </section>
 
-        <section className="section" id="my-review">
-          <SectionHeader title="내 리뷰" />
-          {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
-            <div className="review-item">
+        {isLoggedIn && (
+          <section className="section" id="my-review">
+            <SectionHeader title="내 리뷰" />
+            {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
+              <div className="review-item">
               <article className="card review-card">
                 <div className="review-header">
                   <div className="review-user">
@@ -1707,8 +1708,9 @@ export default function MovieDetailPage() {
                 </div>
               )}
             </article>
-          )}
-        </section>
+            )}
+          </section>
+        )}
 
         <section className="section">
           <div className="section-header">

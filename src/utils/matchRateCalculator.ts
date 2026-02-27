@@ -51,7 +51,7 @@ export const getUserTasteData = async () => {
       userPk = null;
     }
   }
-  
+
   // 로그인한 사용자는 반드시 DB에서 가져와야 함
   if (isLoggedIn && userPk) {
     const exists = await checkUserPreferenceExists(userPk);
@@ -59,27 +59,41 @@ export const getUserTasteData = async () => {
       throw new Error("User preference not found");
     }
     const preference = await getUserPreference(userPk);
-    
-    // DB에서 가져온 데이터를 변환
-    const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
-      .sort(([_, a], [__, b]) => b - a)
+
+    const userProfileRaw = preference.preference_vector_json;
+    const isNested = userProfileRaw && "global" in userProfileRaw;
+    const baseProfile = isNested ? (userProfileRaw as any).global : userProfileRaw;
+
+    // Emotion Scores from Global or Flat
+    const topEmotions = Object.entries(baseProfile?.emotion_scores || {})
+      .sort(([_, a], [__, b]) => (b as number) - (a as number))
       .slice(0, 3)
-      .map(([tag, _]) => tag);
-    
-    const topNarratives = Object.entries(preference.preference_vector_json.narrative_traits)
-      .sort(([_, a], [__, b]) => b - a)
+      .map(([tag]) => tag);
+
+    // Narrative Traits from Global or Flat
+    const topNarratives = Object.entries(baseProfile?.narrative_traits || {})
+      .sort(([_, a], [__, b]) => (b as number) - (a as number))
       .slice(0, 3)
-      .map(([tag, _]) => tag);
-    
-    return {
+      .map(([tag]) => tag);
+
+    // Dislike/Boost tags exist outside the vector json in the user preference model
+    const dislikes = preference.penalty_tags || preference.disliked_genres || [];
+    const likes = preference.boost_tags || preference.favorite_genres || [];
+
+    const requestBody = {
       userTasteText: topEmotions.join(", "),
       userKeywords: topNarratives,
-      userAvoidGenres: preference.penalty_tags || [],
-      userProfile: preference.preference_vector_json,
+      userAvoidGenres: dislikes,
+      userProfile: {
+        global: baseProfile, // Feed the extracted base profile back
+        dislike_tags: dislikes,
+        boost_tags: likes,
+      },
       fromDatabase: true,
     };
+    return requestBody;
   }
-  
+
   // 비로그인 사용자는 localStorage 사용
   const userTasteText = localStorage.getItem("mw_taste_vibe") || "";
   const userKeywords = (() => {
@@ -98,7 +112,7 @@ export const getUserTasteData = async () => {
       return [];
     }
   })();
-  
+
   const userProfileStr = localStorage.getItem("mw_user_profile");
   const userProfile = userProfileStr ? JSON.parse(userProfileStr) : null;
 
@@ -126,7 +140,7 @@ export const calculateMovieMatchRate = async (
 
   const fullUserText = `${userTasteText}`.trim();
   const cacheKey = getCacheKey(movie.id, fullUserText);
-  
+
   // 캐시 확인 (임시로 비활성화)
   // const cached = getFromCache(cacheKey);
   // if (cached) {
@@ -138,11 +152,11 @@ export const calculateMovieMatchRate = async (
 
   // 로그인 확인 (JWT 토큰만 확인)
   const accessToken = localStorage.getItem("mw_access_token");
-  
+
   console.log('🔍 [MatchRate] 로그인 상태 확인:', {
     hasAccessToken: !!accessToken
   });
-  
+
   if (!accessToken) {
     console.log('⚠️ [MatchRate] 로그인 안 됨, 만족도 계산 불가');
     return null;
@@ -150,15 +164,15 @@ export const calculateMovieMatchRate = async (
 
   // /api/llm/satisfaction 직접 호출 (JWT 인증)
   console.log('🔍 [MatchRate] Calling /api/llm/satisfaction with JWT');
-  
+
   try {
     const { calculateSatisfaction } = await import('../api/llmRecommend');
-    
+
     // JWT 인증을 사용하므로 user_id 전달 불필요
     const response = await calculateSatisfaction({
       movie_id: movie.id
     });
-    
+
     // SatisfactionPrediction 형식으로 변환
     const prediction: SatisfactionPrediction = {
       movie_id: movie.id,
@@ -178,15 +192,15 @@ export const calculateMovieMatchRate = async (
         top_factors: response.breakdown?.top_factors || []
       }
     };
-    
+
     console.log('✅ [MatchRate] /api/llm/satisfaction result:', {
       probability: prediction.probability,
       match_rate: prediction.match_rate
     });
-    
+
     // 캐시에 저장
     saveToCache(cacheKey, prediction);
-    
+
     return prediction;
   } catch (error) {
     console.error('❌ [MatchRate] Error:', error);
@@ -206,7 +220,7 @@ export const calculateMoviesMatchRates = async (
 
   const tasteData = await getUserTasteData();
   const { userTasteText, userProfile } = tasteData;
-  
+
   if (!userTasteText.trim() && !userProfile) {
     return {};
   }

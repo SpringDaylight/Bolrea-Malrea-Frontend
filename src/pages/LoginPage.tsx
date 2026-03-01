@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import PageTitle from "../components/common/PageTitle";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
 import { login as loginApi } from "../api/auth";
-import { setAccessToken } from "../api/http";
+import { getAccessToken, setAccessToken } from "../api/http";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +13,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (getAccessToken()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   const getLoginErrorMessage = (error: unknown) => {
     const raw = error instanceof Error ? error.message : "";
@@ -60,13 +66,17 @@ export default function LoginPage() {
         password,
       });
       setAccessToken(authResponse.access_token);
-      window.dispatchEvent(new Event("mw_auth_change"));
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error) {
       setLoginError(getLoginErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void handleLogin();
   };
 
   /*
@@ -89,7 +99,7 @@ export default function LoginPage() {
 
         <section className="section">
           <article className="card auth-card">
-            <div className="form-grid">
+            <form className="form-grid" onSubmit={handleSubmit}>
               <label htmlFor="login-name">아이디</label>
               <input
                 id="login-name"
@@ -114,8 +124,7 @@ export default function LoginPage() {
               />
               <button
                 className="primary-btn"
-                type="button"
-                onClick={handleLogin}
+                type="submit"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "로그인 중..." : "로그인"}
@@ -125,7 +134,7 @@ export default function LoginPage() {
                   {loginError}
                 </p>
               )}
-            </div>
+            </form>
             <ul className="auth-actions">
               <li>
                 <Link className="secondary-btn" to="/signup">회원가입</Link>

@@ -11,8 +11,8 @@ import {
   saveCurrentUserWatchedMovie,
   deleteCurrentUserWatchedMovie,
 } from "../api/A8_watched";
-import { getAccessToken } from "../api/http";
 import { setJsonToSession } from "../utils/storage";
+import { useAuthState } from "../hooks/useAuthState";
 
 const MOVIES_PAGE_SNAPSHOT_KEY = "mw_movies_page_snapshot";
 
@@ -151,7 +151,7 @@ const resolveYearRange = (value: string | null): {
 export default function MoviesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isLoggedIn = Boolean(getAccessToken());
+  const isLoggedIn = useAuthState();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

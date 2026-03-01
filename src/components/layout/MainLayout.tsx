@@ -9,7 +9,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const handleAuthChange = () => {
       if (!getAccessToken()) {
         removeSessionItem("mw_group_page_snapshot");
-        window.location.href = "/";
       }
     };
 

@@ -35,7 +35,7 @@ import {
 } from "../api/ml";
 import { calculateMovieMatchRate } from "../utils/matchRateCalculator";
 import { syncAfterReview } from "../utils/preferenceSync";
-import { getAccessToken } from "../api/http";
+import { useAuthState } from "../hooks/useAuthState";
 import ReviewKeywordSelector, { KEYWORD_GROUPS, getKeywordLabel } from "../components/ReviewKeywordSelector";
 
 const REVIEW_CONTENT_MAX_LENGTH = 500;
@@ -142,7 +142,7 @@ export default function MovieDetailPage() {
   const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
-  const isLoggedIn = Boolean(getAccessToken());
+  const isLoggedIn = useAuthState();
   const [currentUserPk, setCurrentUserPk] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const personalReview = isPersonalReviewDeleted

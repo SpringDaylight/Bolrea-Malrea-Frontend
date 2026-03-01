@@ -15,7 +15,7 @@ import Roulette from "../components/roulette/Roulette";
 import { rouletteItems, type RouletteItem } from "../components/roulette/rouletteItems";
 import { getCurrentUser } from "../api/A7_profile";
 import { getRouletteConfig, getRouletteStatus, spinRoulette } from "../api/A9_roulette";
-import { getAccessToken } from "../api/http";
+import { useAuthState } from "../hooks/useAuthState";
 type QuestionItem = {
   id: number;
   question: string;
@@ -109,7 +109,7 @@ export default function MoviemongPage() {
     themeId: string | null;
   } | null>(null);
   const themeDragMovedRef = useRef(false);
-  const isLoggedIn = Boolean(getAccessToken());
+  const isLoggedIn = useAuthState();
   const selectedTheme = moviemongThemeItems.find(
     (theme) => theme.id === selectedThemeId
   );

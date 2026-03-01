@@ -6,7 +6,7 @@ import LoadingState from "../components/common/LoadingState";
 import { Link, useNavigate } from "react-router-dom";
 import { getQuickRecommendations, type PersonalizedMovie } from "../api/personalized";
 import TasteSurveyModal from "../components/TasteSurveyModal";
-import { getAccessToken } from "../api/http";
+import { useAuthState } from "../hooks/useAuthState";
 
 const RECOMMENDED_PAGE_SIZE = 4;
 
@@ -43,7 +43,7 @@ export default function HomePage() {
   const [showTasteSurveyModal, setShowTasteSurveyModal] = useState(false);
   const navigate = useNavigate();
 
-  const isLoggedIn = Boolean(getAccessToken());
+  const isLoggedIn = useAuthState();
 
   const fetchRecommendations = async () => {
     setLoading(true);

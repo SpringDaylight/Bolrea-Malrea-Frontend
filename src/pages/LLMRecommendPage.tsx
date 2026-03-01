@@ -11,6 +11,7 @@ import {
 } from '../utils/storage';
 import { getCurrentUser } from '../api/users';
 import { getAccessToken } from '../api/http';
+import { useAuthState } from '../hooks/useAuthState';
 
 // localStorage 상태 저장
 const STORAGE_KEY = 'llm_recommend_state';
@@ -35,7 +36,7 @@ export default function LLMRecommendPage() {
   const lastAutoQueryRef = useRef<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
+  const isLoggedIn = useAuthState();
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [explanation, setExplanation] = useState('');
   const [error, setError] = useState('');
@@ -52,16 +53,6 @@ export default function LLMRecommendPage() {
 
   // 컴포넌트 마운트 시 localStorage에서 복원
   useEffect(() => {
-    const syncAuthState = () => {
-      setIsLoggedIn(Boolean(getAccessToken()));
-    };
-
-    syncAuthState();
-
-    const handleAuthChange = () => syncAuthState();
-    window.addEventListener("mw_auth_change", handleAuthChange);
-    window.addEventListener("storage", handleAuthChange);
-
     const restoreState = async () => {
       try {
         const saved = getStorageItem(STORAGE_KEY);
@@ -124,11 +115,6 @@ export default function LLMRecommendPage() {
     };
 
     restoreState();
-
-    return () => {
-      window.removeEventListener("mw_auth_change", handleAuthChange);
-      window.removeEventListener("storage", handleAuthChange);
-    };
   }, []);
 
   useEffect(() => {

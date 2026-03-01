@@ -4,10 +4,10 @@ import MainLayout from "../components/layout/MainLayout";
 import PageTitle from "../components/common/PageTitle";
 // import googleIcon from "../assets/web_neutral_sq_na@1x.png";
 // import kakaoIcon from "../assets/kakao_sq_login.png";
-import { signup as signupApi } from "../api/auth";
+import { login as loginApi, signup as signupApi } from "../api/auth";
 import { processGenreTags } from "../utils/tagProcessor";
 import { getCurrentUser } from "../api/A7_profile";
-import { getAccessToken } from "../api/http";
+import { getAccessToken, setAccessToken } from "../api/http";
 
 const genreLikeOptions = ["💕 로맨스 / 로코", "😂 코미디", "😢 드라마 / 휴먼", "🔪 스릴러 / 미스터리", "👻 공포 / 호러", "👊 액션", "🚔 범죄 / 느와르", "👽 SF", "🧙 판타지", "🧚 애니메이션", "⚔️ 전쟁 / 역사", "🎥 다큐멘터리"];
 
@@ -215,7 +215,13 @@ export default function SignupPage() {
 
       const signupResponse = await signupApi(payload);
       setSignupUserPk(signupResponse.id);
-      window.dispatchEvent(new Event("mw_auth_change"));
+
+      // Keep signup -> survey flow authenticated by issuing a local login.
+      const authResponse = await loginApi({
+        user_id: payload.user_id,
+        password: payload.password,
+      });
+      setAccessToken(authResponse.access_token);
 
       setSignupStep(0);
     } catch (error) {
@@ -317,7 +323,7 @@ export default function SignupPage() {
       }
     }
 
-    navigate("/mypage");
+    navigate("/mypage", { replace: true });
   };
 
   const closeSurvey = () => setSignupStep(null);

@@ -15,6 +15,7 @@ import { getUserPreference } from "../api/userPreferences";
 import { getAccessToken } from "../api/http";
 import { getStorageItem, safeParseJson } from "../utils/storage";
 import { useTasteSurveyStorage } from "../hooks/useTasteSurveyStorage";
+import { useAuthState } from "../hooks/useAuthState";
 
 type RecentMovie = {
   movieId: number;
@@ -59,32 +60,7 @@ export default function TasteAnalysisPage() {
   const [wordCloudError, setWordCloudError] = useState<string | null>(null);
   const [wordCloudUrl, setWordCloudUrl] = useState<string | null>(null);
   const wordCloudUrlRef = useRef<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
-
-  useEffect(() => {
-    const syncAuthState = () => {
-      setIsLoggedIn(Boolean(getAccessToken()));
-    };
-
-    syncAuthState();
-
-    const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key === "mw_access_token") {
-        syncAuthState();
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("mw_auth_change", syncAuthState);
-
-    const interval = window.setInterval(syncAuthState, 4000);
-
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("mw_auth_change", syncAuthState);
-      window.clearInterval(interval);
-    };
-  }, []);
+  const isLoggedIn = useAuthState();
 
   useEffect(() => {
     if (!isLoggedIn) {

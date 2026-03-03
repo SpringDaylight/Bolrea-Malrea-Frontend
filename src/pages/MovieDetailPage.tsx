@@ -35,7 +35,7 @@ import {
 } from "../api/ml";
 import { calculateMovieMatchRate } from "../utils/matchRateCalculator";
 import { syncAfterReview } from "../utils/preferenceSync";
-import { useAuthState } from "../hooks/useAuthState";
+import { getAccessToken } from "../api/http";
 import ReviewKeywordSelector, { KEYWORD_GROUPS, getKeywordLabel } from "../components/ReviewKeywordSelector";
 
 const REVIEW_CONTENT_MAX_LENGTH = 500;

@@ -42,7 +42,7 @@ export default function TasteAnalysisPage() {
   const [surveyRefreshKey, setSurveyRefreshKey] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState<number | null>(null);
-  
+
   // Survey data from DB
   const [surveyData, setSurveyData] = useState<{
     favorite_genres: string[];
@@ -52,7 +52,7 @@ export default function TasteAnalysisPage() {
     interest_keywords: string[];
     preferred_origin: string;
   } | null>(null);
-  
+
   // WordCloud state
   const [wordCloudUserId, setWordCloudUserId] = useState<string | null>(null);
   const [wordCloudLoading, setWordCloudLoading] = useState(false);
@@ -108,7 +108,7 @@ export default function TasteAnalysisPage() {
           setCurrentUserId(currentUser.id.toString());
           setWordCloudUserId(currentUser.id.toString());
           const preference = await getUserPreference(currentUser.id);
-          
+
           // Survey data 저장
           setSurveyData({
             favorite_genres: preference.favorite_genres || [],
@@ -118,26 +118,28 @@ export default function TasteAnalysisPage() {
             interest_keywords: preference.interest_keywords || [],
             preferred_origin: preference.preferred_origin || "",
           });
-          
-          const topEmotions = Object.entries(preference.preference_vector_json.emotion_scores)
-            .sort(([, a], [, b]) => b - a)
+
+          const userProfileRaw = preference.preference_vector_json;
+          const isNested = userProfileRaw && "global" in (userProfileRaw as any);
+          const baseProfile = isNested ? (userProfileRaw as any).global : userProfileRaw;
+
+          const topEmotions = Object.entries(baseProfile?.emotion_scores || {})
+            .sort(([, a], [, b]) => (b as number) - (a as number))
             .slice(0, 3)
             .map(([tag]) => tag);
-          const topNarratives = Object.entries(
-            preference.preference_vector_json.narrative_traits
-          )
-            .sort(([, a], [, b]) => b - a)
+          const topNarratives = Object.entries(baseProfile?.narrative_traits || {})
+            .sort(([, a], [, b]) => (b as number) - (a as number))
             .slice(0, 3)
             .map(([tag]) => tag);
 
           const userText = [...topEmotions, ...topNarratives].join(", ");
           const profile: UserProfile = {
             user_text: userText,
-            emotion_scores: preference.preference_vector_json.emotion_scores,
-            narrative_traits: preference.preference_vector_json.narrative_traits,
-            direction_mood: preference.preference_vector_json.direction_mood,
-            character_relationship: preference.preference_vector_json.character_relationship,
-            ending_preference: preference.preference_vector_json.ending_preference,
+            emotion_scores: baseProfile?.emotion_scores || {},
+            narrative_traits: baseProfile?.narrative_traits || {},
+            direction_mood: baseProfile?.direction_mood || {},
+            character_relationship: baseProfile?.character_relationship || {},
+            ending_preference: baseProfile?.ending_preference || { happy: 0, open: 0, bittersweet: 0 },
             dislike_tags: preference.penalty_tags ?? [],
             boost_tags: preference.boost_tags ?? [],
           };
@@ -443,13 +445,13 @@ export default function TasteAnalysisPage() {
     tasteOrigin,
     hasSurveyData: hasStorageSurveyData,
   } = useTasteSurveyStorage(surveyRefreshKey);
-  
+
   // DB 데이터 우선, 없으면 localStorage fallback
   const displaySurveyData = surveyData ? {
     favorite_genres: surveyData.favorite_genres || [],
     disliked_genres: surveyData.disliked_genres || [],
     viewing_context: surveyData.viewing_context || "",
-    preferred_vibe: surveyData.preferred_vibe 
+    preferred_vibe: surveyData.preferred_vibe
       ? surveyData.preferred_vibe.split("/").map(v => v.trim()).filter(v => v.length > 0)
       : [],
     interest_keywords: surveyData.interest_keywords || [],
@@ -462,7 +464,7 @@ export default function TasteAnalysisPage() {
     interest_keywords: savedKeywords,
     preferred_origin: tasteOrigin,
   };
-  
+
   const hasSurveyData = Boolean(userProfile) || Boolean(surveyData) || hasStorageSurveyData;
   const preferenceSlots = Array.from({ length: 5 }, (_, index) => {
     const slot = watchedGenreStats[index];

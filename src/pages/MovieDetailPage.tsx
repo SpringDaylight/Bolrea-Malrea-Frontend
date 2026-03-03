@@ -142,9 +142,19 @@ export default function MovieDetailPage() {
   const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
-  const isLoggedIn = Boolean(getAccessToken());
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
   const [currentUserPk, setCurrentUserPk] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
+  useEffect(() => {
+    const syncAuth = () => setIsLoggedIn(Boolean(getAccessToken()));
+    syncAuth();
+    window.addEventListener("mw_auth_change", syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener("mw_auth_change", syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
   const personalReview = isPersonalReviewDeleted
     ? null
     : localPersonalReview;

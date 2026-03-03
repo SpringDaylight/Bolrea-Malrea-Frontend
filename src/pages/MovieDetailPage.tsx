@@ -1179,13 +1179,15 @@ export default function MovieDetailPage() {
                         <p className="muted" style={{ marginTop: 8, marginBottom: 12 }}>
                           {explanation.explanation}
                         </p>
-                        <ul className="list">
-                          {explanation.key_factors.slice(0, 3).map((factor, idx) => (
-                            <li key={idx}>
-                              {factor.label}: {Math.round(factor.score * 100)}% 일치
-                            </li>
-                          ))}
-                        </ul>
+                        {explanation.key_factors.length > 0 && (
+                          <ul className="list">
+                            {explanation.key_factors.slice(0, 3).map((factor, idx) => (
+                              <li key={idx}>
+                                {factor.label}: {Math.round(factor.score * 100)}% 일치
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </>
                     ) : (
                       <ul className="list">

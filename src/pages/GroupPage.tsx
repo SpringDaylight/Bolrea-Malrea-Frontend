@@ -5,9 +5,9 @@ import { searchGroupUsers, type GroupUserSearchItem } from "../api/A4_group";
 import { analyzePreference, simulateGroup, type GroupSimulationResult } from "../api/ml";
 import { getCurrentUser } from "../api/users";
 import { recommendGroupMovies, type RecommendedMovie, type GroupUser } from "../api/groupRecommend";
-import { getAccessToken } from "../api/http";
 import { getJsonFromSession, removeSessionItem, setJsonToSession } from "../utils/storage";
 import { useTasteSurveyStorage } from "../hooks/useTasteSurveyStorage";
+import { useAuthState } from "../hooks/useAuthState";
 
 const userRequiredMessage = "회원 사용자를 선택해주세요.";
 const maxMembers = 10;
@@ -71,26 +71,9 @@ export default function GroupPage() {
   const [hasSearchAttempt, setHasSearchAttempt] = useState(false);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
   const [currentUserId, setCurrentUserId] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
+  const isLoggedIn = useAuthState();
   const userSearchRef = useRef<HTMLDivElement | null>(null);
   const hasAutoSelectedRef = useRef(false);
-
-  useEffect(() => {
-    const syncAuthState = () => {
-      setIsLoggedIn(Boolean(getAccessToken()));
-    };
-
-    syncAuthState();
-
-    const handleAuthChange = () => syncAuthState();
-    window.addEventListener("mw_auth_change", handleAuthChange);
-    window.addEventListener("storage", handleAuthChange);
-
-    return () => {
-      window.removeEventListener("mw_auth_change", handleAuthChange);
-      window.removeEventListener("storage", handleAuthChange);
-    };
-  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {

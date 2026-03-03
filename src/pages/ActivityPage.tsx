@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import ticketIcon from "../assets/icon-ticket-ver2.png";
@@ -15,7 +15,8 @@ import {
   deleteCurrentUserWatchedMovie,
   getCurrentUserWatchedMovies,
 } from "../api/A8_watched";
-import { getAccessToken, setAccessToken } from "../api/http";
+import { setAccessToken } from "../api/http";
+import { useAuthState } from "../hooks/useAuthState";
 
 type ViewMode = "posters" | "reviews";
 type ProfileState = {
@@ -149,7 +150,7 @@ export default function ActivityPage() {
   const genderSelectRef = useRef<HTMLDivElement | null>(null);
   // const isKakaoLinked = Boolean(localStorage.getItem("mw_access_token"));
   // const isGoogleLinked = Boolean(localStorage.getItem("mw_google_token"));
-  const isLoggedIn = useMemo(() => Boolean(getAccessToken()), []);
+  const isLoggedIn = useAuthState();
 
   const posterItems = useMemo(
     () =>
@@ -1563,6 +1564,7 @@ const getReviewVisibilityMeta = (visibility: ReviewVisibility) =>
   visibility === "private"
     ? { className: "is-private", label: "비공개 리뷰" }
     : { className: "is-public", label: "공개 리뷰" };
+
 
 
 

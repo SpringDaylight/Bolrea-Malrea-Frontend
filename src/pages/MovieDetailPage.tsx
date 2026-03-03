@@ -142,9 +142,19 @@ export default function MovieDetailPage() {
   const [explanation, setExplanation] = useState<PredictionExplanation | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const visibilitySelectRef = useRef<HTMLDivElement | null>(null);
-  const isLoggedIn = useAuthState();
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAccessToken()));
   const [currentUserPk, setCurrentUserPk] = useState<string | null>(null);
   const [currentUserNickname, setCurrentUserNickname] = useState("나");
+  useEffect(() => {
+    const syncAuth = () => setIsLoggedIn(Boolean(getAccessToken()));
+    syncAuth();
+    window.addEventListener("mw_auth_change", syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener("mw_auth_change", syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
   const personalReview = isPersonalReviewDeleted
     ? null
     : localPersonalReview;
@@ -1215,10 +1225,11 @@ export default function MovieDetailPage() {
           </article>
         </section>
 
-        <section className="section" id="my-review">
-          <SectionHeader title="내 리뷰" />
-          {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
-            <div className="review-item">
+        {isLoggedIn && (
+          <section className="section" id="my-review">
+            <SectionHeader title="내 리뷰" />
+            {personalReview && personalReview.movie_id === movie.id && !myReviewOpen ? (
+              <div className="review-item">
               <article className="card review-card">
                 <div className="review-header">
                   <div className="review-user">
@@ -1707,8 +1718,9 @@ export default function MovieDetailPage() {
                 </div>
               )}
             </article>
-          )}
-        </section>
+            )}
+          </section>
+        )}
 
         <section className="section">
           <div className="section-header">
